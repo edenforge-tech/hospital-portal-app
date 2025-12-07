@@ -1,0 +1,20 @@
+{
+    "sqltools.connections": [
+        {
+            "pgOptions": {
+                "ssl": {
+                    "rejectUnauthorized": true
+                }
+            },
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "hospitalportal-db-server.postgres.database.azure.com",
+            "port": 5432,
+            "driver": "PostgreSQL",
+            "name": "Hospital Portal Dev",
+            "database": "hospitalportal",
+            "username": "postgres",
+            "password": "Eden@#$0606"
+        }
+    ]
+}

@@ -1,0 +1,185 @@
+using AuthService.Models.Identity;        public DbSet<ClinicalExamination> ClinicalExaminations { get; set; }
+        public DbSet<Appointment> Appointments { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder builder)ing AuthService.Models.Domain;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using System;
+
+namespace AuthService.Context
+{
+    public class AppDbContext : IdentityDbContext<
+        AppUser, 
+        AppRole, 
+        Guid, 
+        AppUserClaim, 
+        AppUserRole, 
+        AppUserLogin, 
+        AppRoleClaim, 
+        AppUserToken>
+    {
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        public AppDbContext(
+            DbContextOptions<AppDbContext> options,
+            IHttpContextAccessor httpContextAccessor) : base(options)
+        {
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        public DbSet<Tenant> Tenants { get; set; }
+        public DbSet<Branch> Branches { get; set; }
+        public DbSet<Permission> Permissions { get; set; }
+        public DbSet<RolePermission> RolePermissions { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<FailedLoginAttempt> FailedLoginAttempts { get; set; }
+        public DbSet<UserAttribute> UserAttributes { get; set; }
+        public DbSet<Patient> Patients { get; set; }
+        public DbSet<ClinicalExamination> ClinicalExaminations { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder builder)
+        {
+            base.OnModelCreating(builder);
+
+            // Configure Identity tables
+            builder.Entity<AppUser>(entity =>
+            {
+                entity.ToTable("users");
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+                entity.Property(e => e.UserName).HasColumnName("user_name");
+                entity.HasIndex(e => new { e.TenantId, e.UserName }).IsUnique();
+            });
+
+            builder.Entity<AppRole>(entity =>
+            {
+                entity.ToTable("roles");
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+                entity.Property(e => e.Name).HasColumnName("name");
+            });
+
+            builder.Entity<AppUserRole>(entity =>
+            {
+                entity.ToTable("user_roles");
+                entity.Property(e => e.UserId).HasColumnName("user_id");
+                entity.Property(e => e.RoleId).HasColumnName("role_id");
+                entity.Property(e => e.BranchId).HasColumnName("branch_id");
+                entity.HasOne(e => e.User)
+                    .WithMany(u => u.UserRoles)
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Role)
+                    .WithMany(r => r.UserRoles)
+                    .HasForeignKey(e => e.RoleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<Tenant>(entity =>
+            {
+                entity.ToTable("tenants");
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.HasKey(e => e.Id);
+            });
+
+            builder.Entity<Branch>(entity =>
+            {
+                entity.ToTable("branches");
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.HasOne(e => e.Tenant)
+                    .WithMany()
+                    .HasForeignKey(e => e.TenantId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<Permission>(entity =>
+            {
+                entity.ToTable("permissions");
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.HasIndex(e => new { e.TenantId, e.Code }).IsUnique();
+            });
+
+            builder.Entity<RolePermission>(entity =>
+            {
+                entity.ToTable("role_permissions");
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.HasOne(e => e.Role)
+                    .WithMany(r => r.RolePermissions)
+                    .HasForeignKey(e => e.RoleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Permission)
+                    .WithMany(p => p.RolePermissions)
+                    .HasForeignKey(e => e.PermissionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<UserAttribute>(entity =>
+            {
+                entity.ToTable("user_attributes");
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.HasOne(e => e.User)
+                    .WithMany(u => u.UserAttributes)
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<FailedLoginAttempt>(entity =>
+            {
+                entity.ToTable("failed_login_attempts");
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(e => e.EmailOrUsername).HasColumnName("email_or_username");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+                entity.Property(e => e.IpAddress).HasColumnName("ip_address");
+                entity.Property(e => e.AttemptedAt).HasColumnName("attempted_at");
+                entity.Property(e => e.Reason).HasColumnName("reason");
+            });
+
+            builder.Entity<AuditLog>(entity =>
+            {
+                entity.ToTable("audit_logs");
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+                entity.Property(e => e.UserId).HasColumnName("user_id");
+                entity.Property(e => e.Action).HasColumnName("action");
+                entity.Property(e => e.ResourceType).HasColumnName("resource_type");
+                entity.Property(e => e.ResourceId).HasColumnName("resource_id");
+                entity.Property(e => e.OldValues).HasColumnName("old_values");
+                entity.Property(e => e.NewValues).HasColumnName("new_values");
+                entity.Property(e => e.IpAddress).HasColumnName("ip_address");
+                entity.Property(e => e.UserAgent).HasColumnName("user_agent");
+                entity.Property(e => e.Status).HasColumnName("status");
+                entity.Property(e => e.Reason).HasColumnName("reason");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            });
+
+            // Enable Row-Level Security filters
+            builder.Entity<AppUser>().HasQueryFilter(u => u.TenantId == GetCurrentTenantId());
+            builder.Entity<AppRole>().HasQueryFilter(r => r.TenantId == GetCurrentTenantId());
+            builder.Entity<Permission>().HasQueryFilter(p => p.TenantId == GetCurrentTenantId());
+            builder.Entity<Branch>().HasQueryFilter(b => b.TenantId == GetCurrentTenantId());
+        }
+
+        private Guid GetCurrentTenantId()
+        {
+            var tenantId = _httpContextAccessor?.HttpContext?.Items["TenantId"] as Guid?;
+            return tenantId ?? Guid.Empty;
+        }
+
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            foreach (var entry in ChangeTracker.Entries<AppUser>()
+                .Where(e => e.State == EntityState.Modified))
+            {
+                entry.Property(p => p.UpdatedAt).CurrentValue = DateTime.UtcNow;
+            }
+
+            foreach (var entry in ChangeTracker.Entries<AppRole>()
+                .Where(e => e.State == EntityState.Modified))
+            {
+                entry.Property(p => p.UpdatedAt).CurrentValue = DateTime.UtcNow;
+            }
+
+            return base.SaveChangesAsync(cancellationToken);
+        }
+    }
+}

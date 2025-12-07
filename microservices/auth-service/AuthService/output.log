@@ -1,0 +1,46 @@
+Building...
+Starting application...
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5073
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Users\Sam Aluri\Downloads\Hospital Portal\microservices\auth-service\AuthService
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5073/api/tenants/debug/codes/db - - -
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5073/api/tenants/debug/codes/db - 404 0 - 43.7545ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[16]
+      Request reached the end of the middleware pipeline without being handled by application code. Request path: GET http://localhost:5073/api/tenants/debug/codes/db, Response status code: 404
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5073/api/tenants/debug/codes/db - - -
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5073/api/tenants/debug/codes - - -
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5073/api/tenants/debug/codes - 404 0 - 0.4802ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5073/api/tenants/debug/codes/db - 404 0 - 1.2564ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[16]
+      Request reached the end of the middleware pipeline without being handled by application code. Request path: GET http://localhost:5073/api/tenants/debug/codes, Response status code: 404
+info: Microsoft.AspNetCore.Hosting.Diagnostics[16]
+      Request reached the end of the middleware pipeline without being handled by application code. Request path: GET http://localhost:5073/api/tenants/debug/codes/db, Response status code: 404
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5073/api/tenants/debug/codes - - -
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5073/api/tenants/debug/codes - 404 0 - 0.8535ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[16]
+      Request reached the end of the middleware pipeline without being handled by application code. Request path: GET http://localhost:5073/api/tenants/debug/codes, Response status code: 404
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 OPTIONS http://localhost:5073/api/auth/login - - -
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 OPTIONS http://localhost:5073/api/auth/login - 404 0 - 0.8706ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[16]
+      Request reached the end of the middleware pipeline without being handled by application code. Request path: OPTIONS http://localhost:5073/api/auth/login, Response status code: 404
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 OPTIONS http://localhost:5073/api/auth/login - - -
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 OPTIONS http://localhost:5073/api/auth/login - 404 0 - 0.6229ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[16]
+      Request reached the end of the middleware pipeline without being handled by application code. Request path: OPTIONS http://localhost:5073/api/auth/login, Response status code: 404

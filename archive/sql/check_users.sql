@@ -1,0 +1,1 @@
+SELECT id, "UserName", "Email" FROM "AspNetUsers" LIMIT 10;

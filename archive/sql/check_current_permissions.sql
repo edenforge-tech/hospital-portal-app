@@ -1,0 +1,1 @@
+SELECT "Module", COUNT(*) as count FROM permissions GROUP BY "Module" ORDER BY "Module";
