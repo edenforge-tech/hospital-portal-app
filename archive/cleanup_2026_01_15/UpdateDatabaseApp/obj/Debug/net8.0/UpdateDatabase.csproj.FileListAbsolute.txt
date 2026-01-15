@@ -1,0 +1,6 @@
+C:\Users\Sam Aluri\Downloads\Hospital Portal\UpdateDatabaseApp\obj\Debug\net8.0\UpdateDatabase.csproj.AssemblyReference.cache
+C:\Users\Sam Aluri\Downloads\Hospital Portal\UpdateDatabaseApp\obj\Debug\net8.0\UpdateDatabase.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Sam Aluri\Downloads\Hospital Portal\UpdateDatabaseApp\obj\Debug\net8.0\UpdateDatabase.AssemblyInfoInputs.cache
+C:\Users\Sam Aluri\Downloads\Hospital Portal\UpdateDatabaseApp\obj\Debug\net8.0\UpdateDatabase.AssemblyInfo.cs
+C:\Users\Sam Aluri\Downloads\Hospital Portal\UpdateDatabaseApp\obj\Debug\net8.0\UpdateDatabase.csproj.CoreCompileInputs.cache
+C:\Users\Sam Aluri\Downloads\Hospital Portal\UpdateDatabaseApp\obj\Debug\net8.0\UpdateDatabase.sourcelink.json
