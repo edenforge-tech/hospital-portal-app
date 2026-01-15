@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 using AuthService.Models.Identity;
 
 namespace AuthService.Models.Domain
@@ -113,6 +114,7 @@ namespace AuthService.Models.Domain
         [ForeignKey("TenantId")]
         public virtual Tenant? Tenant { get; set; }
 
+        [JsonIgnore] // Prevent circular reference in JSON serialization
         public virtual ICollection<UserSession>? Sessions { get; set; }
     }
 

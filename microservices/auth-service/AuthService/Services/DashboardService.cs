@@ -95,7 +95,7 @@ public class DashboardService : IDashboardService
     public async Task<QuickStats> GetQuickStatsAsync(Guid tenantId)
     {
         var now = DateTime.UtcNow;
-        var thisMonthStart = new DateTime(now.Year, now.Month, 1);
+        var thisMonthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         var lastMonthStart = thisMonthStart.AddMonths(-1);
 
         // User growth this month vs last month
@@ -181,50 +181,23 @@ public class DashboardService : IDashboardService
 
     public async Task<List<Alert>> GetAlertsAsync(Guid tenantId)
     {
-        // In a real implementation, this would query an alerts table
-        // For now, we'll generate some sample alerts
-        var alerts = new List<Alert>();
-
-        // Check for failed login attempts
-        var failedLogins = await _context.FailedLoginAttempts
-            .Where(f => f.TenantId == tenantId && f.AttemptedAt >= DateTime.UtcNow.AddHours(-24))
-            .CountAsync();
-
-        if (failedLogins > 10)
-        {
-            alerts.Add(new Alert
+        // Query system_alert table for active (non-dismissed) alerts
+        var systemAlerts = await _context.SystemAlerts
+            .Where(a => !a.IsDismissed)
+            .OrderByDescending(a => a.CreatedAt)
+            .Select(a => new Alert
             {
-                Id = Guid.NewGuid(),
-                Title = "Security Alert",
-                Message = $"{failedLogins} failed login attempts in the last 24 hours",
-                Severity = "warning",
-                CreatedAt = DateTime.UtcNow,
-                IsRead = false,
-                TenantId = tenantId
-            });
-        }
+                Id = a.Id,
+                Title = a.Title,
+                Message = a.Description ?? a.Title,
+                Severity = a.Severity,
+                CreatedAt = a.CreatedAt,
+                IsRead = false, // System alerts are not read/unread, they're dismissed
+                TenantId = tenantId // System alerts are global, but we associate with current tenant
+            })
+            .ToListAsync();
 
-        // Check for users without MFA
-        var usersWithoutMfa = await _context.Users
-            .Where(u => u.TenantId == tenantId && u.DeletedAt == null)
-            .CountAsync(u => !_context.Set<Models.Identity.UserMfa>()
-                .Any(m => m.UserId == u.Id && m.IsEnabled));
-
-        if (usersWithoutMfa > 0)
-        {
-            alerts.Add(new Alert
-            {
-                Id = Guid.NewGuid(),
-                Title = "MFA Configuration",
-                Message = $"{usersWithoutMfa} users have not enabled MFA",
-                Severity = "info",
-                CreatedAt = DateTime.UtcNow,
-                IsRead = false,
-                TenantId = tenantId
-            });
-        }
-
-        return alerts;
+        return systemAlerts;
     }
 
     public async Task<bool> DismissAlertAsync(Guid alertId, Guid tenantId)

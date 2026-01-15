@@ -25,6 +25,8 @@ namespace AuthService.Services
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim("sub", user.Id.ToString()), // Add "sub" claim for GetCurrentUserId()
+                new Claim("user_id", user.Id.ToString()), // Add "user_id" claim as fallback
                 new Claim(ClaimTypes.Name, user.UserName),
                 new Claim(ClaimTypes.Email, user.Email),
                 new Claim("tenant_id", user.TenantId.ToString())

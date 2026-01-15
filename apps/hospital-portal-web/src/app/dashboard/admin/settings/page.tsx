@@ -3,7 +3,7 @@
 import { useAuthStore } from '@/lib/auth-store';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { getApi } from '@/lib/api';
+import { getApi, settingsApi } from '@/lib/api';
 
 type TabType = 'general' | 'email' | 'security' | 'hipaa' | 'backup' | 'integrations';
 
@@ -122,14 +122,23 @@ export default function SettingsPage() {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      // For now, load from localStorage. Later integrate with backend
-      const savedSettings = localStorage.getItem('systemSettings');
-      if (savedSettings) {
-        setSettings(JSON.parse(savedSettings));
-      }
+      setError('');
+      
+      const response = await settingsApi.getAll();
+      const loadedSettings = response.data;
+      
+      // Merge loaded settings with defaults to handle missing keys
+      setSettings(prev => ({
+        general: { ...prev.general, ...(loadedSettings.general || {}) },
+        email: { ...prev.email, ...(loadedSettings.email || {}) },
+        security: { ...prev.security, ...(loadedSettings.security || {}) },
+        hipaa: { ...prev.hipaa, ...(loadedSettings.hipaa || {}) },
+        backup: { ...prev.backup, ...(loadedSettings.backup || {}) },
+        integrations: { ...prev.integrations, ...(loadedSettings.integrations || {}) },
+      }));
     } catch (err: any) {
       console.error('Error loading settings:', err);
-      setError('Failed to load settings');
+      setError('Failed to load settings from database');
     } finally {
       setLoading(false);
     }
@@ -141,16 +150,14 @@ export default function SettingsPage() {
       setError('');
       setSuccess('');
 
-      // For now, save to localStorage. Later integrate with backend
-      localStorage.setItem('systemSettings', JSON.stringify(settings));
+      // Save current tab's settings to database
+      await settingsApi.update(activeTab, settings[activeTab]);
 
-      // TODO: Integrate with backend API
-      // await getApi().put('/system-settings', settings);
-
-      setSuccess('Settings saved successfully');
+      setSuccess(`${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} settings saved successfully`);
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to save settings');
+      console.error('Error saving settings:', err);
+      setError(err.response?.data?.message || 'Failed to save settings to database');
     } finally {
       setSaving(false);
     }

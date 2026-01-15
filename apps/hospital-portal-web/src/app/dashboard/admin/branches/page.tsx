@@ -4,6 +4,12 @@ import { useAuthStore } from '@/lib/auth-store';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getApi } from '@/lib/api';
+import { Country, State, City } from 'country-state-city';
+import BranchDetailsModal from '@/components/admin/BranchDetailsModal';
+import EditBranchModal from '@/components/admin/EditBranchModal';
+import AddBranchModal from '@/components/admin/AddBranchModal';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 
 interface Branch {
   id: string;
@@ -84,10 +90,18 @@ export default function BranchesPage() {
   const [filterEmergency, setFilterEmergency] = useState<boolean | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [formStep, setFormStep] = useState<FormStep>(1);
   const [activeTab, setActiveTab] = useState<'overview' | 'departments' | 'staff' | 'activities'>('overview');
+  
+  // Cascading address dropdowns
+  const [selectedCountryIso, setSelectedCountryIso] = useState<string>('US');
+  const [selectedStateIso, setSelectedStateIso] = useState<string>('');
+  const [availableStates, setAvailableStates] = useState<any[]>([]);
+  const [availableCities, setAvailableCities] = useState<any[]>([]);
   
   // Form state
   const [formData, setFormData] = useState<Partial<Branch>>({
@@ -102,7 +116,7 @@ export default function BranchesPage() {
     address: '',
     city: '',
     state: '',
-    country: 'United States',
+    country: 'US',
     postalCode: '',
     phoneNumber: '',
     faxNumber: '',
@@ -132,6 +146,33 @@ export default function BranchesPage() {
       loadData();
     }
   }, [user, router]);
+
+  // Initialize cascading dropdowns when form data changes
+  useEffect(() => {
+    if (formData.country || formData.state || formData.city) {
+      // Find country ISO code
+      const countries = Country.getAllCountries();
+      const country = countries.find(c => 
+        c.name === formData.country || c.isoCode === formData.country
+      );
+      
+      if (country) {
+        setSelectedCountryIso(country.isoCode);
+        const states = State.getStatesOfCountry(country.isoCode);
+        setAvailableStates(states);
+        
+        // Find state ISO code
+        if (formData.state) {
+          const state = states.find(s => s.name === formData.state || s.isoCode === formData.state);
+          if (state) {
+            setSelectedStateIso(state.isoCode);
+            const cities = City.getCitiesOfState(country.isoCode, state.isoCode);
+            setAvailableCities(cities);
+          }
+        }
+      }
+    }
+  }, [formData.country, formData.state, formData.city]);
 
   const loadData = async () => {
     try {
@@ -166,18 +207,20 @@ export default function BranchesPage() {
       
     } catch (err: any) {
       console.error('Error loading data:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to load branches';
-      setError(`Failed to load branches: ${errorMessage}`);
-      // Auto-clear error after 5 seconds
-      setTimeout(() => setError(''), 5000);
+      console.error('Error response:', err.response);
+      console.error('Error response data:', err.response?.data);
+      const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to load branches';
+      const stack = err.response?.data?.stack;
+      setError(`Failed to load branches: ${errorMessage}${stack ? '\n\nStack: ' + stack.substring(0, 500) : ''}`);
+      // Auto-clear error after 10 seconds
+      setTimeout(() => setError(''), 10000);
     } finally {
       setLoading(false);
     }
   };
 
   const handleCreateBranch = () => {
-    setViewMode('create');
-    setFormStep(1);
+    setIsAddModalOpen(true);
     setSelectedBranch(null);
     setFormData({
       organizationId: '',
@@ -191,7 +234,7 @@ export default function BranchesPage() {
       address: '',
       city: '',
       state: '',
-      country: 'United States',
+      country: 'US',
       postalCode: '',
       phoneNumber: '',
       faxNumber: '',
@@ -214,11 +257,80 @@ export default function BranchesPage() {
     setDepartmentTemplate('');
   };
 
-  const handleEditBranch = (branch: Branch) => {
+  const handleEditBranch = async (branch: Branch) => {
     setSelectedBranch(branch);
-    setFormData(branch);
-    setViewMode('edit');
-    setFormStep(1);
+    
+    // Fetch full details from backend
+    try {
+      const response = await getApi().get(`/branches/${branch.id}`);
+      const details = response.data;
+      
+      // Map backend field names to frontend field names
+      setFormData({
+        organizationId: details.organizationId || branch.organizationId,
+        branchName: details.name || branch.name || branch.branchName || '',
+        branchCode: details.code || branch.code || branch.branchCode || '',
+        branchType: details.branchType || branch.branchType || 'Hospital',
+        region: details.region || branch.region || 'North America',
+        status: details.status || branch.status || 'Active',
+        operationalStatus: details.operationalStatus || branch.operationalStatus || 'Operational',
+        description: details.description || branch.description || '',
+        
+        // Address fields
+        address: details.addressLine1 || branch.address || '',
+        city: details.city || branch.city || '',
+        state: details.stateProvince || branch.state || '',
+        country: details.countryCode || branch.country || '',
+        postalCode: details.postalCode || branch.postalCode || '',
+        latitude: details.latitude || branch.latitude,
+        longitude: details.longitude || branch.longitude,
+        
+        // Contact fields
+        phoneNumber: details.phone || branch.phoneNumber || branch.phone || '',
+        faxNumber: details.fax || branch.faxNumber || branch.fax || '',
+        email: details.email || branch.email || '',
+        website: details.website || branch.website || '',
+        
+        // Regional settings
+        timezone: details.timezone || branch.timezone || 'America/New_York',
+        currency: details.currency || branch.currency || 'USD',
+        primaryLanguage: details.languagePrimary || branch.primaryLanguage || 'English',
+        
+        // Operational hours
+        operatingHoursStart: details.operationalHoursStart ? String(details.operationalHoursStart).substring(0, 5) : branch.operatingHoursStart || '08:00',
+        operatingHoursEnd: details.operationalHoursEnd ? String(details.operationalHoursEnd).substring(0, 5) : branch.operatingHoursEnd || '17:00',
+        emergencySupport24x7: details.emergencySupport24x7 !== undefined ? details.emergencySupport24x7 : branch.emergencySupport24x7 || false,
+        
+        // Capacity fields
+        totalBeds: details.totalBeds !== undefined ? details.totalBeds : branch.totalBeds || 0,
+        icuBeds: details.icuBeds !== undefined ? details.icuBeds : branch.icuBeds || 0,
+        emergencyBeds: details.emergencyBeds !== undefined ? details.emergencyBeds : branch.emergencyBeds || 0,
+        
+        // Compliance fields
+        hipaaCompliant: details.hipaaCompliant !== undefined ? details.hipaaCompliant : branch.hipaaCompliant || false,
+        nabhAccredited: details.nabhAccredited !== undefined ? details.nabhAccredited : branch.nabhAccredited || false,
+        jciAccredited: details.jciAccredited !== undefined ? details.jciAccredited : branch.jciAccredited || false,
+        iso9001Certified: details.iso9001Certified !== undefined ? details.iso9001Certified : branch.iso9001Certified || false,
+      });
+      
+      // Close view modal and open edit modal
+      setViewMode('list');
+      setIsEditModalOpen(true);
+    } catch (err) {
+      console.error('Failed to load branch details:', err);
+      // Fall back to existing data
+      setFormData({
+        ...branch,
+        branchName: branch.name || branch.branchName || '',
+        branchCode: branch.code || branch.branchCode || '',
+        phoneNumber: branch.phoneNumber || branch.phone || '',
+        faxNumber: branch.faxNumber || branch.fax || '',
+      });
+      
+      // Close view modal and open edit modal even with fallback data
+      setViewMode('list');
+      setIsEditModalOpen(true);
+    }
   };
 
   const handleViewBranch = (branch: Branch) => {
@@ -244,17 +356,103 @@ export default function BranchesPage() {
     }
   };
 
+  const handleSaveFromModal = async (updatedData: Partial<Branch>) => {
+    if (!selectedBranch) return;
+
+    try {
+      // Transform form data to match backend API field names
+      const apiPayload = {
+        ...updatedData,
+        name: updatedData.branchName,
+        code: updatedData.branchCode,
+        addressLine1: updatedData.address,
+        stateProvince: updatedData.state,
+        countryCode: updatedData.country,
+        phone: updatedData.phoneNumber,
+        fax: updatedData.faxNumber,
+        languagePrimary: updatedData.primaryLanguage,
+        operationalHoursStart: updatedData.operatingHoursStart,
+        operationalHoursEnd: updatedData.operatingHoursEnd,
+      };
+
+      await getApi().put(`/branches/${selectedBranch.id}`, apiPayload);
+      setSuccess('Branch updated successfully');
+      setIsEditModalOpen(false);
+      loadData();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to save branch';
+      setError(`Failed to save branch: ${errorMessage}`);
+      console.error('Branch save error:', err.response?.data);
+      throw err; // Rethrow so modal can handle it
+    }
+  };
+
+  const handleCreateFromModal = async (newData: Partial<Branch>) => {
+    try {
+      // Transform form data to match backend API field names
+      const apiPayload = {
+        ...newData,
+        name: newData.branchName,
+        code: newData.branchCode,
+        addressLine1: newData.address,
+        stateProvince: newData.state,
+        countryCode: newData.country,
+        phone: newData.phoneNumber,
+        fax: newData.faxNumber,
+        languagePrimary: newData.primaryLanguage,
+        operationalHoursStart: newData.operatingHoursStart,
+        operationalHoursEnd: newData.operatingHoursEnd,
+      };
+
+      await getApi().post('/branches', apiPayload);
+      setSuccess('Branch created successfully');
+      setIsAddModalOpen(false);
+      loadData();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to create branch';
+      setError(`Failed to create branch: ${errorMessage}`);
+      console.error('Branch create error:', err.response?.data);
+      throw err; // Rethrow so modal can handle it
+    }
+  };
+
   const handleSubmitBranch = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent form submission if not on the final step
+    if (viewMode === 'edit' && formStep !== 4) {
+      return; // Don't submit if not on final step in edit mode
+    }
+    if (viewMode === 'create' && formStep !== 5) {
+      return; // Don't submit if not on final step in create mode
+    }
+    
     setError('');
     setSuccess('');
 
     try {
+      // Transform form data to match backend API field names
+      const apiPayload = {
+        ...formData,
+        name: formData.branchName,
+        code: formData.branchCode,
+        addressLine1: formData.address,
+        stateProvince: formData.state,
+        countryCode: formData.country,
+        phone: formData.phoneNumber,
+        fax: formData.faxNumber,
+        languagePrimary: formData.primaryLanguage,
+        operationalHoursStart: formData.operatingHoursStart,
+        operationalHoursEnd: formData.operatingHoursEnd,
+      };
+      
       if (viewMode === 'create') {
-        await getApi().post('/branches', formData);
+        await getApi().post('/branches', apiPayload);
         setSuccess('Branch created successfully');
       } else if (viewMode === 'edit' && selectedBranch) {
-        await getApi().put(`/branches/${selectedBranch.id}`, formData);
+        await getApi().put(`/branches/${selectedBranch.id}`, apiPayload);
         setSuccess('Branch updated successfully');
       }
       
@@ -264,11 +462,46 @@ export default function BranchesPage() {
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || err.message || 'Failed to save branch';
       setError(`Failed to save branch: ${errorMessage}`);
+      console.error('Branch save error:', err.response?.data);
     }
   };
 
   const handleFormChange = (field: keyof Branch, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleCountryChange = (countryIso: string) => {
+    setSelectedCountryIso(countryIso);
+    setSelectedStateIso('');
+    
+    // Store ISO code instead of country name (database expects VARCHAR(4))
+    setFormData(prev => ({ ...prev, country: countryIso, state: '', city: '' }));
+    
+    if (countryIso) {
+      const states = State.getStatesOfCountry(countryIso);
+      setAvailableStates(states);
+      setAvailableCities([]);
+    } else {
+      setAvailableStates([]);
+      setAvailableCities([]);
+    }
+  };
+
+  const handleStateChange = (stateIso: string) => {
+    setSelectedStateIso(stateIso);
+    const stateName = availableStates.find(s => s.isoCode === stateIso)?.name || '';
+    setFormData(prev => ({ ...prev, state: stateName, city: '' }));
+    
+    if (stateIso && selectedCountryIso) {
+      const cities = City.getCitiesOfState(selectedCountryIso, stateIso);
+      setAvailableCities(cities);
+    } else {
+      setAvailableCities([]);
+    }
+  };
+
+  const handleCityChange = (cityName: string) => {
+    setFormData(prev => ({ ...prev, city: cityName }));
   };
 
   const getStatusBadgeColor = (status: string) => {
@@ -317,7 +550,7 @@ export default function BranchesPage() {
   if (loading) {
     return (
       <div className="p-8">
-        <div className="max-w-7xl mx-auto">
+        <div>
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
@@ -333,7 +566,7 @@ export default function BranchesPage() {
   if (viewMode === 'list') {
     return (
       <div className="p-8">
-        <div className="max-w-7xl mx-auto">
+        <div>
           {/* Header */}
           <div className="mb-8 flex justify-between items-center">
             <div>
@@ -553,6 +786,23 @@ export default function BranchesPage() {
             Showing {filteredBranches.length} of {branches.length} branches
           </div>
         </div>
+
+        {/* Edit Branch Modal */}
+        <EditBranchModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          branch={selectedBranch}
+          organizations={organizations}
+          onSave={handleSaveFromModal}
+        />
+
+        {/* Add Branch Modal */}
+        <AddBranchModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          organizations={organizations}
+          onCreate={handleCreateFromModal}
+        />
       </div>
     );
   }
@@ -561,7 +811,7 @@ export default function BranchesPage() {
   if (viewMode === 'create' || viewMode === 'edit') {
     return (
       <div className="p-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="mb-8">
             <button
@@ -588,7 +838,7 @@ export default function BranchesPage() {
           {/* Multi-step Form Progress */}
           <div className="mb-8 bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center justify-between">
-              {[1, 2, 3, 4, 5].map((step) => (
+              {(viewMode === 'edit' ? [1, 2, 3, 4] : [1, 2, 3, 4, 5]).map((step) => (
                 <div key={step} className="flex items-center">
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
@@ -610,7 +860,7 @@ export default function BranchesPage() {
                       {step === 5 && 'Departments'}
                     </div>
                   </div>
-                  {step < 5 && (
+                  {step < (viewMode === 'edit' ? 4 : 5) && (
                     <div className="w-12 h-1 mx-4 bg-gray-200">
                       <div
                         className={`h-full ${formStep > step ? 'bg-green-500' : 'bg-gray-200'}`}
@@ -623,7 +873,7 @@ export default function BranchesPage() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmitBranch} className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-white rounded-lg shadow-md p-6">
             {/* Step 1: Basic Info */}
             {formStep === 1 && (
               <div className="space-y-6">
@@ -785,56 +1035,82 @@ export default function BranchesPage() {
                   />
                 </div>
 
-                {/* City, State, Country */}
-                <div className="grid grid-cols-3 gap-4">
+                {/* Country */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Country <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={selectedCountryIso}
+                    onChange={(e) => handleCountryChange(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="">Select Country</option>
+                    {Country.getAllCountries().map((country) => (
+                      <option key={country.isoCode} value={country.isoCode}>
+                        {country.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* State/Province and City */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      State/Province {selectedCountryIso && availableStates.length > 0 && <span className="text-red-500">*</span>}
+                    </label>
+                    <select
+                      value={selectedStateIso}
+                      onChange={(e) => handleStateChange(e.target.value)}
+                      disabled={!selectedCountryIso || availableStates.length === 0}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">
+                        {!selectedCountryIso ? 'Select country first' : availableStates.length === 0 ? 'No states available' : 'Select State'}
+                      </option>
+                      {availableStates.map((state) => (
+                        <option key={state.isoCode} value={state.isoCode}>
+                          {state.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       City
                     </label>
-                    <input
-                      type="text"
-                      value={formData.city}
-                      onChange={(e) => handleFormChange('city', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    />
+                    <select
+                      value={formData.city || ''}
+                      onChange={(e) => handleCityChange(e.target.value)}
+                      disabled={!selectedStateIso || availableCities.length === 0}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">
+                        {!selectedStateIso ? 'Select state first' : availableCities.length === 0 ? 'No cities available' : 'Select City'}
+                      </option>
+                      {availableCities.map((city) => (
+                        <option key={city.name} value={city.name}>
+                          {city.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      State/Province
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.state}
-                      onChange={(e) => handleFormChange('state', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Postal Code
-                    </label>
-                    <input
+                {/* Postal Code */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Postal Code
+                  </label>
+                  <input
                       type="text"
                       value={formData.postalCode}
                       onChange={(e) => handleFormChange('postalCode', e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     />
-                  </div>
-                </div>
-
-                {/* Country */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Country
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.country}
-                    onChange={(e) => handleFormChange('country', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
                 </div>
 
                 {/* Coordinates */}
@@ -874,12 +1150,32 @@ export default function BranchesPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Phone Number
                     </label>
-                    <input
-                      type="tel"
+                    <PhoneInput
+                      country={'us'}
                       value={formData.phoneNumber}
-                      onChange={(e) => handleFormChange('phoneNumber', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder="+1-234-567-8900"
+                      onChange={(phone) => handleFormChange('phoneNumber', phone)}
+                      containerClass="w-full"
+                      inputClass="w-full"
+                      buttonClass="border-gray-300"
+                      inputStyle={{
+                        width: '100%',
+                        height: '42px',
+                        fontSize: '14px',
+                        paddingLeft: '48px',
+                        borderRadius: '0.5rem',
+                        border: '1px solid #d1d5db',
+                      }}
+                      buttonStyle={{
+                        borderRadius: '0.5rem 0 0 0.5rem',
+                        border: '1px solid #d1d5db',
+                        backgroundColor: '#f9fafb',
+                      }}
+                      dropdownStyle={{
+                        borderRadius: '0.5rem',
+                      }}
+                      enableSearch
+                      searchPlaceholder="Search country"
+                      placeholder="+1 (555) 123-4567"
                     />
                   </div>
 
@@ -887,11 +1183,32 @@ export default function BranchesPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Fax Number
                     </label>
-                    <input
-                      type="tel"
+                    <PhoneInput
+                      country={'us'}
                       value={formData.faxNumber}
-                      onChange={(e) => handleFormChange('faxNumber', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      onChange={(phone) => handleFormChange('faxNumber', phone)}
+                      containerClass="w-full"
+                      inputClass="w-full"
+                      buttonClass="border-gray-300"
+                      inputStyle={{
+                        width: '100%',
+                        height: '42px',
+                        fontSize: '14px',
+                        paddingLeft: '48px',
+                        borderRadius: '0.5rem',
+                        border: '1px solid #d1d5db',
+                      }}
+                      buttonStyle={{
+                        borderRadius: '0.5rem 0 0 0.5rem',
+                        border: '1px solid #d1d5db',
+                        backgroundColor: '#f9fafb',
+                      }}
+                      dropdownStyle={{
+                        borderRadius: '0.5rem',
+                      }}
+                      enableSearch
+                      searchPlaceholder="Search country"
+                      placeholder="+1 (555) 123-4567"
                     />
                   </div>
                 </div>
@@ -1317,436 +1634,57 @@ export default function BranchesPage() {
                 {formStep === 1 ? 'Cancel' : 'Previous'}
               </button>
 
-              {formStep < 5 ? (
+              {/* Show Update button on step 4 for edit mode, Next for create mode or earlier steps */}
+              {viewMode === 'edit' && formStep === 4 ? (
                 <button
                   type="button"
-                  onClick={() => setFormStep((formStep + 1) as FormStep)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleSubmitBranch(e as any);
+                  }}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                >
+                  Update Branch
+                </button>
+              ) : viewMode === 'create' && formStep === 5 ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleSubmitBranch(e as any);
+                  }}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                >
+                  Create Branch
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const maxStep = viewMode === 'edit' ? 4 : 5;
+                    const nextStep = Math.min(formStep + 1, maxStep) as FormStep;
+                    setFormStep(nextStep);
+                  }}
                   className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
                 >
                   Next
                 </button>
-              ) : (
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-                >
-                  {viewMode === 'create' ? 'Create Branch' : 'Update Branch'}
-                </button>
               )}
             </div>
-          </form>
+          </div>
         </div>
       </div>
     );
   }
 
-  // DETAILS VIEW
+  // DETAILS VIEW (Modal)
   if (viewMode === 'details' && selectedBranch) {
     return (
-      <div className="p-8">
-        <div className="max-w-7xl mx-auto">
-          {/* Header with Action Buttons */}
-          <div className="mb-6">
-            <button
-              onClick={() => setViewMode('list')}
-              className="text-indigo-600 hover:text-indigo-800 mb-4 flex items-center"
-            >
-              ← Back to Branches
-            </button>
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">{selectedBranch.name || selectedBranch.branchName}</h1>
-                <p className="text-gray-600 mt-1">{selectedBranch.code || selectedBranch.branchCode} • {selectedBranch.city}, {selectedBranch.region}</p>
-              </div>
-              
-              <div className="flex gap-3">
-                <button
-                  onClick={() => handleEditBranch(selectedBranch)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                >
-                  ✏️ Edit Branch
-                </button>
-                <button
-                  onClick={() => {
-                    // Clone functionality - to be implemented
-                    alert('Clone feature coming soon!');
-                  }}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-                >
-                  📋 Clone Branch
-                </button>
-                <button
-                  onClick={() => handleDeleteBranch(selectedBranch.id)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-                >
-                  🗑️ Delete
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            {/* Total Departments */}
-            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Departments</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">{selectedBranch.departmentCount || 0}</p>
-                </div>
-                <div className="text-4xl">🏥</div>
-              </div>
-            </div>
-
-            {/* Total Staff */}
-            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Staff</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">{selectedBranch.staffCount || 0}</p>
-                </div>
-                <div className="text-4xl">👥</div>
-              </div>
-            </div>
-
-            {/* Total Patients */}
-            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Patients</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">{selectedBranch.patientCount || 0}</p>
-                </div>
-                <div className="text-4xl">🏃</div>
-              </div>
-            </div>
-
-            {/* Operational Status */}
-            <div className={`bg-white rounded-lg shadow-md p-6 border-l-4 ${
-              selectedBranch.operationalStatus === 'Operational' ? 'border-green-500' :
-              selectedBranch.operationalStatus === 'Limited' ? 'border-yellow-500' : 'border-red-500'
-            }`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Status</p>
-                  <p className="text-xl font-bold text-gray-900 mt-2">{selectedBranch.operationalStatus || 'Unknown'}</p>
-                  {selectedBranch.emergencySupport24x7 && (
-                    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800 mt-2">
-                      24/7 Emergency
-                    </span>
-                  )}
-                </div>
-                <div className="text-4xl">
-                  {selectedBranch.operationalStatus === 'Operational' ? '✅' : 
-                   selectedBranch.operationalStatus === 'Limited' ? '⚠️' : '🔴'}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="bg-white rounded-lg shadow-md mb-6">
-            <div className="border-b border-gray-200">
-              <nav className="flex -mb-px">
-                <button
-                  onClick={() => setActiveTab('overview')}
-                  className={`px-6 py-3 border-b-2 font-medium text-sm ${
-                    activeTab === 'overview'
-                      ? 'border-indigo-500 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  Overview
-                </button>
-                <button
-                  onClick={() => setActiveTab('departments')}
-                  className={`px-6 py-3 border-b-2 font-medium text-sm ${
-                    activeTab === 'departments'
-                      ? 'border-indigo-500 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  Departments ({selectedBranch.departmentCount || 0})
-                </button>
-                <button
-                  onClick={() => setActiveTab('staff')}
-                  className={`px-6 py-3 border-b-2 font-medium text-sm ${
-                    activeTab === 'staff'
-                      ? 'border-indigo-500 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  Staff ({selectedBranch.staffCount || 0})
-                </button>
-                <button
-                  onClick={() => setActiveTab('activities')}
-                  className={`px-6 py-3 border-b-2 font-medium text-sm ${
-                    activeTab === 'activities'
-                      ? 'border-indigo-500 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  Recent Activities
-                </button>
-              </nav>
-            </div>
-
-            {/* Tab Content */}
-            <div className="p-6">
-              {/* Overview Tab */}
-              {activeTab === 'overview' && (
-                <div className="space-y-6">
-                  {/* Basic Information Card */}
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Branch Name</p>
-                        <p className="text-base text-gray-900 mt-1">{selectedBranch.name || selectedBranch.branchName}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Branch Code</p>
-                        <p className="text-base text-gray-900 mt-1">{selectedBranch.code || selectedBranch.branchCode}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Organization</p>
-                        <p className="text-base text-gray-900 mt-1">{selectedBranch.organizationName || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Branch Type</p>
-                        <p className="text-base text-gray-900 mt-1">{selectedBranch.branchType || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Region</p>
-                        <p className="text-base text-gray-900 mt-1">{selectedBranch.region}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Status</p>
-                        <span className={`inline-flex px-2 py-1 rounded text-xs font-semibold ${getStatusBadgeColor(selectedBranch.status)}`}>
-                          {selectedBranch.status}
-                        </span>
-                      </div>
-                    </div>
-                    {selectedBranch.description && (
-                      <div className="mt-4">
-                        <p className="text-sm font-medium text-gray-600">Description</p>
-                        <p className="text-base text-gray-700 mt-1">{selectedBranch.description}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Address & Contact Card */}
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Address & Contact</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="col-span-2">
-                        <p className="text-sm font-medium text-gray-600">Address</p>
-                        <p className="text-base text-gray-900 mt-1">
-                          {selectedBranch.address || 'N/A'}
-                          {selectedBranch.city && <>, {selectedBranch.city}</>}
-                          {selectedBranch.state && <>, {selectedBranch.state}</>}
-                          {selectedBranch.postalCode && <> {selectedBranch.postalCode}</>}
-                          {selectedBranch.country && <>, {selectedBranch.country}</>}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Phone</p>
-                        <p className="text-base text-gray-900 mt-1">{selectedBranch.phoneNumber || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Email</p>
-                        <p className="text-base text-gray-900 mt-1">{selectedBranch.email || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Fax</p>
-                        <p className="text-base text-gray-900 mt-1">{selectedBranch.faxNumber || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Website</p>
-                        {selectedBranch.website ? (
-                          <a href={selectedBranch.website} target="_blank" rel="noopener noreferrer" className="text-base text-indigo-600 hover:text-indigo-800 mt-1">
-                            {selectedBranch.website}
-                          </a>
-                        ) : (
-                          <p className="text-base text-gray-900 mt-1">N/A</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Operational Details Card */}
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Operational Details</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Operating Hours</p>
-                        <p className="text-base text-gray-900 mt-1">
-                          {selectedBranch.operatingHoursStart && selectedBranch.operatingHoursEnd
-                            ? `${selectedBranch.operatingHoursStart} - ${selectedBranch.operatingHoursEnd}`
-                            : 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Emergency Support</p>
-                        <p className="text-base text-gray-900 mt-1">
-                          {selectedBranch.emergencySupport24x7 ? '✅ 24/7 Available' : '❌ Not Available'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Total Beds</p>
-                        <p className="text-base text-gray-900 mt-1">{selectedBranch.totalBeds || 0}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Available Beds</p>
-                        <p className="text-base text-gray-900 mt-1">{selectedBranch.availableBeds || 0}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">ICU Beds</p>
-                        <p className="text-base text-gray-900 mt-1">{selectedBranch.icuBeds || 0}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Emergency Beds</p>
-                        <p className="text-base text-gray-900 mt-1">{selectedBranch.emergencyBeds || 0}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Regional Configuration Card */}
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Regional Configuration</h3>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Timezone</p>
-                        <p className="text-base text-gray-900 mt-1">{selectedBranch.timezone || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Currency</p>
-                        <p className="text-base text-gray-900 mt-1">{selectedBranch.currency || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Primary Language</p>
-                        <p className="text-base text-gray-900 mt-1">{selectedBranch.primaryLanguage || 'N/A'}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Compliance & Certifications Card */}
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Compliance & Certifications</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="flex items-center">
-                        <span className="mr-2">{selectedBranch.hipaaCompliant ? '✅' : '❌'}</span>
-                        <span className="text-base text-gray-900">HIPAA Compliant</span>
-                      </div>
-                      <div className="flex items-center">
-                        <span className="mr-2">{selectedBranch.nabhAccredited ? '✅' : '❌'}</span>
-                        <span className="text-base text-gray-900">NABH Accredited</span>
-                      </div>
-                      <div className="flex items-center">
-                        <span className="mr-2">{selectedBranch.jciAccredited ? '✅' : '❌'}</span>
-                        <span className="text-base text-gray-900">JCI Accredited</span>
-                      </div>
-                      <div className="flex items-center">
-                        <span className="mr-2">{selectedBranch.iso9001Certified ? '✅' : '❌'}</span>
-                        <span className="text-base text-gray-900">ISO 9001 Certified</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Map Location Card */}
-                  {selectedBranch.latitude && selectedBranch.longitude && (
-                    <div className="border border-gray-200 rounded-lg p-6">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Location</h3>
-                      <div className="bg-gray-100 rounded-lg h-64 flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="text-6xl mb-4">🗺️</div>
-                          <p className="text-gray-600">Map integration coming soon</p>
-                          <p className="text-sm text-gray-500 mt-2">
-                            Coordinates: {selectedBranch.latitude}, {selectedBranch.longitude}
-                          </p>
-                          <a
-                            href={`https://www.google.com/maps?q=${selectedBranch.latitude},${selectedBranch.longitude}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-block mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                          >
-                            Open in Google Maps
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Departments Tab */}
-              {activeTab === 'departments' && (
-                <div>
-                  <div className="text-center py-12">
-                    <div className="text-6xl mb-4">🏥</div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Departments Module</h3>
-                    <p className="text-gray-600">
-                      Department management will be integrated here
-                    </p>
-                    <p className="text-sm text-gray-500 mt-2">
-                      Total Departments: {selectedBranch.departmentCount || 0}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Staff Tab */}
-              {activeTab === 'staff' && (
-                <div>
-                  <div className="text-center py-12">
-                    <div className="text-6xl mb-4">👥</div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Staff Module</h3>
-                    <p className="text-gray-600">
-                      Staff management will be integrated here
-                    </p>
-                    <p className="text-sm text-gray-500 mt-2">
-                      Total Staff: {selectedBranch.staffCount || 0}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Activities Tab */}
-              {activeTab === 'activities' && (
-                <div>
-                  <div className="text-center py-12">
-                    <div className="text-6xl mb-4">📋</div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Activity Timeline</h3>
-                    <p className="text-gray-600">
-                      Recent branch activities and audit logs will appear here
-                    </p>
-                    <div className="mt-6 text-left max-w-md mx-auto space-y-3">
-                      {selectedBranch.createdAt && (
-                        <div className="flex items-start">
-                          <div className="flex-shrink-0 h-2 w-2 rounded-full bg-green-500 mt-2"></div>
-                          <div className="ml-3">
-                            <p className="text-sm font-medium text-gray-900">Branch Created</p>
-                            <p className="text-xs text-gray-500">{new Date(selectedBranch.createdAt).toLocaleString()}</p>
-                          </div>
-                        </div>
-                      )}
-                      {selectedBranch.updatedAt && (
-                        <div className="flex items-start">
-                          <div className="flex-shrink-0 h-2 w-2 rounded-full bg-blue-500 mt-2"></div>
-                          <div className="ml-3">
-                            <p className="text-sm font-medium text-gray-900">Last Updated</p>
-                            <p className="text-xs text-gray-500">{new Date(selectedBranch.updatedAt).toLocaleString()}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <BranchDetailsModal
+        branch={selectedBranch}
+        onClose={() => setViewMode('list')}
+        onEdit={handleEditBranch}
+      />
     );
   }
 

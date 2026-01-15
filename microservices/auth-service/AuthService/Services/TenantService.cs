@@ -60,7 +60,30 @@ public class TenantService : ITenantService
             return null;
         }
 
-        _context.Entry(existingTenant).CurrentValues.SetValues(tenant);
+        // Manually update each property to ensure EF tracks the changes
+        existingTenant.Name = tenant.Name;
+        existingTenant.TenantCode = tenant.TenantCode;
+        existingTenant.TenantType = tenant.TenantType;
+        existingTenant.Status = tenant.Status;
+        existingTenant.SubscriptionTier = tenant.SubscriptionTier;
+        existingTenant.Email = tenant.Email;
+        existingTenant.Phone = tenant.Phone;
+        existingTenant.PrimaryRegion = tenant.PrimaryRegion;
+        existingTenant.DefaultCurrency = tenant.DefaultCurrency;
+        existingTenant.MaxBranches = tenant.MaxBranches;
+        existingTenant.MaxUsers = tenant.MaxUsers;
+        existingTenant.HipaaCompliant = tenant.HipaaCompliant;
+        existingTenant.NabhAccredited = tenant.NabhAccredited;
+        existingTenant.GdprCompliant = tenant.GdprCompliant;
+        existingTenant.DpaCompliant = tenant.DpaCompliant;
+        existingTenant.Address = tenant.Address;
+        existingTenant.City = tenant.City;
+        existingTenant.State = tenant.State;
+        existingTenant.Country = tenant.Country;
+        existingTenant.Pincode = tenant.Pincode;
+        existingTenant.UpdatedAt = tenant.UpdatedAt;
+        existingTenant.IsActive = tenant.IsActive;
+        
         await _context.SaveChangesAsync();
         
         return existingTenant;

@@ -185,7 +185,7 @@ public class DashboardController : ControllerBase
                     .Select(b => new {
                         b.Name,
                         StaffCount = _context.UserBranches
-                            .Count(ub => ub.BranchId == b.Id && ub.DeletedAt == null)
+                            .Count(ub => ub.BranchId == b.Id)
                     })
                     .OrderByDescending(b => b.StaffCount)
                     .ToListAsync()

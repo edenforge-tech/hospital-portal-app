@@ -42,7 +42,13 @@ public class UserDepartmentAccessController : ControllerBase
                 AccessType = d.AccessType,
                 IsPrimary = d.IsPrimary,
                 GrantedAt = d.GrantedAt,
-                Status = d.Status
+                Status = d.Status,
+                CanView = d.CanView,
+                CanCreate = d.CanCreate,
+                CanEdit = d.CanEdit,
+                CanDelete = d.CanDelete,
+                CanApprove = d.CanApprove,
+                CanExport = d.CanExport
             }).ToList();
 
             return Ok(assignments);
@@ -153,6 +159,42 @@ public class UserDepartmentAccessController : ControllerBase
     }
 
     /// <summary>
+    /// Update granular permissions for a user's department access
+    /// PUT /api/users/{userId}/department-access/{departmentId}/permissions
+    /// </summary>
+    [HttpPut("{departmentId}/permissions")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdatePermissions(
+        Guid userId,
+        Guid departmentId,
+        [FromBody] UpdatePermissionsDto request)
+    {
+        try
+        {
+            _logger.LogInformation("Updating permissions for user {UserId}, department {DepartmentId}: {@Permissions}",
+                userId, departmentId, request);
+
+            await _service.UpdatePermissionsAsync(userId, departmentId, request);
+            
+            return Ok(new { message = "Permissions updated successfully" });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Department access not found for user {UserId}, department {DepartmentId}",
+                userId, departmentId);
+            return NotFound(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating permissions for user {UserId}, department {DepartmentId}",
+                userId, departmentId);
+            return StatusCode(500, new { message = "An error occurred while updating permissions" });
+        }
+    }
+
+    /// <summary>
     /// Remove a specific department access assignment for a user
     /// </summary>
     [HttpDelete("{assignmentId}")]
@@ -255,3 +297,4 @@ public class UpdateDepartmentAccessRequest
     public string? AccessLevel { get; set; }
     public bool? IsPrimary { get; set; }
 }
+

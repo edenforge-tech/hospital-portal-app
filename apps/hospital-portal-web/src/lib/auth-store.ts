@@ -23,7 +23,7 @@ interface AuthState {
   
   // Actions
   setAuth: (token: string, refreshToken: string, user: User, roles: string[], permissions: string[], tenantId: string, mustChangePassword: boolean) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   clearMustChangePassword: () => void;
   hasPermission: (permissionCode: string) => boolean;
   hasRole: (roleName: string) => boolean;
@@ -40,6 +40,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   mustChangePassword: false,
 
   setAuth: (token, refreshToken, user, roles, permissions, tenantId, mustChangePassword) => {
+    console.log('🔐 Auth Store - setAuth called with tenantId:', tenantId);
     set({
       token,
       refreshToken,
@@ -61,7 +62,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  logout: () => {
+  logout: async () => {
+    // Call backend logout endpoint to log the audit event
+    try {
+      const token = get().token;
+      if (token) {
+        // Import getApi dynamically to avoid circular dependencies
+        const { getApi } = await import('./api');
+        const api = getApi();
+        await api.post('/auth/logout');
+      }
+    } catch (error) {
+      console.error('Logout API call failed:', error);
+      // Continue with logout even if API call fails
+    }
+    
     set({
       user: null,
       token: null,
@@ -99,6 +114,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return roles.includes(roleName);
   },
 }));
+
+// Expose auth store to window for debugging
+if (typeof window !== 'undefined') {
+  (window as any).useAuthStore = useAuthStore;
+}
 
 // Hydrate auth state from localStorage (call on client startup)
 export function hydrateAuthFromStorage() {

@@ -228,18 +228,18 @@ namespace AuthService.Models.Permission
     /// </summary>
     public class PermissionFilters
     {
-        public string Search { get; set; } // Search in name, code, description
-        public string Module { get; set; }
-        public string Resource { get; set; }
-        public string Action { get; set; }
-        public string Scope { get; set; }
-        public string DataClassification { get; set; }
+        public string? Search { get; set; } // Search in name, code, description
+        public string? Module { get; set; }
+        public string? Resource { get; set; }
+        public string? Action { get; set; }
+        public string? Scope { get; set; }
+        public string? DataClassification { get; set; }
         public bool? IsActive { get; set; }
         public bool? IsSystemPermission { get; set; }
         public bool? DepartmentSpecific { get; set; }
         public bool? IsCustom { get; set; }
-        public string SortBy { get; set; } = "module"; // module, resource, action, name
-        public string SortOrder { get; set; } = "asc";
+        public string? SortBy { get; set; } = "module"; // module, resource, action, name
+        public string? SortOrder { get; set; } = "asc";
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 50;
     }

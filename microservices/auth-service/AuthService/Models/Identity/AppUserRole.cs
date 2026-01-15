@@ -5,7 +5,7 @@ namespace AuthService.Models.Identity
 {
     public class AppUserRole : IdentityUserRole<Guid>
     {
-        public Guid BranchId { get; set; }
+        public Guid? BranchId { get; set; }
         public DateTime AssignedAt { get; set; } = DateTime.UtcNow;
         public Guid? AssignedBy { get; set; }
         public DateTime? ExpiresAt { get; set; }

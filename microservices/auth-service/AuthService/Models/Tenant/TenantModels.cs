@@ -33,6 +33,7 @@ namespace AuthService.Models.Tenant
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string? TenantCode { get; set; }
+        public string? TenantType { get; set; }
         public string? Domain { get; set; }
         public string Status { get; set; } = "Active";
         public bool IsActive { get; set; } = true; // Computed from Status
@@ -140,10 +141,18 @@ namespace AuthService.Models.Tenant
     public class UpdateTenantRequest
     {
         public string? Name { get; set; }
+        public string? TenantType { get; set; }  // Hospital, Clinic, Diagnostic Center
         public string? Domain { get; set; }
         public string? Status { get; set; }
         public string? SubscriptionType { get; set; }
         public string? Tier { get; set; }
+        
+        // Frontend field aliases (lowercase versions)
+        public string? ContactEmail { get; set; }  // Maps to CompanyEmail
+        public string? ContactPhone { get; set; }  // Maps to CompanyPhone  
+        public string? Region { get; set; }  // Maps to PrimaryRegion/Country
+        public string? Currency { get; set; }  // Maps to DefaultCurrency
+        public string? Language { get; set; }  // Maps to DefaultLanguage
         
         // Limits
         public int? MaxOrganizations { get; set; }

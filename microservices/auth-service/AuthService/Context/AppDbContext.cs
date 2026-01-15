@@ -1,5 +1,6 @@
 using AuthService.Models.Identity;
 using AuthService.Models.Domain;
+using AuthService.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -25,16 +26,36 @@ namespace AuthService.Context
             _httpContextAccessor = httpContextAccessor;
         }
 
+        /// <summary>
+        /// Sets the tenant context for Row-Level Security (RLS) in PostgreSQL
+        /// This ensures the database filters queries based on tenant_id
+        /// </summary>
+        private async Task SetTenantContextAsync()
+        {
+            var tenantId = GetCurrentTenantId();
+            
+            // Set PostgreSQL session variable for RLS policies
+            if (Database.IsRelational() && !string.IsNullOrEmpty(Database.GetConnectionString()))
+            {
+                await Database.ExecuteSqlRawAsync(
+                    $"SELECT set_config('app.current_tenant_id', '{tenantId}', false)");
+            }
+        }
+
         public DbSet<Tenant> Tenants { get; set; }
         public DbSet<Organization> Organizations { get; set; }
         public DbSet<Branch> Branches { get; set; }
         public DbSet<Department> Departments { get; set; }
         public DbSet<UserDepartment> UserDepartments { get; set; }
         public DbSet<UserBranch> UserBranches { get; set; }
+        public DbSet<PasswordResetRequest> PasswordResetRequests { get; set; }
+        public DbSet<UserActivationLog> UserActivationLogs { get; set; }
         public DbSet<Permission> Permissions { get; set; }
         public DbSet<RolePermission> RolePermissions { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<SystemAlert> SystemAlerts { get; set; }
         public DbSet<FailedLoginAttempt> FailedLoginAttempts { get; set; }
+        public DbSet<ActivationAuditLog> ActivationAuditLogs { get; set; }
         public DbSet<UserAttribute> UserAttributes { get; set; }
         public DbSet<Patient> Patients { get; set; }
         public DbSet<ClinicalExamination> ClinicalExaminations { get; set; }
@@ -42,16 +63,52 @@ namespace AuthService.Context
         public DbSet<PatientDocumentUpload> PatientDocumentUploads { get; set; }
         public DbSet<DocumentAccessAudit> DocumentAccessAudits { get; set; }
         public DbSet<AdminConfiguration> AdminConfigurations { get; set; }
+        public DbSet<SystemSetting> SystemSettings { get; set; }
         
         // Device & Session Management (Tasks 7-12 Backend Implementation)
         public DbSet<Device> Devices { get; set; }
         public DbSet<UserSession> UserSessions { get; set; }
         public DbSet<AccessPolicy> AccessPolicies { get; set; }
         public DbSet<EmergencyAccess> EmergencyAccesses { get; set; }
+        
+        // Department Access Approval & Audit (Phase 1 Critical Features - Dec 9, 2025)
+        public DbSet<DepartmentAccessRequest> DepartmentAccessRequests { get; set; }
+        public DbSet<DepartmentAccessAuditLog> DepartmentAccessAuditLogs { get; set; }
+        
+        // Advanced Access Management - Admin Configuration (Dec 9, 2025)
+        public DbSet<AuthService.Models.Department.DepartmentAccessRule> DepartmentAccessRules { get; set; }
+        public DbSet<AuthService.Models.Department.SupervisedUser> SupervisedUsers { get; set; }
+        public DbSet<AuthService.Models.Department.SupervisorAssignment> SupervisorAssignments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+
+            // ✅ FIX: PostgreSQL DateTime UTC Compatibility
+            // Configure all DateTime properties to use UTC kind
+            // This prevents "Cannot write DateTime with Kind=Unspecified to PostgreSQL type 'timestamp with time zone'"
+            var dateTimeConverter = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(
+                v => DateTime.SpecifyKind(v, DateTimeKind.Utc),
+                v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+            var nullableDateTimeConverter = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime?, DateTime?>(
+                v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v,
+                v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v);
+
+            foreach (var entityType in builder.Model.GetEntityTypes())
+            {
+                foreach (var property in entityType.GetProperties())
+                {
+                    if (property.ClrType == typeof(DateTime))
+                    {
+                        property.SetValueConverter(dateTimeConverter);
+                    }
+                    else if (property.ClrType == typeof(DateTime?))
+                    {
+                        property.SetValueConverter(nullableDateTimeConverter);
+                    }
+                }
+            }
 
             // Configure Identity tables
             builder.Entity<AppUser>(entity =>
@@ -73,6 +130,37 @@ namespace AuthService.Context
                 entity.Property(e => e.LockoutEnd).HasColumnName("lockout_end");
                 entity.Property(e => e.LockoutEnabled).HasColumnName("lockout_enabled");
                 entity.Property(e => e.AccessFailedCount).HasColumnName("access_failed_count");
+                
+                // New activation and password reset columns
+                entity.Property(e => e.ActivationStatus).HasColumnName("activation_status");
+                entity.Property(e => e.OneTimePasswordHash).HasColumnName("one_time_password_hash");
+                entity.Property(e => e.OtpExpiresAt).HasColumnName("otp_expires_at");
+                entity.Property(e => e.MustResetPassword).HasColumnName("must_reset_password");
+                entity.Property(e => e.PasswordResetToken).HasColumnName("password_reset_token");
+                entity.Property(e => e.ResetTokenExpiresAt).HasColumnName("reset_token_expires_at");
+                entity.Property(e => e.LastPasswordChange).HasColumnName("last_password_change");
+                entity.Property(e => e.EmailVerified).HasColumnName("email_verified");
+                entity.Property(e => e.EmailVerificationToken).HasColumnName("email_verification_token");
+                entity.Property(e => e.EmailVerificationSentAt).HasColumnName("email_verification_sent_at");
+                entity.Property(e => e.FailedLoginAttempts).HasColumnName("failed_login_attempts");
+                entity.Property(e => e.LockedUntil).HasColumnName("locked_until");
+                entity.Property(e => e.LastLoginIp).HasColumnName("last_login_ip");
+                
+                // Professional fields
+                entity.Property(e => e.Designation).HasColumnName("designation");
+                entity.Property(e => e.LicenseNumber).HasColumnName("license_number");
+                entity.Property(e => e.NpiNumber).HasColumnName("npi_number");
+                entity.Property(e => e.ProfessionalRegistrationDate).HasColumnName("professional_registration_date");
+                
+                // HIPAA Compliance acceptance tracking
+                entity.Property(e => e.AcceptedTerms).HasColumnName("accepted_terms");
+                entity.Property(e => e.AcceptedTermsAt).HasColumnName("accepted_terms_at");
+                entity.Property(e => e.AcceptedPrivacy).HasColumnName("accepted_privacy");
+                entity.Property(e => e.AcceptedPrivacyAt).HasColumnName("accepted_privacy_at");
+                entity.Property(e => e.AcceptedHipaa).HasColumnName("accepted_hipaa");
+                entity.Property(e => e.AcceptedHipaaAt).HasColumnName("accepted_hipaa_at");
+                entity.Property(e => e.ComplianceAcceptanceIp).HasColumnName("compliance_acceptance_ip");
+                
                 entity.HasIndex(e => new { e.TenantId, e.UserName }).IsUnique();
                 entity.HasIndex(e => new { e.TenantId, e.Email }).IsUnique();
             });
@@ -130,6 +218,7 @@ namespace AuthService.Context
                 // Map properties to actual database columns (snake_case)
                 entity.Property(e => e.Name).HasColumnName("name");
                 entity.Property(e => e.TenantCode).HasColumnName("tenant_code");
+                entity.Property(e => e.TenantType).HasColumnName("tenant_type");
                 entity.Property(e => e.Email).HasColumnName("company_email");
                 entity.Property(e => e.Phone).HasColumnName("company_phone");
                 entity.Property(e => e.Status).HasColumnName("status");
@@ -147,13 +236,15 @@ namespace AuthService.Context
                 entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
                 entity.Property(e => e.IsActive).HasColumnName("is_active");
                 
+                // Address fields
+                entity.Property(e => e.Address).HasColumnName("address");
+                entity.Property(e => e.City).HasColumnName("city");
+                entity.Property(e => e.State).HasColumnName("state");
+                entity.Property(e => e.Country).HasColumnName("country");
+                entity.Property(e => e.Pincode).HasColumnName("pincode");
+                
                 // Ignore properties that don't have database columns
                 entity.Ignore(e => e.RegistrationNumber);
-                entity.Ignore(e => e.Address);
-                entity.Ignore(e => e.City);
-                entity.Ignore(e => e.State);
-                entity.Ignore(e => e.Pincode);
-                entity.Ignore(e => e.Country);
                 entity.Ignore(e => e.CreatedBy);
             });
 
@@ -175,16 +266,45 @@ namespace AuthService.Context
                 // Basic Information
                 entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(128).IsRequired();
                 entity.Property(e => e.OrganizationCode).HasColumnName("organization_code").HasMaxLength(16);
+                entity.Property(e => e.OrganizationName).HasColumnName("organization_name").HasMaxLength(128);
                 
                 // Location
                 entity.Property(e => e.CountryCode).HasColumnName("country_code").HasMaxLength(4);
                 entity.Property(e => e.StateProvince).HasColumnName("state_province").HasMaxLength(64);
+                entity.Property(e => e.City).HasColumnName("city").HasMaxLength(64);
+                entity.Property(e => e.Address).HasColumnName("address").HasMaxLength(255);
+                entity.Property(e => e.PostalCode).HasColumnName("postal_code").HasMaxLength(16);
+                
+                // Contact Information
+                entity.Property(e => e.Email).HasColumnName("email").HasMaxLength(128);
+                entity.Property(e => e.Phone).HasColumnName("phone").HasMaxLength(32);
+                entity.Property(e => e.Website).HasColumnName("website").HasMaxLength(500);
+                entity.Property(e => e.PrimaryContactName).HasColumnName("primary_contact_name").HasMaxLength(200);
+                entity.Property(e => e.PrimaryContactEmail).HasColumnName("primary_contact_email").HasMaxLength(200);
+                entity.Property(e => e.PrimaryContactPhone).HasColumnName("primary_contact_phone").HasMaxLength(50);
+                
+                // Business Information
+                entity.Property(e => e.Description).HasColumnName("description");
+                entity.Property(e => e.OperationalSince).HasColumnName("operational_since");
                 
                 // Configuration
                 entity.Property(e => e.CurrencyCode).HasColumnName("currency_code").HasMaxLength(8);
                 entity.Property(e => e.LanguageCode).HasColumnName("language_code").HasMaxLength(8);
                 entity.Property(e => e.Timezone).HasColumnName("timezone").HasMaxLength(64).HasDefaultValue("UTC");
+                entity.Property(e => e.DateFormat).HasColumnName("date_format").HasMaxLength(32);
+                entity.Property(e => e.TimeFormat).HasColumnName("time_format").HasMaxLength(16);
+                entity.Property(e => e.NumberFormat).HasColumnName("number_format").HasMaxLength(32);
                 entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(16).HasDefaultValue("Active");
+                
+                // Regulatory & Compliance
+                entity.Property(e => e.RegulatoryBody).HasColumnName("regulatory_body").HasMaxLength(128);
+                entity.Property(e => e.LicenseNumber).HasColumnName("license_number").HasMaxLength(64);
+                entity.Property(e => e.AccreditationStatus).HasColumnName("accreditation_status").HasMaxLength(64);
+                
+                // Branding
+                entity.Property(e => e.LogoUrl).HasColumnName("logo_url").HasMaxLength(512);
+                entity.Property(e => e.PrimaryColor).HasColumnName("primary_color").HasMaxLength(16);
+                entity.Property(e => e.SecondaryColor).HasColumnName("secondary_color").HasMaxLength(16);
                 
                 // Relationships
                 entity.HasOne(e => e.Tenant)
@@ -231,6 +351,7 @@ namespace AuthService.Context
                 // ============================================================================
                 // BRANCH TYPE
                 // ============================================================================
+                entity.Property(e => e.BranchType).HasColumnName("branch_type").HasMaxLength(50);
                 entity.Property(e => e.IsVirtual).HasColumnName("is_virtual").HasDefaultValue(false);
                 entity.Property(e => e.IsMainBranch).HasColumnName("is_main_branch").HasDefaultValue(false);
                 entity.Property(e => e.LicenseNumber).HasColumnName("license_number").HasMaxLength(64);
@@ -255,6 +376,7 @@ namespace AuthService.Context
                 entity.Property(e => e.Phone).HasColumnName("phone").HasMaxLength(20);
                 entity.Property(e => e.Email).HasColumnName("email").HasMaxLength(255);
                 entity.Property(e => e.Fax).HasColumnName("fax").HasMaxLength(20);
+                entity.Property(e => e.Website).HasColumnName("website").HasMaxLength(500);
                 entity.Property(e => e.ContactInfo).HasColumnName("contact_info").HasColumnType("jsonb");
                 
                 // ============================================================================
@@ -403,7 +525,7 @@ namespace AuthService.Context
                     .OnDelete(DeleteBehavior.Cascade);
                     
                 entity.HasOne(e => e.Organization)
-                    .WithMany()
+                    .WithMany(o => o.Branches)
                     .HasForeignKey(e => e.OrganizationId)
                     .OnDelete(DeleteBehavior.Cascade);
                 
@@ -590,16 +712,52 @@ namespace AuthService.Context
                 entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
                 entity.Property(e => e.TenantId).HasColumnName("tenant_id");
                 entity.Property(e => e.UserId).HasColumnName("user_id");
+                entity.Property(e => e.UserName).HasColumnName("UserName"); // PascalCase in DB
                 entity.Property(e => e.Action).HasColumnName("action");
                 entity.Property(e => e.ResourceType).HasColumnName("resource_type");
                 entity.Property(e => e.ResourceId).HasColumnName("resource_id");
+                entity.Property(e => e.EntityType).HasColumnName("EntityType"); // PascalCase in DB
+                entity.Property(e => e.EntityId).HasColumnName("EntityId"); // PascalCase in DB
+                entity.Property(e => e.Description).HasColumnName("Description"); // PascalCase in DB
                 entity.Property(e => e.OldValues).HasColumnName("old_values");
                 entity.Property(e => e.NewValues).HasColumnName("new_values");
+                entity.Property(e => e.Changes).HasColumnName("Changes"); // PascalCase in DB
                 entity.Property(e => e.IpAddress).HasColumnName("ip_address");
                 entity.Property(e => e.UserAgent).HasColumnName("user_agent");
                 entity.Property(e => e.Status).HasColumnName("status");
                 entity.Property(e => e.Reason).HasColumnName("reason");
                 entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.Timestamp).HasColumnName("Timestamp"); // PascalCase in DB
+            });
+
+            builder.Entity<SystemAlert>(entity =>
+            {
+                entity.ToTable("system_alert");
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(e => e.AlertType).HasColumnName("alert_type");
+                entity.Property(e => e.Severity).HasColumnName("severity");
+                entity.Property(e => e.Title).HasColumnName("title");
+                entity.Property(e => e.Description).HasColumnName("description");
+                entity.Property(e => e.Count).HasColumnName("count");
+                entity.Property(e => e.IsDismissed).HasColumnName("is_dismissed");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.DismissedAt).HasColumnName("dismissed_at");
+            });
+
+            builder.Entity<SystemSetting>(entity =>
+            {
+                entity.ToTable("system_settings");
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+                entity.Property(e => e.Category).HasColumnName("category");
+                entity.Property(e => e.Key).HasColumnName("key");
+                entity.Property(e => e.Value).HasColumnName("value");
+                entity.Property(e => e.DataType).HasColumnName("data_type");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                entity.HasIndex(e => new { e.TenantId, e.Category, e.Key }).IsUnique();
             });
 
             builder.Entity<Patient>(entity =>
@@ -674,6 +832,31 @@ namespace AuthService.Context
                 entity.HasIndex(e => new { e.TenantId, e.UserId, e.AccessedAt });
             });
 
+            builder.Entity<ActivationAuditLog>(entity =>
+            {
+                entity.ToTable("activation_audit_log");
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+                entity.Property(e => e.UserId).HasColumnName("user_id");
+                entity.Property(e => e.ActivationStep).HasColumnName("activation_step").HasMaxLength(50);
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20);
+                entity.Property(e => e.ErrorMessage).HasColumnName("error_message");
+                entity.Property(e => e.IpAddress).HasColumnName("ip_address").HasMaxLength(45);
+                entity.Property(e => e.UserAgent).HasColumnName("user_agent");
+                entity.Property(e => e.DeviceInfo).HasColumnName("device_info");
+                entity.Property(e => e.GeolocationInfo).HasColumnName("geolocation_info");
+                entity.Property(e => e.Timestamp).HasColumnName("timestamp");
+                entity.Property(e => e.CompletedAt).HasColumnName("completed_at");
+                entity.Property(e => e.RequestData).HasColumnName("request_data");
+                entity.Property(e => e.ResponseData).HasColumnName("response_data");
+                entity.Property(e => e.ResponseTimeMs).HasColumnName("response_time_ms");
+                entity.Property(e => e.SuspiciousActivity).HasColumnName("suspicious_activity").HasDefaultValue(false);
+                entity.Property(e => e.ComplianceNotes).HasColumnName("compliance_notes");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.HasIndex(e => new { e.TenantId, e.UserId });
+                entity.HasIndex(e => e.Timestamp);
+            });
+
             builder.Entity<AdminConfiguration>(entity =>
             {
                 entity.ToTable("admin_configurations");
@@ -716,7 +899,8 @@ namespace AuthService.Context
                 entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
                 entity.Property(e => e.DepartmentId).HasColumnName("department_id").IsRequired();
                 entity.Property(e => e.BranchId).HasColumnName("branch_id");
-                entity.Property(e => e.AccessType).HasColumnName("access_type").HasMaxLength(50).HasDefaultValue("Full Access");
+                entity.Property(e => e.AccessType).HasColumnName("access_type").HasMaxLength(20).HasDefaultValue("Secondary");
+                // IsPrimary is computed from AccessType == 'Primary' - not a database column
                 
                 // Granular Permissions (Migration 03)
                 entity.Property(e => e.CanView).HasColumnName("can_view").HasDefaultValue(true);
@@ -735,14 +919,15 @@ namespace AuthService.Context
                 entity.Property(e => e.ApprovedAt).HasColumnName("approved_at");
                 entity.Property(e => e.ApprovalNotes).HasColumnName("approval_notes").HasMaxLength(500);
                 
-                // Audit Columns
-                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20).HasDefaultValue("Active");
-                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
-                entity.Property(e => e.CreatedBy).HasColumnName("created_by_user_id");
+                // Audit Columns (match migration 03 schema)
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(50).HasDefaultValue("Active");
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+                entity.Property(e => e.CreatedBy).HasColumnName("created_by");
                 entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
-                entity.Property(e => e.UpdatedBy).HasColumnName("updated_by_user_id");
+                entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
                 entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
-                entity.Property(e => e.RevokedBy).HasColumnName("revoked_by_user_id");
+                entity.Property(e => e.RevokedBy).HasColumnName("deleted_by");
                 
                 // Indexes
                 entity.HasIndex(e => new { e.TenantId, e.UserId, e.DepartmentId });
@@ -753,24 +938,23 @@ namespace AuthService.Context
             // UserBranch Entity Configuration (Many-to-Many: User <-> Branch)
             builder.Entity<UserBranch>(entity =>
             {
-                entity.ToTable("user_branch_access");
+                entity.ToTable("user_branches");
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("id");
                 entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
                 entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
                 entity.Property(e => e.BranchId).HasColumnName("branch_id").IsRequired();
-                entity.Property(e => e.IsPrimary).HasColumnName("is_primary").HasDefaultValue(false);
-                entity.Property(e => e.AccessLevel).HasColumnName("access_level").HasMaxLength(50).HasDefaultValue("Full");
+                entity.Property(e => e.IsDefault).HasColumnName("is_default").HasDefaultValue(false);
+                entity.Property(e => e.AssignedAt).HasColumnName("assigned_at");
+                entity.Property(e => e.AssignedByUserId).HasColumnName("assigned_by_user_id");
+                entity.Property(e => e.EffectiveFrom).HasColumnName("effective_from");
+                entity.Property(e => e.EffectiveUntil).HasColumnName("effective_until");
                 entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20).HasDefaultValue("active");
-                entity.Property(e => e.ValidFrom).HasColumnName("valid_from");
-                entity.Property(e => e.ValidUntil).HasColumnName("valid_until");
-                entity.Property(e => e.AssignedOn).HasColumnName("assigned_on");
-                entity.Property(e => e.AssignedBy).HasColumnName("assigned_by");
+                entity.Property(e => e.Notes).HasColumnName("notes");
                 entity.Property(e => e.CreatedAt).HasColumnName("created_at");
-                entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
                 entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
-                entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
-                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
                 entity.HasIndex(e => new { e.TenantId, e.UserId, e.BranchId });
                 entity.HasIndex(e => e.BranchId);
             });
@@ -948,12 +1132,37 @@ namespace AuthService.Context
 
         private Guid GetCurrentTenantId()
         {
+            // Try HttpContext.Items (set during login)
             var tenantId = _httpContextAccessor?.HttpContext?.Items["TenantId"] as Guid?;
+            
+            // Try JWT claims (for authenticated API calls)
+            if (tenantId == null)
+            {
+                var tenantIdClaim = _httpContextAccessor?.HttpContext?.User?.FindFirst("tenant_id")?.Value;
+                if (!string.IsNullOrEmpty(tenantIdClaim) && Guid.TryParse(tenantIdClaim, out var parsedTenantId))
+                {
+                    tenantId = parsedTenantId;
+                }
+            }
+            
+            // Try X-Tenant-ID header
+            if (tenantId == null)
+            {
+                var tenantIdHeader = _httpContextAccessor?.HttpContext?.Request.Headers["X-Tenant-ID"].FirstOrDefault();
+                if (!string.IsNullOrEmpty(tenantIdHeader) && Guid.TryParse(tenantIdHeader, out var parsedTenantId))
+                {
+                    tenantId = parsedTenantId;
+                }
+            }
+            
             return tenantId ?? Guid.Parse("11111111-1111-1111-1111-111111111111"); // Default to test tenant
         }
 
-        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
+            // Set tenant context for RLS before executing queries
+            await SetTenantContextAsync();
+            
             foreach (var entry in ChangeTracker.Entries<AppUser>()
                 .Where(e => e.State == EntityState.Modified))
             {
@@ -966,7 +1175,7 @@ namespace AuthService.Context
                 entry.Property(p => p.UpdatedAt).CurrentValue = DateTime.UtcNow;
             }
 
-            return base.SaveChangesAsync(cancellationToken);
+            return await base.SaveChangesAsync(cancellationToken);
         }
     }
 }

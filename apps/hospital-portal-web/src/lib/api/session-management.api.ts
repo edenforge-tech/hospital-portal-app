@@ -37,36 +37,41 @@ export interface CreateSessionDto {
 export const sessionManagementApi = {
   // Get active sessions for current user
   getMySessions: async () => {
-    return getApi().get<UserSession[]>('/session-management/my-sessions');
+    return getApi().get<UserSession[]>('/session-management/sessions');
   },
 
-  // Get all sessions for a specific user (admin)
-  getUserSessions: async (userId: string) => {
-    return getApi().get<UserSession[]>(`/session-management/user/${userId}/sessions`);
+  // Get session by ID
+  getById: async (sessionId: string) => {
+    return getApi().get<UserSession>(`/session-management/sessions/${sessionId}`);
   },
 
   // Terminate a specific session
   terminate: async (sessionId: string, reason: string) => {
-    return getApi().post(`/session-management/${sessionId}/terminate`, { reason });
+    return getApi().post(`/session-management/sessions/${sessionId}/terminate`, { reason });
   },
 
   // Terminate all sessions except current
-  terminateAllExceptCurrent: async (currentSessionId: string) => {
-    return getApi().post('/session-management/terminate-all-except', { currentSessionId });
+  terminateAllExceptCurrent: async (exceptSessionId?: string) => {
+    return getApi().post('/session-management/sessions/terminate-all-except-current', { exceptSessionId });
   },
 
   // Refresh session
   refresh: async (sessionId: string) => {
-    return getApi().post<UserSession>(`/session-management/${sessionId}/refresh`, {});
+    return getApi().post<UserSession>(`/session-management/sessions/${sessionId}/refresh`, {});
   },
 
   // Mark session as suspicious
   markSuspicious: async (sessionId: string, reason: string) => {
-    return getApi().post(`/session-management/${sessionId}/mark-suspicious`, { reason });
+    return getApi().post(`/session-management/sessions/${sessionId}/mark-suspicious`, { reason });
   },
 
-  // Get session details
-  getById: async (sessionId: string) => {
-    return getApi().get<UserSession>(`/session-management/${sessionId}`);
+  // Get active session count
+  getActiveCount: async () => {
+    return getApi().get<{ activeCount: number; totalCount: number }>('/session-management/sessions/active-count');
+  },
+
+  // Cleanup expired sessions (admin only)
+  cleanup: async () => {
+    return getApi().post('/session-management/sessions/cleanup', {});
   }
 };

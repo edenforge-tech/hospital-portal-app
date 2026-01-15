@@ -33,19 +33,15 @@ const DepartmentDetailsModal: React.FC<DepartmentDetailsModalProps> = ({
     }
   };
 
-  if (loading) {
+  if (loading || !details) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-        <div className="rounded-lg bg-white p-8">
-          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
-          <p>Loading details...</p>
+        <div className="rounded-lg bg-white p-8 text-center">
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-teal-600 border-t-transparent"></div>
+          <p className="text-gray-600">Loading details...</p>
         </div>
       </div>
     );
-  }
-
-  if (!details) {
-    return null;
   }
 
   const { department, staff, subDepartments, metrics } = details;

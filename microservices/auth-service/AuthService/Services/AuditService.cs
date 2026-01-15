@@ -56,7 +56,41 @@ namespace AuthService.Services
 
         private string? GetCurrentIpAddress()
         {
-            return _httpContextAccessor?.HttpContext?.Connection?.RemoteIpAddress?.ToString();
+            var httpContext = _httpContextAccessor?.HttpContext;
+            if (httpContext == null) return "127.0.0.1";
+
+            string? ipAddress = null;
+
+            // 1. Try X-Forwarded-For header (for proxied requests)
+            if (httpContext.Request.Headers.ContainsKey("X-Forwarded-For"))
+            {
+                ipAddress = httpContext.Request.Headers["X-Forwarded-For"].ToString().Split(',').FirstOrDefault()?.Trim();
+            }
+
+            // 2. Fallback to X-Real-IP header
+            if (string.IsNullOrEmpty(ipAddress) && httpContext.Request.Headers.ContainsKey("X-Real-IP"))
+            {
+                ipAddress = httpContext.Request.Headers["X-Real-IP"].ToString();
+            }
+
+            // 3. Fallback to RemoteIpAddress
+            if (string.IsNullOrEmpty(ipAddress))
+            {
+                ipAddress = httpContext.Connection.RemoteIpAddress?.ToString();
+            }
+
+            // 4. Default to localhost if still null
+            if (string.IsNullOrEmpty(ipAddress))
+            {
+                ipAddress = "127.0.0.1";
+            }
+
+            return ipAddress;
+        }
+
+        private string? GetCurrentUserAgent()
+        {
+            return _httpContextAccessor?.HttpContext?.Request?.Headers["User-Agent"].ToString();
         }
 
         private string? GetCurrentSessionId()
@@ -88,6 +122,7 @@ namespace AuthService.Services
                 NewValues = newValue,
                 Timestamp = DateTime.UtcNow,
                 IpAddress = GetCurrentIpAddress(),
+                UserAgent = GetCurrentUserAgent(),
                 SessionId = GetCurrentSessionId(),
                 Status = "active",
                 CreatedAt = DateTime.UtcNow,
@@ -127,6 +162,7 @@ namespace AuthService.Services
                 Description = details,
                 Timestamp = DateTime.UtcNow,
                 IpAddress = GetCurrentIpAddress(),
+                UserAgent = GetCurrentUserAgent(),
                 SessionId = GetCurrentSessionId(),
                 Status = "active",
                 CreatedAt = DateTime.UtcNow,
@@ -163,6 +199,7 @@ namespace AuthService.Services
                 ResourceId = resourceId,
                 Timestamp = DateTime.UtcNow,
                 IpAddress = GetCurrentIpAddress(),
+                UserAgent = GetCurrentUserAgent(),
                 SessionId = GetCurrentSessionId(),
                 Status = "active",
                 CreatedAt = DateTime.UtcNow,

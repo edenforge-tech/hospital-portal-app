@@ -32,6 +32,7 @@ namespace AuthService.Models.Domain
         // ============================================================================
         // BRANCH TYPE & CLASSIFICATION
         // ============================================================================
+        public string? BranchType { get; set; }
         public bool IsVirtual { get; set; } = false;
         public bool IsMainBranch { get; set; } = false;
         public string? LicenseNumber { get; set; }
@@ -56,6 +57,7 @@ namespace AuthService.Models.Domain
         public string? Phone { get; set; }
         public string? Email { get; set; }
         public string? Fax { get; set; }
+        public string? Website { get; set; }
         public string? ContactInfo { get; set; } // JSONB for additional contacts
         
         // ============================================================================

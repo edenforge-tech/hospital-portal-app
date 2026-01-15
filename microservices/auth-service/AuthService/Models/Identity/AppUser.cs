@@ -18,6 +18,7 @@ namespace AuthService.Models.Identity
         // Professional fields
         public string? Designation { get; set; }
         public string? LicenseNumber { get; set; }
+        public string? NpiNumber { get; set; } // National Provider Identifier
         public DateTime? ProfessionalRegistrationDate { get; set; }
         
         // Organization fields
@@ -32,9 +33,37 @@ namespace AuthService.Models.Identity
         public DateTime? PasswordExpiresAt { get; set; }
         public DateTime? LastLoginAt { get; set; }
         public bool MustChangePasswordOnLogin { get; set; } = true;
+
+        // Activation and password reset fields (new)
+        public string? ActivationStatus { get; set; } = "Active"; // Pending, Active, Suspended, Locked
+        public string? OneTimePasswordHash { get; set; }
+        public DateTime? OtpExpiresAt { get; set; }
+        public bool MustResetPassword { get; set; } = false;
+        public string? PasswordResetToken { get; set; }
+        public DateTime? ResetTokenExpiresAt { get; set; }
+        public DateTime? LastPasswordChange { get; set; }
         
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        // Email verification
+        public bool EmailVerified { get; set; } = false;
+        public string? EmailVerificationToken { get; set; }
+        public DateTime? EmailVerificationSentAt { get; set; }
+        
+        // Account lockout tracking
+        public int FailedLoginAttempts { get; set; } = 0;
+        public DateTime? LockedUntil { get; set; }
+        public string? LastLoginIp { get; set; }
+        
+        // HIPAA Compliance tracking (added for activation flow)
+        public bool AcceptedTerms { get; set; } = false;
+        public DateTime? AcceptedTermsAt { get; set; }
+        public bool AcceptedPrivacy { get; set; } = false;
+        public DateTime? AcceptedPrivacyAt { get; set; }
+        public bool AcceptedHipaa { get; set; } = false;
+        public DateTime? AcceptedHipaaAt { get; set; }
+        public string? ComplianceAcceptanceIp { get; set; }
+        
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
         public DateTime? DeletedAt { get; set; }
         public Guid? CreatedBy { get; set; }
         public Guid? UpdatedBy { get; set; }

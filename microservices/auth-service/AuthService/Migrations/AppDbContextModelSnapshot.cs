@@ -23,6 +23,506 @@ namespace AuthService.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("AuthService.Models.Department.DepartmentAccessRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AllowEmergencyAccess")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ApproverRoleIds")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ApproverRoleNames")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DepartmentCode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("DepartmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DepartmentName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmergencyRoleIds")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("EnableAutoExpiration")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("MaxAccessDurationDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("MinJustificationLength")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("RequiresApproval")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RequiresJustification")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RequiresSupervisor")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RestrictedPermissions")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SupervisorRoleIds")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SupervisorRoleNames")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DepartmentAccessRules");
+                });
+
+            modelBuilder.Entity("AuthService.Models.Department.SupervisedUser", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AssignedSupervisorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ComplianceNotes")
+                        .HasColumnType("text");
+
+                    b.Property<int>("ComplianceScore")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastActivityDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastComplianceCheck")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OversightLevel")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("PendingApprovals")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Qualification")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("RequiresCoSignature")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("SupervisedActivities")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("SupervisionEndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("SupervisionStartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SupervisorName")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("TotalActivities")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("YearsOfExperience")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SupervisedUsers");
+                });
+
+            modelBuilder.Entity("AuthService.Models.Department.SupervisorAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ActiveSupervisions")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("AvailableSlots")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("AverageComplianceScore")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CompletedSupervisions")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CurrentSupervisees")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("MaxSupervisees")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Specialty")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SupervisorName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("SupervisorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("TotalSupervised")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SupervisorAssignments");
+                });
+
+            modelBuilder.Entity("AuthService.Models.Domain.AccessPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Actions")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("actions");
+
+                    b.Property<string>("AppliesToDepartments")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("applies_to_departments");
+
+                    b.Property<string>("AppliesToRoles")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("applies_to_roles");
+
+                    b.Property<string>("AppliesToUsers")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("applies_to_users");
+
+                    b.Property<string>("Conditions")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("conditions");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("DaysOfWeek")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("days_of_week");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Effect")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("Deny")
+                        .HasColumnName("effect");
+
+                    b.Property<DateTime?>("EffectiveFrom")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateTime?>("EffectiveUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("effective_until");
+
+                    b.Property<int>("EvaluationCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("evaluation_count");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsSystemPolicy")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_system_policy");
+
+                    b.Property<DateTime?>("LastEvaluatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_evaluated_at");
+
+                    b.Property<string>("PolicyCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("policy_code");
+
+                    b.Property<string>("PolicyName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("policy_name");
+
+                    b.Property<string>("PolicyType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("policy_type");
+
+                    b.Property<int>("Priority")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(100)
+                        .HasColumnName("priority");
+
+                    b.Property<string>("Resources")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("resources");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("active")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<TimeSpan?>("TimeOfDayEnd")
+                        .HasColumnType("interval")
+                        .HasColumnName("time_of_day_end");
+
+                    b.Property<TimeSpan?>("TimeOfDayStart")
+                        .HasColumnType("interval")
+                        .HasColumnName("time_of_day_start");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("PolicyCode");
+
+                    b.HasIndex("Priority");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.HasIndex("TenantId", "IsActive");
+
+                    b.ToTable("access_policy", (string)null);
+                });
+
+            modelBuilder.Entity("AuthService.Models.Domain.ActivationAuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ActivationStep")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("activation_step");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<string>("ComplianceNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("compliance_notes");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DeviceInfo")
+                        .HasColumnType("text")
+                        .HasColumnName("device_info");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text")
+                        .HasColumnName("error_message");
+
+                    b.Property<string>("GeolocationInfo")
+                        .HasColumnType("text")
+                        .HasColumnName("geolocation_info");
+
+                    b.Property<string>("IpAddress")
+                        .IsRequired()
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<string>("RequestData")
+                        .HasColumnType("text")
+                        .HasColumnName("request_data");
+
+                    b.Property<string>("ResponseData")
+                        .HasColumnType("text")
+                        .HasColumnName("response_data");
+
+                    b.Property<int?>("ResponseTimeMs")
+                        .HasColumnType("integer")
+                        .HasColumnName("response_time_ms");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<bool>("SuspiciousActivity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("suspicious_activity");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("timestamp");
+
+                    b.Property<string>("UserAgent")
+                        .HasColumnType("text")
+                        .HasColumnName("user_agent");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Timestamp");
+
+                    b.HasIndex("TenantId", "UserId");
+
+                    b.ToTable("activation_audit_log", (string)null);
+                });
+
             modelBuilder.Entity("AuthService.Models.Domain.AdminConfiguration", b =>
                 {
                     b.Property<Guid>("Id")
@@ -224,24 +724,43 @@ namespace AuthService.Migrations
                         .HasColumnName("action");
 
                     b.Property<string>("Changes")
+                        .HasColumnType("text")
+                        .HasColumnName("Changes");
+
+                    b.Property<string>("ComplianceFlags")
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<string>("Description")
+                    b.Property<string>("DataClassification")
                         .HasColumnType("text");
 
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("Description");
+
                     b.Property<Guid?>("EntityId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("EntityId");
 
                     b.Property<string>("EntityType")
+                        .HasColumnType("text")
+                        .HasColumnName("EntityType");
+
+                    b.Property<string>("EventHash")
                         .HasColumnType("text");
 
                     b.Property<string>("IpAddress")
                         .HasColumnType("text")
                         .HasColumnName("ip_address");
+
+                    b.Property<bool>("IsImmutable")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsSystemGenerated")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("NewValues")
                         .HasColumnType("text")
@@ -250,6 +769,9 @@ namespace AuthService.Migrations
                     b.Property<string>("OldValues")
                         .HasColumnType("text")
                         .HasColumnName("old_values");
+
+                    b.Property<string>("PreviousEventHash")
+                        .HasColumnType("text");
 
                     b.Property<string>("Reason")
                         .HasColumnType("text")
@@ -264,6 +786,21 @@ namespace AuthService.Migrations
                         .HasColumnType("text")
                         .HasColumnName("resource_type");
 
+                    b.Property<int>("RetentionDays")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("RetentionExpiry")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RiskLevel")
+                        .HasColumnType("text");
+
+                    b.Property<long?>("SequenceNumber")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SessionId")
+                        .HasColumnType("text");
+
                     b.Property<string>("Status")
                         .HasColumnType("text")
                         .HasColumnName("status");
@@ -273,7 +810,8 @@ namespace AuthService.Migrations
                         .HasColumnName("tenant_id");
 
                     b.Property<DateTime>("Timestamp")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("Timestamp");
 
                     b.Property<string>("UserAgent")
                         .HasColumnType("text")
@@ -284,7 +822,8 @@ namespace AuthService.Migrations
                         .HasColumnName("user_id");
 
                     b.Property<string>("UserName")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("UserName");
 
                     b.HasKey("Id");
 
@@ -384,6 +923,11 @@ namespace AuthService.Migrations
                     b.Property<string>("BranchSettings")
                         .HasColumnType("jsonb")
                         .HasColumnName("branch_settings");
+
+                    b.Property<string>("BranchType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("branch_type");
 
                     b.Property<bool>("BusinessAssociate")
                         .ValueGeneratedOnAdd()
@@ -831,6 +1375,11 @@ namespace AuthService.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("updated_by");
 
+                    b.Property<string>("Website")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("website");
+
                     b.Property<bool>("WheelchairAccessible")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -958,9 +1507,18 @@ namespace AuthService.Migrations
                         .HasColumnType("character varying(3)")
                         .HasColumnName("budget_currency");
 
+                    b.Property<bool>("CanHaveSubdepartments")
+                        .HasColumnType("boolean")
+                        .HasColumnName("can_have_subdepartments");
+
                     b.Property<string>("ChangeReason")
                         .HasColumnType("text")
                         .HasColumnName("change_reason");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("color");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -994,6 +1552,10 @@ namespace AuthService.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("department_head_id");
 
+                    b.Property<int>("DepartmentLevel")
+                        .HasColumnType("integer")
+                        .HasColumnName("department_level");
+
                     b.Property<string>("DepartmentName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -1010,11 +1572,28 @@ namespace AuthService.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description");
 
+                    b.Property<int?>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order");
+
+                    b.Property<string>("Icon")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("icon");
+
+                    b.Property<bool>("InheritPermissions")
+                        .HasColumnType("boolean")
+                        .HasColumnName("inherit_permissions");
+
                     b.Property<bool>("Is24x7")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("is_24x7");
+
+                    b.Property<bool>("IsStandardDepartment")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_standard_department");
 
                     b.Property<int?>("MaxConcurrentPatients")
                         .HasColumnType("integer")
@@ -1077,6 +1656,436 @@ namespace AuthService.Migrations
                     b.HasIndex("TenantId");
 
                     b.ToTable("department", (string)null);
+                });
+
+            modelBuilder.Entity("AuthService.Models.Domain.DepartmentAccessAuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("action");
+
+                    b.Property<string>("ActionCategory")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("action_category");
+
+                    b.Property<Guid?>("ApprovalRequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approval_request_id");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<Guid?>("ApprovedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approved_by");
+
+                    b.Property<string>("AuditNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("audit_number");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_id");
+
+                    b.Property<string>("ChangesSummary")
+                        .HasColumnType("text")
+                        .HasColumnName("changes_summary");
+
+                    b.Property<string>("ComplianceFlags")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("compliance_flags");
+
+                    b.Property<string>("ComplianceNote")
+                        .HasColumnType("text")
+                        .HasColumnName("compliance_note");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("correlation_id");
+
+                    b.Property<Guid?>("DepartmentAccessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("department_access_id");
+
+                    b.Property<Guid>("DepartmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("department_id");
+
+                    b.Property<bool>("IsEmergencyAccess")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_emergency_access");
+
+                    b.Property<string>("Justification")
+                        .HasColumnType("text")
+                        .HasColumnName("justification");
+
+                    b.Property<string>("NewState")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("new_state");
+
+                    b.Property<Guid>("PerformedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("performed_by");
+
+                    b.Property<string>("PerformedByIp")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("performed_by_ip");
+
+                    b.Property<string>("PerformedByRole")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("performed_by_role");
+
+                    b.Property<string>("PreviousState")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("previous_state");
+
+                    b.Property<string>("SecurityClassification")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("security_classification");
+
+                    b.Property<string>("SessionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("session_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("timestamp");
+
+                    b.Property<string>("UserAgent")
+                        .HasColumnType("text")
+                        .HasColumnName("user_agent");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<bool?>("WasApproved")
+                        .HasColumnType("boolean")
+                        .HasColumnName("was_approved");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("PerformedBy");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("department_access_audit_log");
+                });
+
+            modelBuilder.Entity("AuthService.Models.Domain.DepartmentAccessRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AutoApprovalReason")
+                        .HasColumnType("text")
+                        .HasColumnName("auto_approval_reason");
+
+                    b.Property<bool>("AutoApproved")
+                        .HasColumnType("boolean")
+                        .HasColumnName("auto_approved");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<Guid>("DepartmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("department_id");
+
+                    b.Property<string>("Justification")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("justification");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("priority");
+
+                    b.Property<string>("RejectionReason")
+                        .HasColumnType("text")
+                        .HasColumnName("rejection_reason");
+
+                    b.Property<string>("RequestNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("request_number");
+
+                    b.Property<string>("RequestType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("request_type");
+
+                    b.Property<DateTime?>("RequestedAccessEndDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_access_end_date");
+
+                    b.Property<DateTime?>("RequestedAccessStartDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_access_start_date");
+
+                    b.Property<string>("RequestedAccessType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("requested_access_type");
+
+                    b.Property<bool>("RequestedCanApprove")
+                        .HasColumnType("boolean")
+                        .HasColumnName("requested_can_approve");
+
+                    b.Property<bool>("RequestedCanCreate")
+                        .HasColumnType("boolean")
+                        .HasColumnName("requested_can_create");
+
+                    b.Property<bool>("RequestedCanDelete")
+                        .HasColumnType("boolean")
+                        .HasColumnName("requested_can_delete");
+
+                    b.Property<bool>("RequestedCanEdit")
+                        .HasColumnType("boolean")
+                        .HasColumnName("requested_can_edit");
+
+                    b.Property<bool>("RequestedCanExport")
+                        .HasColumnType("boolean")
+                        .HasColumnName("requested_can_export");
+
+                    b.Property<bool>("RequestedCanView")
+                        .HasColumnType("boolean")
+                        .HasColumnName("requested_can_view");
+
+                    b.Property<string>("ReviewNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("review_notes");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewed_by");
+
+                    b.Property<string>("ReviewerRole")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("reviewer_role");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("ReviewedBy");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("department_access_request");
+                });
+
+            modelBuilder.Entity("AuthService.Models.Domain.Device", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BlockReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("block_reason");
+
+                    b.Property<string>("Browser")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("browser");
+
+                    b.Property<string>("BrowserVersion")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("browser_version");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("device_id");
+
+                    b.Property<string>("DeviceName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("device_name");
+
+                    b.Property<string>("DeviceType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("device_type");
+
+                    b.Property<string>("IPAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<bool>("IsBlocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_blocked");
+
+                    b.Property<bool>("IsPrimaryDevice")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_primary_device");
+
+                    b.Property<DateTime?>("LastLoginAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_login_at");
+
+                    b.Property<DateTime?>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_seen_at");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("location");
+
+                    b.Property<string>("OS")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("operating_system");
+
+                    b.Property<string>("OSVersion")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("os_version");
+
+                    b.Property<DateTime>("RegisteredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("registered_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("active")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("TotalLogins")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("total_logins");
+
+                    b.Property<string>("TrustLevel")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Untrusted")
+                        .HasColumnName("trust_level");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UserAgent")
+                        .HasColumnType("text")
+                        .HasColumnName("user_agent");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId");
+
+                    b.HasIndex("TenantId", "UserId");
+
+                    b.HasIndex("UserId", "IsBlocked");
+
+                    b.ToTable("device", (string)null);
                 });
 
             modelBuilder.Entity("AuthService.Models.Domain.DocumentAccessAudit", b =>
@@ -1169,6 +2178,215 @@ namespace AuthService.Migrations
                     b.ToTable("document_access_audit", (string)null);
                 });
 
+            modelBuilder.Entity("AuthService.Models.Domain.EmergencyAccess", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AccessCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("access_code");
+
+                    b.Property<string>("ActionsPerformed")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("actions_performed");
+
+                    b.Property<string>("ApprovalNotes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("approval_notes");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<Guid?>("ApprovedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approved_by");
+
+                    b.Property<string>("AuditTrail")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("audit_trail");
+
+                    b.Property<bool>("AutoRevokeEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("auto_revoke_enabled");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("DurationMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(60)
+                        .HasColumnName("duration_minutes");
+
+                    b.Property<string>("EmergencyType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("emergency_type");
+
+                    b.Property<DateTime>("EndTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("end_time");
+
+                    b.Property<string>("GrantedPermissions")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("granted_permissions");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("NotificationSent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("notification_sent");
+
+                    b.Property<string>("NotifiedUsers")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("notified_users");
+
+                    b.Property<Guid?>("PatientId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("patient_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<DateTime?>("RejectedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("rejected_at");
+
+                    b.Property<Guid?>("RejectedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("rejected_by");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("rejection_reason");
+
+                    b.Property<bool>("RequiresApproval")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("requires_approval");
+
+                    b.Property<bool>("RequiresReview")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("requires_review");
+
+                    b.Property<string>("ReviewNotes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("review_notes");
+
+                    b.Property<string>("ReviewStatus")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("review_status");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewed_by");
+
+                    b.Property<string>("RevocationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("revocation_reason");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<Guid?>("RevokedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("revoked_by");
+
+                    b.Property<string>("RiskLevel")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("High")
+                        .HasColumnName("risk_level");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("Limited")
+                        .HasColumnName("scope");
+
+                    b.Property<DateTime>("StartTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("start_time");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("pending")
+                        .HasColumnName("status");
+
+                    b.Property<bool>("SuspiciousActivity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("suspicious_activity");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccessCode");
+
+                    b.HasIndex("ApprovedBy");
+
+                    b.HasIndex("RejectedBy");
+
+                    b.HasIndex("ReviewedBy");
+
+                    b.HasIndex("RevokedBy");
+
+                    b.HasIndex("StartTime", "EndTime");
+
+                    b.HasIndex("TenantId", "Status");
+
+                    b.HasIndex("UserId", "Status");
+
+                    b.ToTable("emergency_access", (string)null);
+                });
+
             modelBuilder.Entity("AuthService.Models.Domain.FailedLoginAttempt", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1212,6 +2430,21 @@ namespace AuthService.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
 
+                    b.Property<string>("AccreditationStatus")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("accreditation_status");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("address");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("city");
+
                     b.Property<string>("CountryCode")
                         .HasMaxLength(4)
                         .HasColumnType("character varying(4)")
@@ -1222,16 +2455,49 @@ namespace AuthService.Migrations
                         .HasColumnType("character varying(8)")
                         .HasColumnName("currency_code");
 
+                    b.Property<string>("DateFormat")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("date_format");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("email");
+
                     b.Property<string>("LanguageCode")
                         .HasMaxLength(8)
                         .HasColumnType("character varying(8)")
                         .HasColumnName("language_code");
+
+                    b.Property<string>("LicenseNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("license_number");
+
+                    b.Property<string>("LogoUrl")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("logo_url");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)")
                         .HasColumnName("name");
+
+                    b.Property<string>("NumberFormat")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("number_format");
+
+                    b.Property<DateTime?>("OperationalSince")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("operational_since");
 
                     b.Property<string>("OrganizationCode")
                         .HasMaxLength(16)
@@ -1244,6 +2510,51 @@ namespace AuthService.Migrations
                         .HasColumnName("organization_id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("OrganizationId"));
+
+                    b.Property<string>("OrganizationName")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("organization_name");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("phone");
+
+                    b.Property<string>("PostalCode")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("postal_code");
+
+                    b.Property<string>("PrimaryColor")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("primary_color");
+
+                    b.Property<string>("PrimaryContactEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("primary_contact_email");
+
+                    b.Property<string>("PrimaryContactName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("primary_contact_name");
+
+                    b.Property<string>("PrimaryContactPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("primary_contact_phone");
+
+                    b.Property<string>("RegulatoryBody")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("regulatory_body");
+
+                    b.Property<string>("SecondaryColor")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("secondary_color");
 
                     b.Property<string>("StateProvince")
                         .HasMaxLength(64)
@@ -1262,6 +2573,11 @@ namespace AuthService.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
 
+                    b.Property<string>("TimeFormat")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("time_format");
+
                     b.Property<string>("Timezone")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1269,6 +2585,11 @@ namespace AuthService.Migrations
                         .HasColumnType("character varying(64)")
                         .HasDefaultValue("UTC")
                         .HasColumnName("timezone");
+
+                    b.Property<string>("Website")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("website");
 
                     b.HasKey("Id");
 
@@ -1279,6 +2600,65 @@ namespace AuthService.Migrations
                     b.HasIndex("TenantId");
 
                     b.ToTable("organization", (string)null);
+                });
+
+            modelBuilder.Entity("AuthService.Models.Domain.PasswordResetRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at");
+
+                    b.Property<Guid?>("RequestedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requested_by_user_id");
+
+                    b.Property<string>("ResetTokenHash")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reset_token_hash");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("used_at");
+
+                    b.Property<string>("UserAgent")
+                        .HasColumnType("text")
+                        .HasColumnName("user_agent");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("password_reset_requests");
                 });
 
             modelBuilder.Entity("AuthService.Models.Domain.Patient", b =>
@@ -1575,12 +2955,71 @@ namespace AuthService.Migrations
                     b.ToTable("role_permission", (string)null);
                 });
 
+            modelBuilder.Entity("AuthService.Models.Domain.SystemAlert", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AlertType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("alert_type");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("integer")
+                        .HasColumnName("count");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<DateTime?>("DismissedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("dismissed_at");
+
+                    b.Property<bool>("IsDismissed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_dismissed");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("severity");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("system_alert", (string)null);
+                });
+
             modelBuilder.Entity("AuthService.Models.Domain.Tenant", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .HasColumnType("text")
+                        .HasColumnName("address");
+
+                    b.Property<string>("City")
+                        .HasColumnType("text")
+                        .HasColumnName("city");
+
+                    b.Property<string>("Country")
+                        .HasColumnType("text")
+                        .HasColumnName("country");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1630,9 +3069,17 @@ namespace AuthService.Migrations
                         .HasColumnType("text")
                         .HasColumnName("company_phone");
 
+                    b.Property<string>("Pincode")
+                        .HasColumnType("text")
+                        .HasColumnName("pincode");
+
                     b.Property<string>("PrimaryRegion")
                         .HasColumnType("text")
                         .HasColumnName("primary_region");
+
+                    b.Property<string>("State")
+                        .HasColumnType("text")
+                        .HasColumnName("state");
 
                     b.Property<string>("Status")
                         .HasColumnType("text")
@@ -1646,6 +3093,10 @@ namespace AuthService.Migrations
                         .HasColumnType("text")
                         .HasColumnName("tenant_code");
 
+                    b.Property<string>("TenantType")
+                        .HasColumnType("text")
+                        .HasColumnName("tenant_type");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -1657,6 +3108,81 @@ namespace AuthService.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("tenant", (string)null);
+                });
+
+            modelBuilder.Entity("AuthService.Models.Domain.UserActivationLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("ActivatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("activated_at");
+
+                    b.Property<Guid?>("ActivatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("activated_by_user_id");
+
+                    b.Property<string>("ActivationType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("activation_type");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("CredentialType")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("credential_type");
+
+                    b.Property<string>("DeliveryMethod")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("delivery_method");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<DateTime?>("OtpSentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("otp_sent_at");
+
+                    b.Property<DateTime?>("OtpUsedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("otp_used_at");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("UserAgent")
+                        .HasColumnType("text")
+                        .HasColumnName("user_agent");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("user_activation_log");
                 });
 
             modelBuilder.Entity("AuthService.Models.Domain.UserAttribute", b =>
@@ -1697,21 +3223,13 @@ namespace AuthService.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<string>("AccessLevel")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasDefaultValue("Full")
-                        .HasColumnName("access_level");
-
-                    b.Property<Guid?>("AssignedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("assigned_by");
-
-                    b.Property<DateTime>("AssignedOn")
+                    b.Property<DateTime>("AssignedAt")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("assigned_on");
+                        .HasColumnName("assigned_at");
+
+                    b.Property<Guid?>("AssignedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assigned_by_user_id");
 
                     b.Property<Guid>("BranchId")
                         .HasColumnType("uuid")
@@ -1721,6 +3239,145 @@ namespace AuthService.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<DateTime>("EffectiveFrom")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateTime?>("EffectiveUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("effective_until");
+
+                    b.Property<bool>("IsDefault")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_default");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("active")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("TenantId", "UserId", "BranchId");
+
+                    b.ToTable("user_branches", (string)null);
+                });
+
+            modelBuilder.Entity("AuthService.Models.Domain.UserDepartment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("AccessEndDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("access_end_date");
+
+                    b.Property<DateTime?>("AccessStartDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("access_start_date");
+
+                    b.Property<string>("AccessType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Secondary")
+                        .HasColumnName("access_type");
+
+                    b.Property<string>("ApprovalNotes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("approval_notes");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<Guid?>("ApprovedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approved_by");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_id");
+
+                    b.Property<bool>("CanApprove")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("can_approve");
+
+                    b.Property<bool>("CanCreate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("can_create");
+
+                    b.Property<bool>("CanDelete")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("can_delete");
+
+                    b.Property<bool>("CanEdit")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("can_edit");
+
+                    b.Property<bool>("CanExport")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("can_export");
+
+                    b.Property<bool>("CanView")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("can_view");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uuid")
                         .HasColumnName("created_by");
@@ -1729,18 +3386,26 @@ namespace AuthService.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
-                    b.Property<bool>("IsPrimary")
+                    b.Property<Guid>("DepartmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("department_id");
+
+                    b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_primary");
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<Guid?>("RevokedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("active")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("Active")
                         .HasColumnName("status");
 
                     b.Property<Guid>("TenantId")
@@ -1759,111 +3424,13 @@ namespace AuthService.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
-                    b.Property<DateTime?>("ValidFrom")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("valid_from");
-
-                    b.Property<DateTime?>("ValidUntil")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("valid_until");
-
                     b.HasKey("Id");
+
+                    b.HasIndex("ApprovedBy");
 
                     b.HasIndex("BranchId");
 
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("TenantId", "UserId", "BranchId");
-
-                    b.ToTable("user_branch_access", (string)null);
-                });
-
-            modelBuilder.Entity("AuthService.Models.Domain.UserDepartment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("AccessLevel")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasDefaultValue("Full Access")
-                        .HasColumnName("access_type");
-
-                    b.Property<Guid?>("AssignedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("granted_by_user_id");
-
-                    b.Property<DateTime>("AssignedOn")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("granted_at");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by_user_id");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("revoked_by_user_id");
-
-                    b.Property<Guid>("DepartmentId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("department_id");
-
-                    b.Property<bool>("IsPrimary")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_primary");
-
-                    b.Property<Guid>("RoleId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("role_id");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("Active")
-                        .HasColumnName("status");
-
-                    b.Property<Guid?>("SubDepartmentId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("sub_department_id");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("user_id");
-
-                    b.Property<DateTime>("ValidFrom")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("effective_from");
-
-                    b.Property<DateTime?>("ValidUntil")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("effective_to");
-
-                    b.HasKey("Id");
+                    b.HasIndex("CreatedBy");
 
                     b.HasIndex("DepartmentId");
 
@@ -1871,7 +3438,138 @@ namespace AuthService.Migrations
 
                     b.HasIndex("TenantId", "UserId", "DepartmentId");
 
-                    b.ToTable("user_department_access", (string)null);
+                    b.ToTable("department_access", (string)null);
+                });
+
+            modelBuilder.Entity("AuthService.Models.Domain.UserSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("IPAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTime>("LastActivityTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_activity_time");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("location");
+
+                    b.Property<string>("LoginMethod")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("login_method");
+
+                    b.Property<DateTime>("LoginTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("login_time");
+
+                    b.Property<DateTime?>("LogoutTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("logout_time");
+
+                    b.Property<string>("RefreshToken")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("refresh_token");
+
+                    b.Property<string>("SessionId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("session_id");
+
+                    b.Property<string>("SessionType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Web")
+                        .HasColumnName("session_type");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<bool>("SuspiciousActivity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("suspicious_activity");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<Guid?>("TerminatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("terminated_by");
+
+                    b.Property<string>("TerminationReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("termination_reason");
+
+                    b.Property<string>("TokenId")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("token_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("user_agent");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.HasIndex("SessionId");
+
+                    b.HasIndex("TerminatedBy");
+
+                    b.HasIndex("TenantId", "UserId");
+
+                    b.HasIndex("UserId", "IsActive");
+
+                    b.ToTable("user_session", (string)null);
                 });
 
             modelBuilder.Entity("AuthService.Models.Identity.AppRole", b =>
@@ -1986,12 +3684,44 @@ namespace AuthService.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<bool>("AcceptedHipaa")
+                        .HasColumnType("boolean")
+                        .HasColumnName("accepted_hipaa");
+
+                    b.Property<DateTime?>("AcceptedHipaaAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_hipaa_at");
+
+                    b.Property<bool>("AcceptedPrivacy")
+                        .HasColumnType("boolean")
+                        .HasColumnName("accepted_privacy");
+
+                    b.Property<DateTime?>("AcceptedPrivacyAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_privacy_at");
+
+                    b.Property<bool>("AcceptedTerms")
+                        .HasColumnType("boolean")
+                        .HasColumnName("accepted_terms");
+
+                    b.Property<DateTime?>("AcceptedTermsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_terms_at");
+
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("integer")
                         .HasColumnName("access_failed_count");
 
+                    b.Property<string>("ActivationStatus")
+                        .HasColumnType("text")
+                        .HasColumnName("activation_status");
+
                     b.Property<Guid?>("BranchId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("ComplianceAcceptanceIp")
+                        .HasColumnType("text")
+                        .HasColumnName("compliance_acceptance_ip");
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
@@ -2022,8 +3752,24 @@ namespace AuthService.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("email_confirmed");
 
+                    b.Property<DateTime?>("EmailVerificationSentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("email_verification_sent_at");
+
+                    b.Property<string>("EmailVerificationToken")
+                        .HasColumnType("text")
+                        .HasColumnName("email_verification_token");
+
+                    b.Property<bool>("EmailVerified")
+                        .HasColumnType("boolean")
+                        .HasColumnName("email_verified");
+
                     b.Property<string>("EmployeeId")
                         .HasColumnType("text");
+
+                    b.Property<int>("FailedLoginAttempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("failed_login_attempts");
 
                     b.Property<string>("FirstName")
                         .HasColumnType("text");
@@ -2037,14 +3783,26 @@ namespace AuthService.Migrations
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("LastLoginIp")
+                        .HasColumnType("text")
+                        .HasColumnName("last_login_ip");
+
                     b.Property<string>("LastName")
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastPasswordChange")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_password_change");
 
                     b.Property<DateTime?>("LastPasswordChangeAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("LicenseNumber")
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("LockedUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("locked_until");
 
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("boolean")
@@ -2057,6 +3815,10 @@ namespace AuthService.Migrations
                     b.Property<bool>("MustChangePasswordOnLogin")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("MustResetPassword")
+                        .HasColumnType("boolean")
+                        .HasColumnName("must_reset_password");
+
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
@@ -2067,8 +3829,19 @@ namespace AuthService.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("normalized_user_name");
 
+                    b.Property<string>("NpiNumber")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OneTimePasswordHash")
+                        .HasColumnType("text")
+                        .HasColumnName("one_time_password_hash");
+
                     b.Property<Guid?>("OrganizationId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("OtpExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("otp_expires_at");
 
                     b.Property<DateTime?>("PasswordExpiresAt")
                         .HasColumnType("timestamp with time zone");
@@ -2076,6 +3849,10 @@ namespace AuthService.Migrations
                     b.Property<string>("PasswordHash")
                         .HasColumnType("text")
                         .HasColumnName("password_hash");
+
+                    b.Property<string>("PasswordResetToken")
+                        .HasColumnType("text")
+                        .HasColumnName("password_reset_token");
 
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("text")
@@ -2090,6 +3867,10 @@ namespace AuthService.Migrations
 
                     b.Property<string>("Qualifications")
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("ResetTokenExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reset_token_expires_at");
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("text")
@@ -2204,7 +3985,7 @@ namespace AuthService.Migrations
                     b.Property<Guid?>("AssignedBy")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("BranchId")
+                    b.Property<Guid?>("BranchId")
                         .HasColumnType("uuid")
                         .HasColumnName("branch_id");
 
@@ -2240,6 +4021,84 @@ namespace AuthService.Migrations
                     b.ToTable("app_user_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("AuthService.Models.SystemSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("category");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("DataType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("data_type");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("key");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UpdatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Category", "Key")
+                        .IsUnique();
+
+                    b.ToTable("system_settings", (string)null);
+                });
+
+            modelBuilder.Entity("AuthService.Models.Domain.AccessPolicy", b =>
+                {
+                    b.HasOne("AuthService.Models.Identity.AppUser", "Creator")
+                        .WithMany()
+                        .HasForeignKey("CreatedBy");
+
+                    b.HasOne("AuthService.Models.Domain.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AuthService.Models.Identity.AppUser", "Updater")
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy");
+
+                    b.Navigation("Creator");
+
+                    b.Navigation("Tenant");
+
+                    b.Navigation("Updater");
+                });
+
             modelBuilder.Entity("AuthService.Models.Domain.Appointment", b =>
                 {
                     b.HasOne("AuthService.Models.Identity.AppUser", "Doctor")
@@ -2262,7 +4121,7 @@ namespace AuthService.Migrations
             modelBuilder.Entity("AuthService.Models.Domain.Branch", b =>
                 {
                     b.HasOne("AuthService.Models.Domain.Organization", "Organization")
-                        .WithMany()
+                        .WithMany("Branches")
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -2322,7 +4181,132 @@ namespace AuthService.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("AuthService.Models.Domain.DepartmentAccessAuditLog", b =>
+                {
+                    b.HasOne("AuthService.Models.Domain.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AuthService.Models.Identity.AppUser", "PerformedByUser")
+                        .WithMany()
+                        .HasForeignKey("PerformedBy")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AuthService.Models.Identity.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Department");
+
+                    b.Navigation("PerformedByUser");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("AuthService.Models.Domain.DepartmentAccessRequest", b =>
+                {
+                    b.HasOne("AuthService.Models.Domain.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AuthService.Models.Identity.AppUser", "ReviewedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReviewedBy");
+
+                    b.HasOne("AuthService.Models.Identity.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Department");
+
+                    b.Navigation("ReviewedByUser");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("AuthService.Models.Domain.Device", b =>
+                {
+                    b.HasOne("AuthService.Models.Domain.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AuthService.Models.Identity.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("AuthService.Models.Domain.EmergencyAccess", b =>
+                {
+                    b.HasOne("AuthService.Models.Identity.AppUser", "Approver")
+                        .WithMany()
+                        .HasForeignKey("ApprovedBy");
+
+                    b.HasOne("AuthService.Models.Identity.AppUser", "Rejecter")
+                        .WithMany()
+                        .HasForeignKey("RejectedBy");
+
+                    b.HasOne("AuthService.Models.Identity.AppUser", "Reviewer")
+                        .WithMany()
+                        .HasForeignKey("ReviewedBy");
+
+                    b.HasOne("AuthService.Models.Identity.AppUser", "Revoker")
+                        .WithMany()
+                        .HasForeignKey("RevokedBy");
+
+                    b.HasOne("AuthService.Models.Domain.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AuthService.Models.Identity.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Approver");
+
+                    b.Navigation("Rejecter");
+
+                    b.Navigation("Reviewer");
+
+                    b.Navigation("Revoker");
+
+                    b.Navigation("Tenant");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("AuthService.Models.Domain.Organization", b =>
+                {
+                    b.HasOne("AuthService.Models.Domain.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("AuthService.Models.Domain.PasswordResetRequest", b =>
                 {
                     b.HasOne("AuthService.Models.Domain.Tenant", "Tenant")
                         .WithMany()
@@ -2350,6 +4334,17 @@ namespace AuthService.Migrations
                     b.Navigation("Permission");
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("AuthService.Models.Domain.UserActivationLog", b =>
+                {
+                    b.HasOne("AuthService.Models.Domain.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("AuthService.Models.Domain.UserAttribute", b =>
@@ -2384,8 +4379,20 @@ namespace AuthService.Migrations
 
             modelBuilder.Entity("AuthService.Models.Domain.UserDepartment", b =>
                 {
-                    b.HasOne("AuthService.Models.Domain.Department", "Department")
+                    b.HasOne("AuthService.Models.Identity.AppUser", "Approver")
                         .WithMany()
+                        .HasForeignKey("ApprovedBy");
+
+                    b.HasOne("AuthService.Models.Domain.Branch", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId");
+
+                    b.HasOne("AuthService.Models.Identity.AppUser", "Creator")
+                        .WithMany()
+                        .HasForeignKey("CreatedBy");
+
+                    b.HasOne("AuthService.Models.Domain.Department", "Department")
+                        .WithMany("UserDepartmentAccesses")
                         .HasForeignKey("DepartmentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -2402,9 +4409,46 @@ namespace AuthService.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("Approver");
+
+                    b.Navigation("Branch");
+
+                    b.Navigation("Creator");
+
                     b.Navigation("Department");
 
                     b.Navigation("Tenant");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("AuthService.Models.Domain.UserSession", b =>
+                {
+                    b.HasOne("AuthService.Models.Domain.Device", "Device")
+                        .WithMany("Sessions")
+                        .HasForeignKey("DeviceId");
+
+                    b.HasOne("AuthService.Models.Domain.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AuthService.Models.Identity.AppUser", "Terminator")
+                        .WithMany()
+                        .HasForeignKey("TerminatedBy");
+
+                    b.HasOne("AuthService.Models.Identity.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Device");
+
+                    b.Navigation("Tenant");
+
+                    b.Navigation("Terminator");
 
                     b.Navigation("User");
                 });
@@ -2464,9 +4508,32 @@ namespace AuthService.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("AuthService.Models.SystemSetting", b =>
+                {
+                    b.HasOne("AuthService.Models.Domain.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("AuthService.Models.Domain.Department", b =>
                 {
                     b.Navigation("SubDepartments");
+
+                    b.Navigation("UserDepartmentAccesses");
+                });
+
+            modelBuilder.Entity("AuthService.Models.Domain.Device", b =>
+                {
+                    b.Navigation("Sessions");
+                });
+
+            modelBuilder.Entity("AuthService.Models.Domain.Organization", b =>
+                {
+                    b.Navigation("Branches");
                 });
 
             modelBuilder.Entity("AuthService.Models.Domain.Permission", b =>

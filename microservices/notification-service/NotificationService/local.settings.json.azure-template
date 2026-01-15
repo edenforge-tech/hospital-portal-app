@@ -1,0 +1,24 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    
+    "ConnectionStrings__DefaultConnection": "Host=hospital-db.postgres.database.azure.com;Port=5432;Database=hospital_portal;Username=postgres;Password=Sriinfotech123;SSL Mode=Require;Trust Server Certificate=true",
+    
+    "AzureCommunication__ConnectionString": "REPLACE_WITH_YOUR_CONNECTION_STRING_FROM_SETUP_SCRIPT",
+    "AzureCommunication__FromEmail": "DoNotReply@YOUR-ID.azurecomm.net",
+    "AzureCommunication__FromName": "Hospital Portal",
+    
+    "Twilio__AccountSid": "AC5275ee8b38d76b3a0a7f00cc647201e1",
+    "Twilio__AuthToken": "1dae121e49e2dd4377bfed90ad1ebd06",
+    "Twilio__FromNumber": "+17622474127",
+    
+    "Otp__Length": "6",
+    "Otp__ActivationExpiryHours": "48",
+    "Otp__MfaExpiryMinutes": "5",
+    "Otp__MaxAttempts": "5",
+    "Otp__ResendCooldownMinutes": "5",
+    "Otp__MaxSendsPerDay": "3"
+  }
+}

@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { usersApi } from '@/lib/api';
 import { departmentsApi } from '@/lib/api/departments.api';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 
 interface Props {
   initialUser?: any;
@@ -30,6 +32,7 @@ export default function UserFormEnhanced({ initialUser, onClose }: Props) {
     phoneNumber: initialUser?.phoneNumber || '',
     userType: initialUser?.userType || 'STAFF',
     password: '', // Required for new users
+    employeeId: initialUser?.employeeId || '',
     
     // Professional Information
     designation: initialUser?.designation || '',
@@ -52,6 +55,24 @@ export default function UserFormEnhanced({ initialUser, onClose }: Props) {
   useEffect(() => {
     loadDepartments();
   }, []);
+
+  // Auto-generate EmployeeID for new users
+  useEffect(() => {
+    if (!initialUser && !form.employeeId && form.userType) {
+      const userTypePrefix = form.userType.toUpperCase().substring(0, 3);
+      const randomNum = Math.floor(Math.random() * 9000) + 1000;
+      const generatedId = `EMP-${userTypePrefix}-${randomNum}`;
+      setForm(prev => ({ ...prev, employeeId: generatedId }));
+    }
+  }, [form.userType, initialUser, form.employeeId]);
+
+  // Auto-generate username from employeeId
+  useEffect(() => {
+    if (!initialUser && form.employeeId) {
+      const username = form.employeeId.toLowerCase();
+      setForm(prev => ({ ...prev, userName: username }));
+    }
+  }, [form.employeeId, initialUser]);
 
   const loadDepartments = async () => {
     try {
@@ -247,12 +268,32 @@ export default function UserFormEnhanced({ initialUser, onClose }: Props) {
             </div>
             <div>
               <label className="text-sm font-medium">Phone Number</label>
-              <input 
-                type="tel"
-                name="phoneNumber" 
-                value={form.phoneNumber} 
-                onChange={handleChange} 
-                className="w-full border border-gray-300 px-3 py-2 rounded-lg"
+              <PhoneInput
+                country={'us'}
+                value={form.phoneNumber}
+                onChange={(phone) => setForm({ ...form, phoneNumber: phone })}
+                containerClass="w-full"
+                inputClass="w-full"
+                buttonClass="border-gray-300"
+                inputStyle={{
+                  width: '100%',
+                  height: '42px',
+                  fontSize: '14px',
+                  paddingLeft: '48px',
+                  borderRadius: '0.5rem',
+                  border: '1px solid #d1d5db',
+                }}
+                buttonStyle={{
+                  borderRadius: '0.5rem 0 0 0.5rem',
+                  border: '1px solid #d1d5db',
+                  backgroundColor: '#f9fafb',
+                }}
+                dropdownStyle={{
+                  borderRadius: '0.5rem',
+                }}
+                enableSearch
+                searchPlaceholder="Search country"
+                placeholder="+1 (555) 123-4567"
               />
             </div>
           </div>
@@ -335,6 +376,18 @@ export default function UserFormEnhanced({ initialUser, onClose }: Props) {
             <h3 className="text-lg font-medium text-gray-900 mb-4">Professional Information</h3>
             
             <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Employee ID</label>
+                <input 
+                  name="employeeId" 
+                  value={form.employeeId} 
+                  onChange={handleChange} 
+                  disabled={!!initialUser}
+                  className="w-full border border-gray-300 px-3 py-2 rounded-lg disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  placeholder="e.g., EMP-DOC-001"
+                />
+                {!initialUser && <p className="text-xs text-gray-500 mt-1">Auto-generated on create</p>}
+              </div>
               <div>
                 <label className="text-sm font-medium">Designation</label>
                 <input 

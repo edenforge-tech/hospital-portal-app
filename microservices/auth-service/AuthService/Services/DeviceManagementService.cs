@@ -33,7 +33,29 @@ namespace AuthService.Services
 
         private Guid GetCurrentTenantId()
         {
+            // Try to get tenant ID from HttpContext.Items (set during login)
             var tenantId = _httpContextAccessor?.HttpContext?.Items["TenantId"] as Guid?;
+            
+            // If not found, try to get from JWT claims
+            if (tenantId == null)
+            {
+                var tenantIdClaim = _httpContextAccessor?.HttpContext?.User?.FindFirst("tenant_id")?.Value;
+                if (!string.IsNullOrEmpty(tenantIdClaim) && Guid.TryParse(tenantIdClaim, out var parsedTenantId))
+                {
+                    tenantId = parsedTenantId;
+                }
+            }
+            
+            // If still not found, try to get from X-Tenant-ID header
+            if (tenantId == null)
+            {
+                var tenantIdHeader = _httpContextAccessor?.HttpContext?.Request.Headers["X-Tenant-ID"].FirstOrDefault();
+                if (!string.IsNullOrEmpty(tenantIdHeader) && Guid.TryParse(tenantIdHeader, out var parsedTenantId))
+                {
+                    tenantId = parsedTenantId;
+                }
+            }
+            
             return tenantId ?? Guid.Parse("11111111-1111-1111-1111-111111111111");
         }
 

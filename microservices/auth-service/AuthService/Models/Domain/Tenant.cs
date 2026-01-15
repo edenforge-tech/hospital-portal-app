@@ -7,6 +7,7 @@ namespace AuthService.Models.Domain
         public Guid Id { get; set; }
         public string? Name { get; set; }
         public string? TenantCode { get; set; }
+        public string? TenantType { get; set; } = "Hospital"; // Hospital, Clinic, Diagnostic Center
         public string? RegistrationNumber { get; set; }
         public string? Email { get; set; }
         public string? Phone { get; set; }

@@ -6,6 +6,9 @@ export {
   type CreateAppointmentRequest,
 } from './appointments'
 
+export { auditLogsApi } from './audit-logs.api'
+export { activationAuditLogsApi } from './activation-audit-logs.api'
+
 export async function fetchApi(endpoint: string, options: {
   method?: string
   body?: any

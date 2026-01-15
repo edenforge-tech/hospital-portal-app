@@ -7,6 +7,7 @@ export async function GET() {
   try {
     const cookieStore = cookies();
     const token = cookieStore.get('auth_token')?.value;
+    const tenantId = cookieStore.get('tenant_id')?.value;
 
     if (!token) {
       return NextResponse.json(
@@ -16,11 +17,12 @@ export async function GET() {
     }
 
     // Fetch from real backend API
-    const response = await fetch(`${API_URL}/api/dashboard/admin/quick-stats`, {
+    const response = await fetch(`${API_URL}/dashboard/admin/quick-stats`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
+        'X-Tenant-ID': tenantId || '',
       },
       cache: 'no-store',
     });

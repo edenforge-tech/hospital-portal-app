@@ -7,14 +7,16 @@ namespace AuthService.Controllers
 {
     [Authorize]
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/emergency-access")]
     public class EmergencyAccessController : ControllerBase
     {
         private readonly IEmergencyAccessService _emergencyService;
+        private readonly ILogger<EmergencyAccessController> _logger;
 
-        public EmergencyAccessController(IEmergencyAccessService emergencyService)
+        public EmergencyAccessController(IEmergencyAccessService emergencyService, ILogger<EmergencyAccessController> logger)
         {
             _emergencyService = emergencyService;
+            _logger = logger;
         }
 
         /// <summary>
@@ -43,21 +45,56 @@ namespace AuthService.Controllers
         [HttpGet("active")]
         public async Task<IActionResult> GetActiveEmergencyAccess()
         {
-            var userId = Guid.Parse(User.FindFirst("sub")?.Value ?? throw new UnauthorizedAccessException());
-            var activeAccess = await _emergencyService.GetActiveEmergencyAccessAsync(userId);
-            return Ok(new { activeAccess });
+            try
+            {
+                var userId = Guid.Parse(User.FindFirst("sub")?.Value ?? throw new UnauthorizedAccessException());
+                var activeAccess = await _emergencyService.GetActiveEmergencyAccessAsync(userId);
+                return Ok(activeAccess);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving active emergency access");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get my emergency access requests
+        /// </summary>
+        [HttpGet("my-requests")]
+        public async Task<IActionResult> GetMyRequests()
+        {
+            try
+            {
+                var userId = Guid.Parse(User.FindFirst("sub")?.Value ?? throw new UnauthorizedAccessException());
+                var requests = await _emergencyService.GetMyRequestsAsync(userId);
+                return Ok(requests);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving emergency access requests");
+                return StatusCode(500, new { error = ex.Message });
+            }
         }
 
         /// <summary>
         /// Get pending emergency access approvals (supervisor/admin only)
         /// </summary>
-        [HttpGet("pending")]
+        [HttpGet("pending-approvals")]
         [Authorize(Roles = "Admin,Supervisor")]
         public async Task<IActionResult> GetPendingApprovals()
         {
-            var approverId = Guid.Parse(User.FindFirst("sub")?.Value ?? throw new UnauthorizedAccessException());
-            var pendingApprovals = await _emergencyService.GetPendingApprovalsAsync(approverId);
-            return Ok(new { pendingApprovals });
+            try
+            {
+                var approverId = Guid.Parse(User.FindFirst("sub")?.Value ?? throw new UnauthorizedAccessException());
+                var pendingApprovals = await _emergencyService.GetPendingApprovalsAsync(approverId);
+                return Ok(pendingApprovals);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving pending approvals");
+                return StatusCode(500, new { error = ex.Message });
+            }
         }
 
         /// <summary>
