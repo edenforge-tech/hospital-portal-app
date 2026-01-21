@@ -56,7 +56,7 @@ export default function Sidebar() {
     },
     {
       label: 'Permissions',
-      href: '/dashboard/admin/permissions-new',
+      href: '/dashboard/admin/permissions',
       icon: '🛡️',
       requiredPermission: 'permission.view'
     },

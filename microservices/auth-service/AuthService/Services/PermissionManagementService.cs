@@ -138,12 +138,14 @@ namespace AuthService.Services
 
                 // Calculate breakdowns
                 var moduleBreakdown = permissionDtos
+                    .Where(p => p.Module != null)
                     .GroupBy(p => p.Module)
-                    .ToDictionary(g => g.Key, g => g.Count());
+                    .ToDictionary(g => g.Key!, g => g.Count());
 
                 var scopeBreakdown = permissionDtos
+                    .Where(p => p.Scope != null)
                     .GroupBy(p => p.Scope)
-                    .ToDictionary(g => g.Key, g => g.Count());
+                    .ToDictionary(g => g.Key!, g => g.Count());
 
                 return new PermissionListResponse
                 {
@@ -1292,10 +1294,10 @@ namespace AuthService.Services
                     InactivePermissions = permissions.Count(p => !p.IsActive),
                     SystemPermissions = permissions.Count(p => p.IsSystemPermission ?? false),
                     CustomPermissions = permissions.Count(p => p.IsCustom ?? false),
-                    ModuleBreakdown = permissions.GroupBy(p => p.Module).ToDictionary(g => g.Key, g => g.Count()),
-                    ScopeBreakdown = permissions.GroupBy(p => p.Scope).ToDictionary(g => g.Key, g => g.Count()),
-                    ActionBreakdown = permissions.GroupBy(p => p.Action).ToDictionary(g => g.Key, g => g.Count()),
-                    ClassificationBreakdown = permissions.GroupBy(p => p.DataClassification).ToDictionary(g => g.Key, g => g.Count()),
+                    ModuleBreakdown = permissions.Where(p => p.Module != null).GroupBy(p => p.Module).ToDictionary(g => g.Key!, g => g.Count()),
+                    ScopeBreakdown = permissions.Where(p => p.Scope != null).GroupBy(p => p.Scope).ToDictionary(g => g.Key!, g => g.Count()),
+                    ActionBreakdown = permissions.Where(p => p.Action != null).GroupBy(p => p.Action).ToDictionary(g => g.Key!, g => g.Count()),
+                    ClassificationBreakdown = permissions.Where(p => p.DataClassification != null).GroupBy(p => p.DataClassification).ToDictionary(g => g.Key!, g => g.Count()),
                     MostUsedPermissions = permissionUsage.OrderByDescending(p => p.AssignedToRoles).Take(10).ToList(),
                     LeastUsedPermissions = permissionUsage.Where(p => p.AssignedToRoles > 0).OrderBy(p => p.AssignedToRoles).Take(10).ToList(),
                     UnusedPermissions = permissionUsage.Where(p => p.AssignedToRoles == 0).ToList()
