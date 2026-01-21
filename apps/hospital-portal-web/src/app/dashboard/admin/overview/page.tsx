@@ -10,6 +10,8 @@ import {
   AlertTriangle, CheckCircle2, Clock, Shield, Server, Database,
   UserPlus, Key, Settings, XCircle, Bell
 } from 'lucide-react';
+import { useAuthStore } from '@/lib/auth-store';
+import { dashboardApi } from '@/lib/api';
 
 interface DashboardStats {
   totalTenants: number;
@@ -87,139 +89,48 @@ export default function AdminOverviewPage() {
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
+  const { token, tenantId } = useAuthStore();
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [token, tenantId]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
       
-      // Fetch all dashboard data in parallel
-      const [statsResponse, quickStatsResponse, activitiesResponse, alertsResponse] = await Promise.all([
-        fetch('/api/dashboard/admin/stats'),
-        fetch('/api/dashboard/admin/quick-stats'),
-        fetch('/api/dashboard/admin/recent-activities'),
-        fetch('/api/dashboard/admin/alerts')
+      // Fetch all dashboard data in parallel using dashboardApi
+      const [overviewRes, quickStatsRes, activitiesRes, alertsRes] = await Promise.all([
+        dashboardApi.getOverview().catch(() => ({ data: null })),
+        dashboardApi.getQuickStats().catch(() => ({ data: null })),
+        dashboardApi.getRecentActivities(10).catch(() => ({ data: [] })),
+        dashboardApi.getAlerts().catch(() => ({ data: [] }))
       ]);
 
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json();
-        setStats(statsData);
-      }
-
-      if (quickStatsResponse.ok) {
-        const quickStatsData = await quickStatsResponse.json();
-        setQuickStats(quickStatsData);
-      }
-
-      if (activitiesResponse.ok) {
-        const activitiesData = await activitiesResponse.json();
-        setRecentActivities(activitiesData);
-      }
-
-      if (alertsResponse.ok) {
-        const alertsData = await alertsResponse.json();
-        setAlerts(alertsData);
-      }
-
-      // Mock data for development if API fails
-      if (!statsResponse.ok) {
+      if (overviewRes.data) {
+        console.log('Dashboard overview data:', overviewRes.data);
         setStats({
-          totalTenants: 12,
-          totalUsers: 3847,
-          totalDepartments: 156,
-          totalBranches: 45,
-          activeUsers: 287,
-          systemHealth: 'healthy',
-          last24HourActivities: 1523
+          totalTenants: overviewRes.data.totalTenants || 0,
+          totalUsers: overviewRes.data.totalUsers || 0,
+          totalDepartments: overviewRes.data.totalDepartments || 0,
+          totalBranches: overviewRes.data.totalBranches || 0,
+          activeUsers: overviewRes.data.activeUsers || 0,
+          systemHealth: overviewRes.data.systemHealth || 'healthy',
+          last24HourActivities: overviewRes.data.last24HourActivities || 0
         });
       }
 
-      if (!quickStatsResponse.ok) {
-        setQuickStats({
-          userGrowthThisMonth: 234,
-          userGrowthPercentage: 6.5,
-          departmentOperations: 12847,
-          complianceStatus: {
-            hipaa: true,
-            nabh: true,
-            dpa: true
-          },
-          systemPerformance: {
-            cpuUsage: 45,
-            memoryUsage: 62,
-            diskUsage: 38,
-            uptime: '45d 12h'
-          }
-        });
+      if (quickStatsRes.data) {
+        setQuickStats(quickStatsRes.data);
       }
 
-      if (!activitiesResponse.ok) {
-        setRecentActivities([
-          {
-            id: 1,
-            type: 'registration',
-            description: 'New user registered',
-            user: 'Dr. Sarah Johnson',
-            timestamp: '5 minutes ago'
-          },
-          {
-            id: 2,
-            type: 'role_assignment',
-            description: 'Assigned role "Doctor" to user',
-            user: 'Admin User',
-            timestamp: '12 minutes ago'
-          },
-          {
-            id: 3,
-            type: 'permission_change',
-            description: 'Updated permissions for "Nurse" role',
-            user: 'System Admin',
-            timestamp: '1 hour ago'
-          },
-          {
-            id: 4,
-            type: 'admin_action',
-            description: 'Created new department "Neurology"',
-            user: 'Hospital Admin',
-            timestamp: '2 hours ago'
-          }
-        ]);
+      if (activitiesRes.data) {
+        setRecentActivities(activitiesRes.data);
       }
 
-      if (!alertsResponse.ok) {
-        setAlerts([
-          {
-            id: 1,
-            type: 'password_expiry',
-            severity: 'warning',
-            title: 'Password Expiry Warning',
-            description: '23 users have passwords expiring in the next 7 days',
-            count: 23,
-            timestamp: '10 minutes ago'
-          },
-          {
-            id: 2,
-            type: 'security',
-            severity: 'error',
-            title: 'Failed Login Attempts',
-            description: '15 failed login attempts detected from IP 192.168.1.100',
-            count: 15,
-            timestamp: '30 minutes ago'
-          },
-          {
-            id: 3,
-            type: 'system',
-            severity: 'info',
-            title: 'System Update Available',
-            description: 'A new system update is available for installation',
-            timestamp: '1 hour ago'
-          }
-        ]);
+      if (alertsRes.data) {
+        setAlerts(alertsRes.data);
       }
-
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {

@@ -2,6 +2,9 @@
 
 > Multi-tenant healthcare management platform with HIPAA-compliant security
 
+**Status**: ✅ Clean & Organized (Cleanup completed Dec 9, 2025)  
+**See**: [CLEANUP_COMPLETE.md](CLEANUP_COMPLETE.md) for project organization details
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -50,21 +53,33 @@ cd consolidated
 - pnpm workspaces + Turbo monorepo
 - ASP.NET Core Identity + JWT authentication
 
-## 📂 Project Structure
+## 📂 Project Structure (Clean & Organized ✅)
 
 ```
 Hospital Portal/
+├── README.md                          ⭐ Main documentation (single source of truth)
+├── CLEANUP_COMPLETE.md                📋 Cleanup details and file organization
+├── MASTER_DATABASE_MIGRATIONS.sql     🗄️ Consolidated database migrations
+├── MASTER_PERMISSIONS_SEED.sql        🔐 Permission seeding script
+├── run_database_migrations.ps1        ⚙️ Migration runner
+├── test_database_compliance.sql       ✅ Database validation script
+├── .github/copilot-instructions.md    🤖 AI coding guidelines
 ├── apps/
 │   └── hospital-portal-web/          # Next.js frontend
 ├── microservices/
 │   └── auth-service/
 │       └── AuthService/               # .NET 8.0 backend
+├── database_migrations/               # All database migration scripts (organized)
 ├── consolidated/
-│   ├── run_all.ps1                    # Unified script for migrations/seeding/tests
-│   └── MASTER_DOCS.md                 # Consolidated documentation
-├── archive/                           # Archived old files
-├── GUIDE.md                           # Complete project guide
-└── README.md                          # This file
+│   └── run_all.ps1                    # Unified runner (migrations + seeding + tests)
+└── archive/                           # Historical files (docs, ps1, sql, logs)
+```
+
+**Essential Files**:
+- `README.md` - Main documentation (you are here!)
+- `CLEANUP_COMPLETE.md` - Project organization and cleanup details
+- `run_database_migrations.ps1` - Database setup script
+- `test_database_compliance.sql` - HIPAA compliance validator
 ```
 
 ## ✅ Current Status

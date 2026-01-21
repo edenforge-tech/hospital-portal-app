@@ -4,6 +4,9 @@ import { useAuthStore } from '@/lib/auth-store';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getApi } from '@/lib/api';
+import { Country, State, City } from 'country-state-city';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 
 interface Tenant {
   id: string;
@@ -47,6 +50,7 @@ export default function TenantsPage() {
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState<Partial<Tenant>>({
@@ -64,11 +68,17 @@ export default function TenantsPage() {
     contactEmail: '',
     contactPhone: '',
     address: '',
-    city: '',
+    country: '',
     state: '',
-    country: 'United States',
+    city: '',
     zipCode: '',
   });
+  
+  // Cascading address state
+  const [selectedCountryIso, setSelectedCountryIso] = useState<string>('');
+  const [selectedStateIso, setSelectedStateIso] = useState<string>('');
+  const [availableStates, setAvailableStates] = useState<any[]>([]);
+  const [availableCities, setAvailableCities] = useState<any[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -97,10 +107,62 @@ export default function TenantsPage() {
     }
   };
 
+  // Cascading address handlers
+  const handleCountryChange = (countryIso: string) => {
+    const country = Country.getCountryByCode(countryIso);
+    setSelectedCountryIso(countryIso);
+    setFormData({ 
+      ...formData, 
+      country: country?.name || '',
+      state: '',
+      city: '',
+      zipCode: ''
+    });
+    
+    // Load states for selected country
+    const states = State.getStatesOfCountry(countryIso);
+    setAvailableStates(states);
+    setSelectedStateIso('');
+    setAvailableCities([]);
+  };
+
+  const handleStateChange = (stateIso: string) => {
+    const state = availableStates.find(s => s.isoCode === stateIso);
+    setSelectedStateIso(stateIso);
+    setFormData({ 
+      ...formData, 
+      state: state?.name || '',
+      city: '',
+      zipCode: ''
+    });
+    
+    // Load cities for selected state
+    if (selectedCountryIso && stateIso) {
+      const cities = City.getCitiesOfState(selectedCountryIso, stateIso);
+      setAvailableCities(cities);
+    }
+  };
+
+  const handleCityChange = (cityName: string) => {
+    setFormData({ 
+      ...formData, 
+      city: cityName
+    });
+    // Note: Pincode auto-population would require additional data source
+  };
+
   const handleCreate = async () => {
     if (!formData.name?.trim() || !formData.tenantCode?.trim()) {
       setError('Name and Tenant Code are required');
       return;
+    }
+    
+    // Validate address if country is selected
+    if (formData.country) {
+      if (availableStates.length > 0 && !formData.state) {
+        setError('State is required for the selected country');
+        return;
+      }
     }
 
     try {
@@ -124,13 +186,44 @@ export default function TenantsPage() {
   const handleEdit = (tenant: Tenant) => {
     setSelectedTenant(tenant);
     setFormData(tenant);
-    setViewMode('edit');
+    
+    // Populate cascading address dropdowns if data exists
+    if (tenant.country) {
+      // Find country ISO code by name
+      const country = Country.getAllCountries().find(c => c.name === tenant.country);
+      if (country) {
+        setSelectedCountryIso(country.isoCode);
+        const states = State.getStatesOfCountry(country.isoCode);
+        setAvailableStates(states);
+        
+        if (tenant.state) {
+          // Find state ISO code by name
+          const state = states.find(s => s.name === tenant.state);
+          if (state) {
+            setSelectedStateIso(state.isoCode);
+            const cities = City.getCitiesOfState(country.isoCode, state.isoCode);
+            setAvailableCities(cities);
+          }
+        }
+      }
+    }
+        setViewMode('edit');
   };
 
   const handleUpdate = async () => {
     if (!selectedTenant?.id) return;
+    
+    // Validate address if country is selected
+    if (formData.country) {
+      if (availableStates.length > 0 && !formData.state) {
+        setError('State is required for the selected country');
+        return;
+      }
+    }
 
     try {
+      setIsSaving(true);
+      setError('');
       await getApi().put(`/tenants/${selectedTenant.id}/details`, formData);
       setSuccess('Tenant updated successfully');
       setViewMode('list');
@@ -139,6 +232,8 @@ export default function TenantsPage() {
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to update tenant');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -182,13 +277,18 @@ export default function TenantsPage() {
       contactEmail: '',
       contactPhone: '',
       address: '',
-      city: '',
+      country: '',
       state: '',
-      country: 'United States',
+      city: '',
       zipCode: '',
     });
+    setSelectedCountryIso('');
+    setSelectedStateIso('');
+    setAvailableStates([]);
+    setAvailableCities([]);
     setSelectedTenant(null);
     setError('');
+    setIsSaving(false);
   };
 
   const filteredTenants = tenants.filter(tenant => {
@@ -217,10 +317,10 @@ export default function TenantsPage() {
   // List View
   if (viewMode === 'list') {
     return (
-      <div className="p-8">
-        <div className="max-w-7xl mx-auto">
+      <div className="p-6">
+        <div>
           {/* Header */}
-          <div className="mb-8 flex justify-between items-center">
+          <div className="mb-6 flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Tenant Management</h1>
               <p className="text-gray-600 mt-2">Manage hospital tenants and subscriptions</p>
@@ -409,19 +509,10 @@ export default function TenantsPage() {
 
   // Create/Edit Form View
   return (
-    <div className="p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="p-6">
+      <div>
         {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => {
-              setViewMode('list');
-              resetForm();
-            }}
-            className="text-indigo-600 hover:text-indigo-800 mb-4 flex items-center"
-          >
-            ← Back to List
-          </button>
+        <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">
             {viewMode === 'create' ? 'Create New Tenant' : 'Edit Tenant'}
           </h1>
@@ -626,14 +717,133 @@ export default function TenantsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Contact Phone
                   </label>
-                  <input
-                    type="tel"
+                  <PhoneInput
+                    country={'us'}
                     value={formData.contactPhone}
-                    onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    onChange={(phone) => setFormData({ ...formData, contactPhone: phone })}
+                    containerClass="w-full"
+                    inputClass="w-full"
+                    buttonClass="border-gray-300"
+                    inputStyle={{
+                      width: '100%',
+                      height: '42px',
+                      fontSize: '14px',
+                      paddingLeft: '48px',
+                      borderRadius: '0.5rem',
+                      border: '1px solid #d1d5db',
+                    }}
+                    buttonStyle={{
+                      borderRadius: '0.5rem 0 0 0.5rem',
+                      border: '1px solid #d1d5db',
+                      backgroundColor: '#f9fafb',
+                    }}
+                    dropdownStyle={{
+                      borderRadius: '0.5rem',
+                    }}
+                    enableSearch
+                    searchPlaceholder="Search country"
                     placeholder="+1 (555) 123-4567"
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* Address Section */}
+            <div className="bg-white rounded-lg p-6 border border-gray-200">
+              <h3 className="text-lg font-semibold mb-4">Address Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Street Address
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="123 Main Street, Suite 100"
+                  />
+                </div>
+                
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Country <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={selectedCountryIso}
+                    onChange={(e) => handleCountryChange(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="">Select Country</option>
+                    {Country.getAllCountries().map((country) => (
+                      <option key={country.isoCode} value={country.isoCode}>
+                        {country.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    State/Province {selectedCountryIso && availableStates.length > 0 && <span className="text-red-500">*</span>}
+                  </label>
+                  <select
+                    value={selectedStateIso}
+                    onChange={(e) => handleStateChange(e.target.value)}
+                    disabled={!selectedCountryIso || availableStates.length === 0}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">
+                      {!selectedCountryIso ? 'Select country first' : availableStates.length === 0 ? 'No states available' : 'Select State'}
+                    </option>
+                    {availableStates.map((state) => (
+                      <option key={state.isoCode} value={state.isoCode}>
+                        {state.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    City
+                  </label>
+                  <select
+                    value={formData.city}
+                    onChange={(e) => handleCityChange(e.target.value)}
+                    disabled={!selectedStateIso || availableCities.length === 0}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">
+                      {!selectedStateIso ? 'Select state first' : availableCities.length === 0 ? 'No cities available' : 'Select City'}
+                    </option>
+                    {availableCities.map((city) => (
+                      <option key={city.name} value={city.name}>
+                        {city.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Zip/Postal Code
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.zipCode}
+                    onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="12345"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Compliance Section */}
+            <div className="bg-white rounded-lg p-6 border border-gray-200">
+              <h3 className="text-lg font-semibold mb-4">Compliance Information</h3>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Compliance Status
@@ -651,75 +861,6 @@ export default function TenantsPage() {
               </div>
             </div>
 
-            {/* Address */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Address</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Street Address
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="123 Main Street"
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      City
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder="New York"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      State
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.state}
-                      onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder="NY"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Country
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.country}
-                      onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder="United States"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Zip Code
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.zipCode}
-                      onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder="10001"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Action Buttons */}
             <div className="flex gap-3 pt-4 border-t">
               <button
@@ -733,9 +874,16 @@ export default function TenantsPage() {
               </button>
               <button
                 onClick={viewMode === 'create' ? handleCreate : handleUpdate}
-                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                disabled={isSaving}
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {viewMode === 'create' ? 'Create Tenant' : 'Update Tenant'}
+                {isSaving && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                )}
+                {isSaving 
+                  ? 'Saving...' 
+                  : viewMode === 'create' ? 'Create Tenant' : 'Update Tenant'
+                }
               </button>
             </div>
           </div>

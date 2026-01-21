@@ -7,13 +7,14 @@ namespace AuthService.Models.Domain
 {
     /// <summary>
     /// User-Branch access junction table for multi-branch staff assignments
+    /// Allows users to work across multiple branches with configurable access levels
     /// </summary>
-    [Table("user_branch_access")]
+    [Table("user_branches")]
     public class UserBranch
     {
         [Key]
         [Column("id")]
-        public Guid Id { get; set; }
+        public Guid Id { get; set; } = Guid.NewGuid();
 
         [Required]
         [Column("tenant_id")]
@@ -27,44 +28,43 @@ namespace AuthService.Models.Domain
         [Column("branch_id")]
         public Guid BranchId { get; set; }
 
-        [Column("is_primary")]
-        public bool IsPrimary { get; set; } = false;
+        /// <summary>
+        /// Indicates if this is the user's default/primary branch
+        /// Only one default branch per user (enforced by unique index)
+        /// </summary>
+        [Column("is_default")]
+        public bool IsDefault { get; set; } = false;
 
-        [Column("access_level")]
-        [MaxLength(50)]
-        public string AccessLevel { get; set; } = "Full";
+        [Column("assigned_at")]
+        public DateTime AssignedAt { get; set; } = DateTime.UtcNow;
+
+        [Column("assigned_by_user_id")]
+        public Guid? AssignedByUserId { get; set; }
+
+        [Column("effective_from")]
+        public DateTime EffectiveFrom { get; set; } = DateTime.UtcNow;
+
+        [Column("effective_until")]
+        public DateTime? EffectiveUntil { get; set; }
 
         [Column("status")]
         [MaxLength(20)]
-        public string Status { get; set; } = "active";
+        public string Status { get; set; } = "active"; // active, inactive, expired
 
-        [Column("valid_from")]
-        public DateTime? ValidFrom { get; set; }
+        [Column("notes")]
+        public string? Notes { get; set; }
 
-        [Column("valid_until")]
-        public DateTime? ValidUntil { get; set; }
-
-        [Column("assigned_on")]
-        public DateTime AssignedOn { get; set; } = DateTime.UtcNow;
-
-        [Column("assigned_by")]
-        public Guid? AssignedBy { get; set; }
-
-        // Audit fields
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        [Column("created_by")]
-        public Guid? CreatedBy { get; set; }
+        [Column("created_by_user_id")]
+        public Guid? CreatedByUserId { get; set; }
 
         [Column("updated_at")]
-        public DateTime? UpdatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        [Column("updated_by")]
-        public Guid? UpdatedBy { get; set; }
-
-        [Column("deleted_at")]
-        public DateTime? DeletedAt { get; set; }
+        [Column("updated_by_user_id")]
+        public Guid? UpdatedByUserId { get; set; }
 
         // Navigation properties
         [ForeignKey("UserId")]

@@ -116,6 +116,16 @@ export default function Sidebar() {
     },
   ];
 
+  // Check if user has any admin role
+  const isAdmin = roles.some(role => 
+    ['Admin', 'IT Administrator', 'System Admin', 'Super Admin'].includes(role)
+  );
+
+  // Check if user has access to ANY admin menu item
+  const hasAnyAdminPermission = adminMenuItems.some(item => 
+    !item.requiredPermission || hasPermission(item.requiredPermission)
+  );
+
   return (
     <div className="w-64 bg-indigo-900 text-white shadow-lg overflow-y-auto">
       <div className="p-6">
@@ -141,40 +151,42 @@ export default function Sidebar() {
           );
         })}
 
-        {/* Admin Management Section */}
-        <div className="mt-4">
-          <button
-            onClick={() => setAdminMenuOpen(!adminMenuOpen)}
-            className="flex items-center justify-between w-full px-6 py-3 text-indigo-100 hover:bg-indigo-800 transition"
-          >
-            <div className="flex items-center">
-              <span className="mr-3">🔧</span>
-              <span>Admin Management</span>
-            </div>
-            <span className="text-xs">{adminMenuOpen ? '▼' : '▶'}</span>
-          </button>
-          
-          {adminMenuOpen && (
-            <div className="bg-indigo-950 bg-opacity-50">
-              {adminMenuItems.map((item) => {
-                const canAccess = !item.requiredPermission || hasPermission(item.requiredPermission);
-                
-                if (!canAccess) return null;
+        {/* Admin Management Section - Only show if user is admin OR has any admin permissions */}
+        {(isAdmin || hasAnyAdminPermission) && (
+          <div className="mt-4">
+            <button
+              onClick={() => setAdminMenuOpen(!adminMenuOpen)}
+              className="flex items-center justify-between w-full px-6 py-3 text-indigo-100 hover:bg-indigo-800 transition"
+            >
+              <div className="flex items-center">
+                <span className="mr-3">🔧</span>
+                <span>Admin Management</span>
+              </div>
+              <span className="text-xs">{adminMenuOpen ? '▼' : '▶'}</span>
+            </button>
+            
+            {adminMenuOpen && (
+              <div className="bg-indigo-950 bg-opacity-50">
+                {adminMenuItems.map((item) => {
+                  const canAccess = !item.requiredPermission || hasPermission(item.requiredPermission);
+                  
+                  if (!canAccess) return null;
 
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="flex items-center pl-12 pr-6 py-2 text-indigo-200 text-sm hover:bg-indigo-800 transition"
-                  >
-                    <span className="mr-3">{item.icon}</span>
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="flex items-center pl-12 pr-6 py-2 text-indigo-200 text-sm hover:bg-indigo-800 transition"
+                    >
+                      <span className="mr-3">{item.icon}</span>
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </nav>
     </div>
   );

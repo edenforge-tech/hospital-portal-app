@@ -26,7 +26,6 @@ export default function OrganizationsPage() {
   
   // Filters & Pagination
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
@@ -43,7 +42,7 @@ export default function OrganizationsPage() {
   // Load organizations
   useEffect(() => {
     loadOrganizations();
-  }, [search, typeFilter, statusFilter, currentPage]);
+  }, [search, statusFilter, currentPage]);
 
   const loadOrganizations = async () => {
     try {
@@ -53,7 +52,6 @@ export default function OrganizationsPage() {
       const filters: OrganizationFilters = {
         tenantId: user?.tenantId,
         search: search || undefined,
-        type: typeFilter || undefined,
         status: statusFilter || undefined,
         pageNumber: currentPage,
         pageSize,
@@ -127,16 +125,6 @@ export default function OrganizationsPage() {
     loadOrganizations();
   };
 
-  const getTypeColor = (type?: string) => {
-    switch (type?.toLowerCase()) {
-      case 'hospital': return 'bg-blue-100 text-blue-800';
-      case 'clinic': return 'bg-green-100 text-green-800';
-      case 'diagnostic': return 'bg-purple-100 text-purple-800';
-      case 'pharmacy': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'active': return 'bg-green-100 text-green-800';
@@ -195,22 +183,6 @@ export default function OrganizationsPage() {
             </div>
           </div>
 
-          {/* Type Filter */}
-          <select
-            value={typeFilter}
-            onChange={(e) => {
-              setTypeFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          >
-            <option value="">All Types</option>
-            <option value="Hospital">Hospital</option>
-            <option value="Clinic">Clinic</option>
-            <option value="Diagnostic">Diagnostic</option>
-            <option value="Pharmacy">Pharmacy</option>
-          </select>
-
           {/* Status Filter */}
           <select
             value={statusFilter}
@@ -232,11 +204,10 @@ export default function OrganizationsPage() {
           <span>
             Showing {organizations.length} of {totalCount} organizations
           </span>
-          {(search || typeFilter || statusFilter) && (
+          {(search || statusFilter) && (
             <button
               onClick={() => {
                 setSearch('');
-                setTypeFilter('');
                 setStatusFilter('');
                 setCurrentPage(1);
               }}
@@ -280,12 +251,6 @@ export default function OrganizationsPage() {
                     Code
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Parent
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Branches
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -317,20 +282,6 @@ export default function OrganizationsPage() {
                       <span className="text-sm text-gray-900 font-mono">{org.code || '—'}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {org.type ? (
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(org.type)}`}>
-                          {org.type}
-                        </span>
-                      ) : (
-                        <span className="text-sm text-gray-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">
-                        {org.parentOrganizationName || '—'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-medium text-gray-900">{org.totalBranches}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -348,21 +299,21 @@ export default function OrganizationsPage() {
                           className="text-indigo-600 hover:text-indigo-900"
                           title="View Details"
                         >
-                          
+                          <Eye className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleEdit(org)}
                           className="text-blue-600 hover:text-blue-900"
                           title="Edit"
                         >
-                          
+                          <Edit className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(org)}
                           className="text-red-600 hover:text-red-900"
                           title="Delete"
                         >
-                          
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </td>
@@ -405,11 +356,11 @@ export default function OrganizationsPage() {
           <Building2 className="h-16 w-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No organizations found</h3>
           <p className="text-gray-600 mb-6">
-            {search || typeFilter || statusFilter
+            {search || statusFilter
               ? 'Try adjusting your filters'
               : 'Get started by creating your first organization'}
           </p>
-          {!search && !typeFilter && !statusFilter && (
+          {!search && !statusFilter && (
             <button
               onClick={() => setShowCreateModal(true)}
               className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"

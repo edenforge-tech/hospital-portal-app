@@ -1,1345 +1,962 @@
-# SEQUENTIAL IMPLEMENTATION PLAN
-**Hospital Portal RBAC-ABAC Complete Implementation**
+# Sequential Implementation Plan - Eye Hospital Management System
 
-**Based On**: RBAC-ABAC-Complete-Permissions.md (Version 3.0)  
-**Gap Analysis**: RBAC_ABAC_GAP_ANALYSIS.md  
-**Start Date**: November 11, 2025  
-**Target Completion**: January 31, 2026 (12 weeks)
-
----
-
-## 🎯 IMPLEMENTATION STRATEGY
-
-### Phased Approach
-1. **Phase 0** (Week 1): Foundation - Enable existing, create permissions/roles
-2. **Phase 1** (Weeks 2-3): Database + Backend APIs
-3. **Phase 2** (Weeks 4-7): Frontend UI (RBAC/ABAC)
-4. **Phase 3** (Weeks 8-9): Document Sharing + Multi-Dept
-5. **Phase 4** (Weeks 10-11): Testing + Validation
-6. **Phase 5** (Week 12): Polish + Documentation
-
-### Work Order Principles
-- ✅ Enable what's already coded FIRST (quick wins)
-- ✅ Database changes BEFORE APIs
-- ✅ APIs BEFORE UI
-- ✅ Test after EACH major step
-- ✅ One step at a time (no skipping)
+**Generated Date**: December 8, 2025  
+**Based On**: Requirements Gap Analysis v1.0  
+**Repository**: https://github.com/edenforge-tech/hospital-portal-app  
+**Current Status**: ~50% Complete (Infrastructure-heavy, features light)
 
 ---
 
-## 📅 WEEK-BY-WEEK PLAN
+## Executive Summary
 
-## WEEK 1: FOUNDATION (Quick Wins)
+This document provides a **detailed, week-by-week implementation roadmap** to complete the Eye Hospital Management System based on the comprehensive requirements document. The plan assumes **3-4 full-time developers** and is organized into **4 phases over 9 months** to reach production-ready status.
 
-### Day 1-2: Enable Phase 4 APIs ⚡ QUICK WIN
+### **Timeline Overview**
 
-**STEP 1: Move DocumentSharingController out of _Phase4_Disabled**
-```powershell
-# PowerShell commands
-cd "c:\Users\Sam Aluri\Downloads\Hospital Portal\microservices\auth-service\AuthService"
-mv "Controllers\_Phase4_Disabled\DocumentSharingController.cs" "Controllers\DocumentSharingController.cs"
-```
-
-**STEP 2: Move DocumentSharingService out of _Phase4_Disabled**
-```powershell
-mv "Services\_Phase4_Disabled\DocumentSharingService.cs" "Services\DocumentSharingService.cs"
-mv "Services\_Phase4_Disabled\IDocumentSharingService.cs" "Services\IDocumentSharingService.cs"
-```
-
-**STEP 3: Register DocumentSharingService in Program.cs**
-```csharp
-// Add to Program.cs (around line 100 with other services)
-builder.Services.AddScoped<IDocumentSharingService, DocumentSharingService>();
-```
-
-**STEP 4: Test all 16 endpoints in Swagger**
-- Run backend: `dotnet run`
-- Open: `https://localhost:7001/swagger`
-- Test:
-  - GET /api/documentsharing/document-types
-  - POST /api/documentsharing/document-types
-  - POST /api/documentsharing/access-rules
-  - POST /api/documentsharing/access-rules/check-access
-
-**Expected Result**: ✅ 16 new endpoints working (162 → 178 total)
+| Phase | Duration | Focus Areas | Completion Target |
+|-------|----------|-------------|-------------------|
+| **Phase 2** | Months 1-3 (12 weeks) | **Priority 1**: Core Clinical + Financial | 70% Complete |
+| **Phase 3** | Months 4-6 (12 weeks) | **Priority 2**: Advanced Clinical + Infrastructure | 85% Complete |
+| **Phase 4** | Months 7-9 (12 weeks) | **Priority 3**: Reporting, Localization, Polish | 95% Complete |
+| **Phase 5** | Months 10-12 (12 weeks) | **Advanced Features**: Patient Portal, Telemedicine, Mobile | 100% Complete |
 
 ---
 
-### Day 3-5: Create 297 Permissions Seed Script
+## Phase 2: Core Clinical & Financial Workflows (Months 1-3)
 
-**STEP 5: Create SQL seed script for Patient Management permissions (24)**
+**Goal**: Implement **Priority 1 (P1) features** to make the system viable for basic clinical operations
 
-Create file: `seed_permissions_patient_management.sql`
-
-```sql
--- Patient Management Permissions (24)
-INSERT INTO permissions (id, tenant_id, permission_name, permission_code, module_name, resource_name, "Action", scope, status, created_at) VALUES
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Create Patient Record', 'patient.patient_record.create', 'patient', 'patient_record', 'create', 'department', 'active', CURRENT_TIMESTAMP),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Read Patient Record', 'patient.patient_record.read', 'patient', 'patient_record', 'read', 'department', 'active', CURRENT_TIMESTAMP),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Update Patient Record', 'patient.patient_record.update', 'patient', 'patient_record', 'update', 'department', 'active', CURRENT_TIMESTAMP),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Delete Patient Record', 'patient.patient_record.delete', 'patient', 'patient_record', 'delete', 'department', 'active', CURRENT_TIMESTAMP),
-
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Create Patient Demographics', 'patient.patient_demographics.create', 'patient', 'patient_demographics', 'create', 'department', 'active', CURRENT_TIMESTAMP),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Read Patient Demographics', 'patient.patient_demographics.read', 'patient', 'patient_demographics', 'read', 'department', 'active', CURRENT_TIMESTAMP),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Update Patient Demographics', 'patient.patient_demographics.update', 'patient', 'patient_demographics', 'update', 'department', 'active', CURRENT_TIMESTAMP),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Delete Patient Demographics', 'patient.patient_demographics.delete', 'patient', 'patient_demographics', 'delete', 'department', 'active', CURRENT_TIMESTAMP),
-
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Create Patient Contact', 'patient.patient_contact.create', 'patient', 'patient_contact', 'create', 'department', 'active', CURRENT_TIMESTAMP),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Read Patient Contact', 'patient.patient_contact.read', 'patient', 'patient_contact', 'read', 'department', 'active', CURRENT_TIMESTAMP),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Update Patient Contact', 'patient.patient_contact.update', 'patient', 'patient_contact', 'update', 'department', 'active', CURRENT_TIMESTAMP),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Delete Patient Contact', 'patient.patient_contact.delete', 'patient', 'patient_contact', 'delete', 'department', 'active', CURRENT_TIMESTAMP),
-
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Create Patient Consent', 'patient.patient_consent.create', 'patient', 'patient_consent', 'create', 'department', 'active', CURRENT_TIMESTAMP),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Read Patient Consent', 'patient.patient_consent.read', 'patient', 'patient_consent', 'read', 'department', 'active', CURRENT_TIMESTAMP),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Update Patient Consent', 'patient.patient_consent.update', 'patient', 'patient_consent', 'update', 'department', 'active', CURRENT_TIMESTAMP),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Delete Patient Consent', 'patient.patient_consent.delete', 'patient', 'patient_consent', 'delete', 'department', 'active', CURRENT_TIMESTAMP),
-
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Upload Patient Document', 'patient.patient_document.upload', 'patient', 'patient_document', 'upload', 'department', 'active', CURRENT_TIMESTAMP),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Read Patient Document', 'patient.patient_document.read', 'patient', 'patient_document', 'read', 'department', 'active', CURRENT_TIMESTAMP),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Update Patient Document', 'patient.patient_document.update', 'patient', 'patient_document', 'update', 'department', 'active', CURRENT_TIMESTAMP),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Delete Patient Document', 'patient.patient_document.delete', 'patient', 'patient_document', 'delete', 'department', 'active', CURRENT_TIMESTAMP),
-
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Create Patient Preferences', 'patient.patient_preferences.create', 'patient', 'patient_preferences', 'create', 'department', 'active', CURRENT_TIMESTAMP),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Read Patient Preferences', 'patient.patient_preferences.read', 'patient', 'patient_preferences', 'read', 'department', 'active', CURRENT_TIMESTAMP),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Update Patient Preferences', 'patient.patient_preferences.update', 'patient', 'patient_preferences', 'update', 'department', 'active', CURRENT_TIMESTAMP),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Delete Patient Preferences', 'patient.patient_preferences.delete', 'patient', 'patient_preferences', 'delete', 'department', 'active', CURRENT_TIMESTAMP);
-```
-
-**STEP 6: Create scripts for remaining modules**
-
-Repeat STEP 5 pattern for:
-- Clinical Assessment (20 permissions) → `seed_permissions_clinical.sql`
-- Prescriptions (16) → `seed_permissions_pharmacy.sql`
-- Laboratory (18) → `seed_permissions_laboratory.sql`
-- Imaging (16) → `seed_permissions_imaging.sql`
-- Appointments (16) → `seed_permissions_appointments.sql`
-- Billing (20) → `seed_permissions_billing.sql`
-- Insurance (18) → `seed_permissions_insurance.sql`
-- Pharmacy (20) → `seed_permissions_pharmacy_inventory.sql`
-- Ward/IPD (18) → `seed_permissions_ward.sql`
-- Operating Theatre (18) → `seed_permissions_surgery.sql`
-- Optical Shop (16) → `seed_permissions_optical.sql`
-- Medical Records (12) → `seed_permissions_mrd.sql`
-- Administration (15) → `seed_permissions_admin.sql`
-- Reporting (12) → `seed_permissions_reporting.sql`
-- Quality (12) → `seed_permissions_quality.sql`
-
-**STEP 7: Create master seed script**
-
-Create file: `MASTER_PERMISSIONS_SEED.sql`
-
-```sql
--- Master Permissions Seed Script - 297 Permissions
--- Execute in order
-
-\i seed_permissions_patient_management.sql
-\i seed_permissions_clinical.sql
-\i seed_permissions_pharmacy.sql
--- ... (include all 16 module scripts)
-
--- Verification
-SELECT module_name, COUNT(*) as permission_count
-FROM permissions
-WHERE tenant_id = '00000000-0000-0000-0000-000000000001'
-GROUP BY module_name
-ORDER BY module_name;
-
--- Expected output:
--- patient: 24
--- clinical: 20
--- pharmacy: 16
--- ... (16 modules)
--- Total: 297
-```
-
-**STEP 8: Execute seed script**
-
-```powershell
-# Via psql
-psql -U postgres -d hospitalportal -f "MASTER_PERMISSIONS_SEED.sql"
-
-# OR via backend API
-POST https://localhost:7001/api/permissions/seed
-```
-
-**STEP 9: Verify permissions created**
-
-```sql
-SELECT COUNT(*) FROM permissions; -- Should be 297+
-SELECT * FROM permissions WHERE module_name = 'patient' ORDER BY permission_code;
-```
-
-**Expected Result**: ✅ 297 permissions in database
+**Deliverables**: Prescriptions, Billing, Lab Orders, Pharmacy, Appointment Calendar
 
 ---
 
-## WEEK 2: ROLES + PERMISSION MAPPINGS
+### **Month 1: Clinical Core - Prescriptions & Laboratory**
 
-### Day 1-2: Create 20 Roles
+#### **Week 1-2: Prescription Module (Backend + Frontend)**
 
-**STEP 10: Create SQL seed script for roles**
+**Objective**: Enable doctors to create, approve, and manage prescriptions
 
-Create file: `seed_roles.sql`
+**Backend Tasks** (Week 1):
+- ✅ Database: `prescription` table already exists
+- [ ] Create `PrescriptionsController.cs` with endpoints:
+  - `GET /api/prescriptions` - List prescriptions (filtered by patient, doctor, date range)
+  - `GET /api/prescriptions/{id}` - Get prescription details
+  - `POST /api/prescriptions` - Create new prescription
+  - `PUT /api/prescriptions/{id}` - Update prescription (with approval workflow)
+  - `DELETE /api/prescriptions/{id}` - Soft delete prescription
+  - `POST /api/prescriptions/{id}/approve` - Approve prescription (for junior doctors)
+  - `POST /api/prescriptions/{id}/refill` - Create refill prescription
+  - `GET /api/prescriptions/patient/{patientId}` - Patient prescription history
+  - `GET /api/prescriptions/pending-approval` - Prescriptions awaiting approval
+  - `POST /api/prescriptions/{id}/print` - Generate prescription PDF
+- [ ] Implement `IPrescriptionService` interface and `PrescriptionService` class
+  - Validation: Check prescribing authority (doctor/optometrist only)
+  - Approval workflow: Junior doctor prescriptions require senior approval
+  - Drug interaction checking (basic - use external API in future)
+  - Audit logging: Log all prescription actions
+- [ ] Add permissions: `prescription.view`, `prescription.create`, `prescription.edit`, `prescription.delete`, `prescription.approve`
+- [ ] Unit tests for PrescriptionService (TDD approach)
 
-```sql
--- 20 Flat Roles for Hospital Portal
-INSERT INTO "AspNetRoles" ("Id", "Name", "NormalizedName", "TenantId", "Description", "IsSystemRole", "IsActive") VALUES
-('00000000-0000-0000-0000-000000000001', 'System Admin', 'SYSTEM ADMIN', '00000000-0000-0000-0000-000000000001', 'Full system access', true, true),
-('00000000-0000-0000-0000-000000000002', 'Hospital Administrator', 'HOSPITAL ADMINISTRATOR', '00000000-0000-0000-0000-000000000001', 'Hospital-wide admin', true, true),
-('00000000-0000-0000-0000-000000000003', 'Finance Manager', 'FINANCE MANAGER', '00000000-0000-0000-0000-000000000001', 'Financial operations', true, true),
-('00000000-0000-0000-0000-000000000004', 'HR Manager', 'HR MANAGER', '00000000-0000-0000-0000-000000000001', 'Human resources', true, true),
-('00000000-0000-0000-0000-000000000005', 'IT Manager', 'IT MANAGER', '00000000-0000-0000-0000-000000000001', 'IT and systems', true, true),
-('00000000-0000-0000-0000-000000000006', 'Quality Manager', 'QUALITY MANAGER', '00000000-0000-0000-0000-000000000001', 'Quality and compliance', true, true),
-('00000000-0000-0000-0000-000000000007', 'Doctor', 'DOCTOR', '00000000-0000-0000-0000-000000000001', 'Medical doctor', false, true),
-('00000000-0000-0000-0000-000000000008', 'Nurse', 'NURSE', '00000000-0000-0000-0000-000000000001', 'Nursing staff', false, true),
-('00000000-0000-0000-0000-000000000009', 'Pharmacist', 'PHARMACIST', '00000000-0000-0000-0000-000000000001', 'Pharmacy operations', false, true),
-('00000000-0000-0000-0000-00000000000A', 'Technician', 'TECHNICIAN', '00000000-0000-0000-0000-000000000001', 'Technical staff', false, true),
-('00000000-0000-0000-0000-00000000000B', 'Receptionist', 'RECEPTIONIST', '00000000-0000-0000-0000-000000000001', 'Front desk staff', false, true),
-('00000000-0000-0000-0000-00000000000C', 'Counselor', 'COUNSELOR', '00000000-0000-0000-0000-000000000001', 'Patient counseling', false, true),
-('00000000-0000-0000-0000-00000000000D', 'Admin Staff', 'ADMIN STAFF', '00000000-0000-0000-0000-000000000001', 'Administrative staff', false, true),
-('00000000-0000-0000-0000-00000000000E', 'Finance Officer', 'FINANCE OFFICER', '00000000-0000-0000-0000-000000000001', 'Finance operations', false, true),
-('00000000-0000-0000-0000-00000000000F', 'Department Head', 'DEPARTMENT HEAD', '00000000-0000-0000-0000-000000000001', 'Department leadership', false, true),
-('00000000-0000-0000-0000-000000000010', 'Lab Manager', 'LAB MANAGER', '00000000-0000-0000-0000-000000000001', 'Laboratory management', false, true),
-('00000000-0000-0000-0000-000000000011', 'Ward Manager', 'WARD MANAGER', '00000000-0000-0000-0000-000000000001', 'Ward management', false, true),
-('00000000-0000-0000-0000-000000000012', 'OT Manager', 'OT MANAGER', '00000000-0000-0000-0000-000000000001', 'Operating theatre management', false, true),
-('00000000-0000-0000-0000-000000000013', 'Insurance Officer', 'INSURANCE OFFICER', '00000000-0000-0000-0000-000000000001', 'Insurance operations', false, true),
-('00000000-0000-0000-0000-000000000014', 'Patient', 'PATIENT', '00000000-0000-0000-0000-000000000001', 'Patient access', false, true);
-```
+**Frontend Tasks** (Week 2):
+- [ ] Create `/dashboard/prescriptions` page (list view)
+  - Table: Patient name, Doctor, Date, Medications, Status (Pending/Approved/Dispensed)
+  - Filters: Date range, patient, doctor, status
+  - Actions: View, Edit, Approve, Print
+- [ ] Create prescription form component (`PrescriptionForm.tsx`)
+  - Patient selection (autocomplete)
+  - Medication selection (autocomplete from medication inventory)
+  - Dosage, frequency, duration, instructions
+  - SIG codes support (optional)
+  - Special instructions (e.g., "Take with food", "Avoid alcohol")
+- [ ] Create prescription detail modal (`PrescriptionDetail.tsx`)
+  - Read-only view of prescription
+  - Approval section (if pending approval)
+  - Dispensing history (if linked to pharmacy)
+- [ ] Create prescription approval workflow component
+  - List of pending prescriptions
+  - Approve/Reject with comments
+- [ ] PDF generation component (using react-pdf or similar)
+  - Organization branding (logo, name)
+  - Doctor details (name, license, signature)
+  - Patient details
+  - Medication table
+  - Prescription ID, date, QR code (for verification)
+- [ ] Integration with pharmacy module (prepare API calls)
 
-**STEP 11: Execute role seed script**
+**Acceptance Criteria**:
+- ✅ Doctor can create prescription with multiple medications
+- ✅ Junior doctor prescriptions require senior doctor approval
+- ✅ Prescription can be printed with organization branding
+- ✅ Prescription history visible in patient record
+- ✅ All prescription actions logged in audit trail
+- ✅ Permission-based access control (only doctors/optometrists can prescribe)
 
-```powershell
-psql -U postgres -d hospitalportal -f "seed_roles.sql"
-```
+**Dependencies**: None (ready to start)
 
-**STEP 12: Verify roles created**
-
-```sql
-SELECT "Id", "Name", "Description" FROM "AspNetRoles" ORDER BY "Name";
--- Should show 20 roles
-```
-
----
-
-### Day 3-5: Assign Permissions to Roles
-
-**STEP 13: Create role-permission mappings for Doctor**
-
-Create file: `seed_role_permissions_doctor.sql`
-
-```sql
--- Doctor Role Permissions (15 permissions)
--- Role ID: 00000000-0000-0000-0000-000000000007
-
-INSERT INTO role_permissions ("RoleId", "PermissionId", status, created_at)
-SELECT 
-    '00000000-0000-0000-0000-000000000007'::uuid,
-    p.id,
-    'active',
-    CURRENT_TIMESTAMP
-FROM permissions p
-WHERE p.permission_code IN (
-    -- Patient Management (Read only)
-    'patient.patient_record.read',
-    'patient.patient_demographics.read',
-    'patient.patient_document.read',
-    
-    -- Clinical Assessment (Full CRUD)
-    'clinical.assessment.create',
-    'clinical.assessment.read',
-    'clinical.assessment.update',
-    'clinical.assessment.delete',
-    
-    -- Prescriptions (Full CRUD)
-    'pharmacy.prescription.create',
-    'pharmacy.prescription.read',
-    'pharmacy.prescription.update',
-    'pharmacy.prescription.delete',
-    
-    -- Laboratory (Create orders, Read results)
-    'laboratory.test_order.create',
-    'laboratory.test_result.read',
-    
-    -- Reports (Read, Export)
-    'report.clinical_report.read',
-    'report.clinical_report.export'
-);
-```
-
-**STEP 14: Create mappings for all 20 roles**
-
-Repeat STEP 13 pattern for:
-- Nurse (12 permissions)
-- Pharmacist (10 permissions)
-- Receptionist (8 permissions)
-- Admin Staff (9 permissions)
-- Finance Manager (15 permissions)
-- Finance Officer (10 permissions)
-- Department Head (20 permissions)
-- Insurance Officer (18 permissions)
-- Quality Manager (12 permissions)
-- IT Manager (12 permissions)
-- Patient (8 permissions)
-- Hospital Administrator (25 permissions)
-- System Admin (ALL 297 permissions)
-- ... (remaining roles)
-
-**STEP 15: Create master role-permission seed script**
-
-Create file: `MASTER_ROLE_PERMISSIONS_SEED.sql`
-
-```sql
--- Master Role-Permission Mappings
-\i seed_role_permissions_doctor.sql
-\i seed_role_permissions_nurse.sql
-\i seed_role_permissions_pharmacist.sql
--- ... (all 20 roles)
-
--- Verification
-SELECT r."Name", COUNT(rp."PermissionId") as permission_count
-FROM "AspNetRoles" r
-LEFT JOIN role_permissions rp ON r."Id" = rp."RoleId"
-WHERE rp.status = 'active'
-GROUP BY r."Name"
-ORDER BY r."Name";
-
--- Expected output:
--- Doctor: 15
--- Nurse: 12
--- Pharmacist: 10
--- System Admin: 297
--- etc.
-```
-
-**STEP 16: Execute role-permission mappings**
-
-```powershell
-psql -U postgres -d hospitalportal -f "MASTER_ROLE_PERMISSIONS_SEED.sql"
-```
-
-**Expected Result**: ✅ 20 roles with appropriate permissions assigned
+**Risks**: Drug interaction checking may be complex - defer to Phase 3 if needed
 
 ---
 
-## WEEK 3: DATABASE ENHANCEMENTS
+#### **Week 3-4: Laboratory Orders Module (Backend + Frontend)**
 
-### Day 1-2: Create Missing Tables
+**Objective**: Enable doctors to order lab tests and lab staff to enter results
 
-**STEP 17: Create patient_document_uploads table**
+**Backend Tasks** (Week 3):
+- ✅ Database: `lab_order`, `lab_order_item` tables exist
+- [ ] Create `LabOrdersController.cs` with endpoints:
+  - `GET /api/lab-orders` - List lab orders (filtered by patient, doctor, status)
+  - `GET /api/lab-orders/{id}` - Get lab order details
+  - `POST /api/lab-orders` - Create new lab order
+  - `PUT /api/lab-orders/{id}` - Update lab order
+  - `DELETE /api/lab-orders/{id}` - Soft delete lab order
+  - `POST /api/lab-orders/{id}/items` - Add lab test to order
+  - `PUT /api/lab-orders/{id}/items/{itemId}` - Update test result
+  - `POST /api/lab-orders/{id}/items/{itemId}/result` - Enter test result
+  - `POST /api/lab-orders/{id}/approve` - Approve critical results (pathologist)
+  - `POST /api/lab-orders/{id}/print` - Generate lab order form
+  - `GET /api/lab-orders/patient/{patientId}` - Patient lab history
+  - `GET /api/lab-orders/pending-results` - Tests pending result entry
+  - `GET /api/lab-orders/critical-results` - Critical results needing approval
+- [ ] Create `LabTestCatalogController.cs` with endpoints:
+  - `GET /api/lab-tests` - List available lab tests
+  - `POST /api/lab-tests` - Add new lab test to catalog
+  - `PUT /api/lab-tests/{id}` - Update lab test details
+  - `DELETE /api/lab-tests/{id}` - Remove lab test from catalog
+- [ ] Implement `ILabOrderService` and `LabOrderService`
+  - Validation: Only doctors/junior doctors can order lab tests
+  - Result entry: Only lab staff can enter results
+  - Critical value alerts: Auto-alert ordering doctor for critical results
+  - Status workflow: Ordered → Sample Collected → In Progress → Completed → Approved
+- [ ] Add lab test catalog seeding (common tests: CBC, LFT, RFT, HbA1c, etc.)
+- [ ] Add permissions: `lab_order.view`, `lab_order.create`, `lab_order.edit`, `lab_order.delete`, `lab_result.enter`, `lab_result.approve`
 
-Create file: `migration_patient_document_uploads.sql`
+**Frontend Tasks** (Week 4):
+- [ ] Create `/dashboard/laboratory` page (list view)
+  - Table: Patient, Doctor, Test(s), Status (Ordered/In Progress/Completed), Date
+  - Filters: Date range, patient, doctor, status, test type
+  - Actions: View, Enter Result, Approve, Print
+- [ ] Create lab order form component (`LabOrderForm.tsx`)
+  - Patient selection
+  - Multiple test selection (checkboxes from catalog)
+  - Clinical indication / reason for test
+  - Priority (Routine/Urgent/STAT)
+  - Sample collection notes
+- [ ] Create result entry component (`LabResultEntry.tsx`)
+  - Test name, reference range
+  - Result value (numeric or text)
+  - Units (e.g., mg/dL, g/dL, cells/μL)
+  - Interpretation (Normal/Abnormal/Critical)
+  - Technician notes
+  - Critical value auto-flag
+- [ ] Create lab report component (`LabReport.tsx`)
+  - Patient demographics
+  - Test(s) with results
+  - Reference ranges, flags (H/L/Critical)
+  - Pathologist approval signature (if required)
+  - Lab logo, accreditation details
+- [ ] Critical value alert notification
+  - Real-time notification to ordering doctor
+  - Acknowledge alert workflow
+- [ ] Integration with patient record (show lab history)
 
-```sql
-CREATE TABLE IF NOT EXISTS patient_document_uploads (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL REFERENCES tenant(id),
-    patient_id UUID NOT NULL REFERENCES users(id),
-    
-    document_type VARCHAR(50) NOT NULL, -- insurance_health_card, lab_report, etc.
-    document_title VARCHAR(255),
-    file_url VARCHAR(500) NOT NULL,
-    file_size INTEGER,
-    mime_type VARCHAR(50),
-    
-    uploaded_by UUID NOT NULL REFERENCES users(id),
-    uploaded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
-    -- Departments that can see this document
-    shared_to_departments VARCHAR(50)[],
-    shared_to_roles VARCHAR(50)[],
-    
-    -- Standard columns
-    status VARCHAR(20) NOT NULL DEFAULT 'active',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES users(id),
-    updated_at TIMESTAMPTZ,
-    updated_by UUID REFERENCES users(id),
-    deleted_at TIMESTAMPTZ,
-    deleted_by UUID REFERENCES users(id)
-);
+**Acceptance Criteria**:
+- ✅ Doctor can order multiple lab tests for a patient
+- ✅ Lab staff can enter test results with reference ranges
+- ✅ Critical results trigger alerts to ordering doctor
+- ✅ Pathologist can approve critical results before release
+- ✅ Lab reports can be printed with organization branding
+- ✅ Lab history visible in patient record
+- ✅ Permission-based access control (doctors order, lab staff enter results)
 
--- Indexes
-CREATE INDEX idx_patient_uploads_patient ON patient_document_uploads(patient_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_patient_uploads_date ON patient_document_uploads(uploaded_at);
-CREATE INDEX idx_patient_uploads_type ON patient_document_uploads(document_type) WHERE deleted_at IS NULL;
-CREATE INDEX idx_patient_uploads_tenant ON patient_document_uploads(tenant_id) WHERE deleted_at IS NULL;
+**Dependencies**: Patient module (already exists)
 
--- RLS Policy
-ALTER TABLE patient_document_uploads ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY tenant_isolation_patient_document_uploads ON patient_document_uploads
-FOR ALL USING (tenant_id::text = current_setting('app.current_tenant_id', true));
-```
-
-**STEP 18: Create document_access_audit table**
-
-Create file: `migration_document_access_audit.sql`
-
-```sql
-CREATE TABLE IF NOT EXISTS document_access_audit (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL REFERENCES tenant(id),
-    
-    user_id UUID NOT NULL REFERENCES users(id),
-    document_id UUID NOT NULL,
-    document_type VARCHAR(50),
-    
-    action VARCHAR(50) NOT NULL, -- read, update, delete, download, share, unshare
-    
-    access_granted BOOLEAN NOT NULL,
-    denial_reason VARCHAR(255),
-    
-    ip_address INET,
-    user_agent TEXT,
-    
-    accessed_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
--- Indexes
-CREATE INDEX idx_audit_user ON document_access_audit(user_id);
-CREATE INDEX idx_audit_document ON document_access_audit(document_id);
-CREATE INDEX idx_audit_timestamp ON document_access_audit(accessed_at);
-CREATE INDEX idx_audit_tenant ON document_access_audit(tenant_id);
-
--- RLS Policy
-ALTER TABLE document_access_audit ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY tenant_isolation_document_access_audit ON document_access_audit
-FOR ALL USING (tenant_id::text = current_setting('app.current_tenant_id', true));
-```
-
-**STEP 19: Create admin_configurations table**
-
-Create file: `migration_admin_configurations.sql`
-
-```sql
-CREATE TABLE IF NOT EXISTS admin_configurations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL REFERENCES tenant(id),
-    
-    config_key VARCHAR(100) NOT NULL,
-    config_value TEXT,
-    config_type VARCHAR(50) NOT NULL, -- string, number, boolean, json, array
-    
-    description TEXT,
-    editable_by VARCHAR(50)[], -- Array of role codes that can edit
-    
-    is_system_config BOOLEAN DEFAULT FALSE,
-    
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES users(id),
-    updated_at TIMESTAMPTZ,
-    updated_by UUID REFERENCES users(id),
-    deleted_at TIMESTAMPTZ,
-    deleted_by UUID REFERENCES users(id)
-);
-
--- Indexes
-CREATE UNIQUE INDEX idx_admin_config_key ON admin_configurations(tenant_id, config_key) WHERE deleted_at IS NULL;
-CREATE INDEX idx_admin_config_type ON admin_configurations(config_type) WHERE deleted_at IS NULL;
-
--- RLS Policy
-ALTER TABLE admin_configurations ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY tenant_isolation_admin_configurations ON admin_configurations
-FOR ALL USING (tenant_id::text = current_setting('app.current_tenant_id', true));
-```
-
-**STEP 20: Execute all table migrations**
-
-```powershell
-psql -U postgres -d hospitalportal -f "migration_patient_document_uploads.sql"
-psql -U postgres -d hospitalportal -f "migration_document_access_audit.sql"
-psql -U postgres -d hospitalportal -f "migration_admin_configurations.sql"
-```
-
-**STEP 21: Verify tables created**
-
-```sql
-SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE '%document%' OR tablename LIKE '%admin_config%';
--- Should show: patient_document_uploads, document_access_audit, admin_configurations
-```
+**Risks**: Critical value alert mechanism may require SMS/email integration - use in-app notification initially
 
 ---
 
-### Day 3: Enhance Existing Tables
+### **Month 2: Financial Core - Billing & Payments**
 
-**STEP 22: Add columns to permissions table**
+#### **Week 5-6: Billing & Invoicing Module (Backend + Frontend)**
 
-Create file: `migration_enhance_permissions.sql`
+**Objective**: Enable invoice generation, billing, and revenue tracking
 
-```sql
--- Add data classification if not exists
-ALTER TABLE permissions ADD COLUMN IF NOT EXISTS data_classification VARCHAR(50);
+**Backend Tasks** (Week 5):
+- ✅ Database: `invoice`, `charge_item`, `payment` tables exist
+- [ ] Create `BillingController.cs` with endpoints:
+  - `GET /api/billing/invoices` - List invoices (filtered by patient, date, status)
+  - `GET /api/billing/invoices/{id}` - Get invoice details
+  - `POST /api/billing/invoices` - Create invoice (manual or auto-generate from services)
+  - `PUT /api/billing/invoices/{id}` - Update invoice (before payment)
+  - `DELETE /api/billing/invoices/{id}` - Soft delete invoice (only if unpaid and unapproved)
+  - `POST /api/billing/invoices/{id}/items` - Add charge item to invoice
+  - `PUT /api/billing/invoices/{id}/items/{itemId}` - Update charge item
+  - `DELETE /api/billing/invoices/{id}/items/{itemId}` - Remove charge item
+  - `POST /api/billing/invoices/{id}/finalize` - Finalize invoice (lock for editing)
+  - `GET /api/billing/outstanding` - Outstanding invoices (unpaid)
+  - `GET /api/billing/patient/{patientId}/invoices` - Patient billing history
+  - `POST /api/billing/invoices/{id}/print` - Generate invoice PDF
+  - `GET /api/billing/revenue-summary` - Revenue summary (by date range, branch, department)
+- [ ] Create `ChargeMasterController.cs` with endpoints:
+  - `GET /api/charge-master` - List charge items (procedures, consultations, tests)
+  - `POST /api/charge-master` - Add new charge item
+  - `PUT /api/charge-master/{id}` - Update charge item (price, code)
+  - `DELETE /api/charge-master/{id}` - Remove charge item
+- [ ] Implement `IBillingService` and `BillingService`
+  - Auto-generate invoices from appointments, lab orders, prescriptions
+  - Calculate totals, taxes (based on organization region)
+  - Apply discounts, insurance adjustments
+  - Link payments to invoices
+  - Outstanding balance tracking
+- [ ] Seed charge master with common items:
+  - Consultation fees (new patient, follow-up)
+  - Common procedures (cataract surgery, LASIK, etc.)
+  - Lab tests (from lab catalog)
+  - Medications (from pharmacy inventory)
+- [ ] Add permissions: `billing.view`, `billing.create`, `billing.edit`, `billing.delete`, `billing.approve`, `billing.writeoff`
 
--- Update existing permissions
-UPDATE permissions SET data_classification = 'internal' WHERE data_classification IS NULL;
-```
+**Frontend Tasks** (Week 6):
+- [ ] Create `/dashboard/billing` page (invoice list view)
+  - Table: Patient, Invoice Date, Total Amount, Paid Amount, Balance, Status
+  - Filters: Date range, patient, status (Draft/Finalized/Paid/Partial/Overdue)
+  - Actions: View, Edit, Finalize, Print, Record Payment
+- [ ] Create invoice form component (`InvoiceForm.tsx`)
+  - Patient selection
+  - Service date
+  - Charge items (add multiple from charge master)
+  - Quantity, unit price, discount
+  - Subtotal, tax, total
+  - Payment terms, due date
+- [ ] Create invoice detail component (`InvoiceDetail.tsx`)
+  - Read-only view of invoice
+  - Payment history table
+  - Outstanding balance
+  - Actions: Record Payment, Print, Email
+- [ ] Create charge master management component (`ChargeMaster.tsx`)
+  - List of charge items (procedures, tests, medications)
+  - Add/Edit/Delete charge items
+  - Bulk import from CSV
+- [ ] Create invoice PDF component
+  - Organization branding (logo, name, address, tax ID)
+  - Patient details
+  - Itemized services table
+  - Payment terms, due date
+  - QR code for online payment (future)
+- [ ] Dashboard widget: Revenue summary, outstanding invoices, aging report
 
-**STEP 23: Add columns to role_permissions table**
+**Acceptance Criteria**:
+- ✅ Billing staff can create invoices manually or auto-generate from services
+- ✅ Invoices can include multiple charge items with discounts
+- ✅ Invoices can be finalized (locked for editing)
+- ✅ Outstanding invoices report shows aging (30/60/90 days)
+- ✅ Revenue summary dashboard displays daily/weekly/monthly revenue
+- ✅ Invoices can be printed with organization branding
+- ✅ Permission-based access control (only billing staff can create/edit invoices)
 
-Create file: `migration_enhance_role_permissions.sql`
+**Dependencies**: Appointments, Lab Orders (for auto-invoice generation)
 
-```sql
--- Add conditional permissions support (for future ABAC)
-ALTER TABLE role_permissions ADD COLUMN IF NOT EXISTS "Condition" JSONB;
-ALTER TABLE role_permissions ADD COLUMN IF NOT EXISTS effective_from TIMESTAMPTZ;
-ALTER TABLE role_permissions ADD COLUMN IF NOT EXISTS effective_until TIMESTAMPTZ;
-```
-
-**STEP 24: Execute enhancement migrations**
-
-```powershell
-psql -U postgres -d hospitalportal -f "migration_enhance_permissions.sql"
-psql -U postgres -d hospitalportal -f "migration_enhance_role_permissions.sql"
-```
-
-**Expected Result**: ✅ All database changes complete (99 tables now)
-
----
-
-## WEEK 4: BACKEND APIS (Multi-Dept + Patient Upload)
-
-### Day 1-3: Multi-Department User Access APIs
-
-**STEP 25: Create UserDepartmentAccessService**
-
-Create file: `Services/UserDepartmentAccessService.cs`
-
-```csharp
-public interface IUserDepartmentAccessService {
-    Task<List<UserDepartmentAccessDto>> GetUserDepartmentsAsync(Guid userId);
-    Task<UserDepartmentAccessDto> AssignDepartmentAsync(Guid userId, AssignDepartmentRequest request);
-    Task<bool> RemoveDepartmentAccessAsync(Guid userId, Guid departmentId);
-    Task<bool> SetPrimaryDepartmentAsync(Guid userId, Guid departmentId);
-}
-
-public class UserDepartmentAccessService : IUserDepartmentAccessService {
-    private readonly AppDbContext _context;
-    
-    public async Task<UserDepartmentAccessDto> AssignDepartmentAsync(Guid userId, AssignDepartmentRequest request) {
-        var access = new UserDepartmentAccess {
-            UserId = userId,
-            DepartmentId = request.DepartmentId,
-            RoleId = request.RoleId,
-            IsPrimary = request.IsPrimary,
-            AccessLevel = request.AccessLevel, // full, read_only, approval_only
-            ValidFrom = request.ValidFrom ?? DateTime.UtcNow,
-            Status = "active"
-        };
-        
-        _context.UserDepartmentAccess.Add(access);
-        await _context.SaveChangesAsync();
-        
-        return MapToDto(access);
-    }
-    
-    // ... implement other methods
-}
-```
-
-**STEP 26: Create UserDepartmentAccessController**
-
-Create file: `Controllers/UserDepartmentAccessController.cs`
-
-```csharp
-[ApiController]
-[Route("api/users/{userId}/department-access")]
-[Authorize]
-public class UserDepartmentAccessController : ControllerBase {
-    private readonly IUserDepartmentAccessService _service;
-    
-    [HttpGet]
-    public async Task<IActionResult> GetUserDepartments(Guid userId) {
-        var departments = await _service.GetUserDepartmentsAsync(userId);
-        return Ok(departments);
-    }
-    
-    [HttpPost]
-    public async Task<IActionResult> AssignDepartment(Guid userId, [FromBody] AssignDepartmentRequest request) {
-        var result = await _service.AssignDepartmentAsync(userId, request);
-        return CreatedAtAction(nameof(GetUserDepartments), new { userId }, result);
-    }
-    
-    [HttpDelete("{departmentId}")]
-    public async Task<IActionResult> RemoveDepartmentAccess(Guid userId, Guid departmentId) {
-        await _service.RemoveDepartmentAccessAsync(userId, departmentId);
-        return NoContent();
-    }
-    
-    [HttpPut("{departmentId}/set-primary")]
-    public async Task<IActionResult> SetPrimaryDepartment(Guid userId, Guid departmentId) {
-        await _service.SetPrimaryDepartmentAsync(userId, departmentId);
-        return NoContent();
-    }
-}
-```
-
-**STEP 27: Register service in Program.cs**
-
-```csharp
-builder.Services.AddScoped<IUserDepartmentAccessService, UserDepartmentAccessService>();
-```
-
-**STEP 28: Test multi-department APIs**
-
-```powershell
-# Start backend
-cd microservices/auth-service/AuthService
-dotnet run
-
-# Test in Swagger
-POST /api/users/{userId}/department-access
-{
-  "departmentId": "...",
-  "roleId": "...",
-  "isPrimary": true,
-  "accessLevel": "full"
-}
-```
+**Risks**: Tax calculation complexity - start with simple percentage, enhance later
 
 ---
 
-### Day 4-5: Patient Document Upload APIs
+#### **Week 7-8: Payment Processing & Gateway Integration**
 
-**STEP 29: Create PatientDocumentUploadService**
+**Objective**: Enable payment recording, online payment processing, and reconciliation
 
-Create file: `Services/PatientDocumentUploadService.cs`
+**Backend Tasks** (Week 7):
+- ✅ Database: `payment` table exists
+- [ ] Create `PaymentsController.cs` with endpoints:
+  - `GET /api/payments` - List payments (filtered by date, patient, method)
+  - `GET /api/payments/{id}` - Get payment details
+  - `POST /api/payments` - Record payment (cash/card/online)
+  - `PUT /api/payments/{id}` - Update payment (only if pending)
+  - `DELETE /api/payments/{id}` - Soft delete payment (only if pending and unapproved)
+  - `POST /api/payments/{id}/approve` - Approve payment (for supervisor approval)
+  - `GET /api/payments/patient/{patientId}` - Patient payment history
+  - `GET /api/payments/invoice/{invoiceId}` - Payments for specific invoice
+  - `POST /api/payments/{id}/receipt` - Generate payment receipt
+  - `GET /api/payments/reconciliation` - Daily reconciliation report
+- [ ] Implement payment gateway integration (choose one):
+  - **Option A**: Razorpay (India) - https://razorpay.com/docs/
+  - **Option B**: Stripe (Global) - https://stripe.com/docs/api
+  - **Option C**: PayPal (Global) - https://developer.paypal.com/
+- [ ] Create `IPaymentGatewayService` interface
+  - `CreatePaymentIntent(amount, currency, metadata)`
+  - `CapturePayment(paymentIntentId)`
+  - `RefundPayment(paymentId, amount)`
+  - `GetPaymentStatus(paymentId)`
+- [ ] Implement `RazorpayPaymentService` (or StripePaymentService)
+  - Initialize SDK with API keys (from appsettings.json)
+  - Create payment orders
+  - Verify payment signatures (webhook handling)
+  - Handle payment callbacks
+- [ ] Add webhook endpoint for payment gateway callbacks
+  - `POST /api/payments/webhook/razorpay` (or stripe)
+  - Verify signature, update payment status
+  - Link payment to invoice, update invoice balance
+  - Send payment confirmation email (future)
+- [ ] Add permissions: `payment.view`, `payment.create`, `payment.edit`, `payment.delete`, `payment.approve`, `payment.refund`
 
-```csharp
-public interface IPatientDocumentUploadService {
-    Task<PatientDocumentUploadDto> UploadDocumentAsync(UploadDocumentRequest request);
-    Task<List<PatientDocumentUploadDto>> GetPatientDocumentsAsync(Guid patientId);
-    Task<PatientDocumentUploadDto> GetDocumentByIdAsync(Guid documentId);
-}
+**Frontend Tasks** (Week 8):
+- [ ] Create payment recording component (`RecordPayment.tsx`)
+  - Invoice selection (if linked)
+  - Payment method (Cash, Card, Online, Check, UPI)
+  - Amount (with auto-fill of outstanding balance)
+  - Payment reference number
+  - Payment date
+  - Notes
+- [ ] Create online payment component (`OnlinePayment.tsx`)
+  - Integration with payment gateway (Razorpay/Stripe SDK)
+  - Payment form (card details or UPI)
+  - Payment confirmation page
+  - Redirect back to invoice after payment
+- [ ] Create payment receipt component (`PaymentReceipt.tsx`)
+  - Organization branding
+  - Payment details (amount, method, date, reference)
+  - Invoice details (if linked)
+  - Thank you message
+  - QR code for verification
+- [ ] Create reconciliation dashboard (`PaymentReconciliation.tsx`)
+  - Summary: Total payments by method (Cash, Card, Online)
+  - Discrepancy tracking
+  - Export to Excel for accounting
+- [ ] Update invoice detail page to show payment history
+- [ ] Dashboard widget: Daily payment collections, pending payments
 
-public class PatientDocumentUploadService : IPatientDocumentUploadService {
-    private readonly AppDbContext _context;
-    
-    public async Task<PatientDocumentUploadDto> UploadDocumentAsync(UploadDocumentRequest request) {
-        // Determine auto-sharing rules based on document type
-        var sharedToDepartments = GetAutoShareDepartments(request.DocumentType);
-        var sharedToRoles = GetAutoShareRoles(request.DocumentType);
-        
-        var upload = new PatientDocumentUpload {
-            PatientId = request.PatientId,
-            DocumentType = request.DocumentType,
-            DocumentTitle = request.DocumentTitle,
-            FileUrl = request.FileUrl,
-            FileSize = request.FileSize,
-            MimeType = request.MimeType,
-            UploadedBy = request.UploadedBy,
-            SharedToDepartments = sharedToDepartments,
-            SharedToRoles = sharedToRoles,
-            Status = "active"
-        };
-        
-        _context.PatientDocumentUploads.Add(upload);
-        await _context.SaveChangesAsync();
-        
-        // Log access
-        await LogDocumentAccessAsync(upload.Id, request.UploadedBy, "upload", true);
-        
-        return MapToDto(upload);
-    }
-    
-    private string[] GetAutoShareDepartments(string documentType) {
-        return documentType switch {
-            "insurance_health_card" => new[] { "insurance", "front_office", "mrd", "billing" },
-            "lab_report" => new[] { "clinical", "mrd" },
-            "prescription" => new[] { "pharmacy", "mrd" },
-            _ => new[] { "mrd" }
-        };
-    }
-}
-```
+**Acceptance Criteria**:
+- ✅ Front desk staff can record cash/card payments
+- ✅ Patients can make online payments via payment gateway
+- ✅ Payments automatically linked to invoices and update balance
+- ✅ Payment receipts can be printed with organization branding
+- ✅ Daily reconciliation report available for accounting
+- ✅ Webhook integration for real-time payment status updates
+- ✅ Permission-based access control (only billing staff can record payments)
 
-**STEP 30: Create PatientDocumentsController**
+**Dependencies**: Billing module (must be completed first)
 
-```csharp
-[ApiController]
-[Route("api/patients/{patientId}/documents")]
-[Authorize]
-public class PatientDocumentsController : ControllerBase {
-    private readonly IPatientDocumentUploadService _service;
-    
-    [HttpPost("upload")]
-    public async Task<IActionResult> UploadDocument(Guid patientId, [FromBody] UploadDocumentRequest request) {
-        request.PatientId = patientId;
-        var result = await _service.UploadDocumentAsync(request);
-        return Ok(result);
-    }
-    
-    [HttpGet]
-    public async Task<IActionResult> GetDocuments(Guid patientId) {
-        var documents = await _service.GetPatientDocumentsAsync(patientId);
-        return Ok(documents);
-    }
-}
-```
-
-**STEP 31: Test patient document upload APIs**
-
-```powershell
-POST /api/patients/{patientId}/documents/upload
-{
-  "documentType": "insurance_health_card",
-  "documentTitle": "Insurance Card.pdf",
-  "fileUrl": "https://storage.azure.com/...",
-  "fileSize": 1024000,
-  "mimeType": "application/pdf"
-}
-```
-
-**Expected Result**: ✅ 8 new APIs (multi-dept + patient upload)
+**Risks**: Payment gateway integration may take longer if APIs are complex - allocate buffer time
 
 ---
 
-## WEEK 5-7: FRONTEND UI (RBAC Management)
+### **Month 3: Pharmacy & Enhanced Scheduling**
 
-### Week 5, Day 1-3: Permission Management UI
+#### **Week 9-10: Pharmacy Management Module (Backend + Frontend)**
 
-**STEP 32: Create Permission List Page**
+**Objective**: Enable medication dispensing, inventory management, and pharmacy workflows
 
-Create file: `apps/hospital-portal-web/src/app/dashboard/admin/permissions/page.tsx`
+**Backend Tasks** (Week 9):
+- ✅ Database: `medication`, `medication_inventory`, `prescription_item` tables exist
+- [ ] Create `PharmacyController.cs` with endpoints:
+  - `GET /api/pharmacy/prescriptions/pending` - Prescriptions pending dispensing
+  - `GET /api/pharmacy/prescriptions/{id}` - Get prescription for dispensing
+  - `POST /api/pharmacy/prescriptions/{id}/dispense` - Dispense prescription
+  - `GET /api/pharmacy/inventory` - Medication inventory list
+  - `GET /api/pharmacy/inventory/{id}` - Medication details
+  - `POST /api/pharmacy/inventory` - Add medication to inventory
+  - `PUT /api/pharmacy/inventory/{id}` - Update medication (price, stock)
+  - `POST /api/pharmacy/inventory/{id}/adjust-stock` - Stock adjustment (add/remove)
+  - `GET /api/pharmacy/inventory/low-stock` - Low stock alerts
+  - `GET /api/pharmacy/inventory/expiring` - Medications expiring soon
+  - `GET /api/pharmacy/patient/{patientId}/medication-history` - Patient medication history
+  - `POST /api/pharmacy/prescriptions/{id}/verify` - Verify prescription (pharmacist check)
+- [ ] Implement `IPharmacyService` and `PharmacyService`
+  - Dispensing workflow: Verify → Dispense → Update Stock → Link Payment
+  - Stock management: Add, remove, adjust inventory
+  - Low stock alerts (configurable threshold)
+  - Expiration tracking (alert 90 days before expiry)
+  - Medication interaction checking (basic - use external API later)
+  - Controlled substance logging (if applicable)
+- [ ] Seed medication inventory with common eye medications:
+  - Antibiotic drops (Moxifloxacin, Gatifloxacin)
+  - Steroid drops (Prednisolone, Dexamethasone)
+  - Anti-glaucoma drops (Timolol, Latanoprost)
+  - Artificial tears (various brands)
+  - Oral medications (Acetazolamide, etc.)
+- [ ] Add permissions: `pharmacy.view`, `pharmacy.dispense`, `pharmacy.inventory.view`, `pharmacy.inventory.edit`, `pharmacy.verify`
 
-```typescript
-'use client';
+**Frontend Tasks** (Week 10):
+- [ ] Create `/dashboard/pharmacy` page (dispensing queue)
+  - Table: Patient, Prescription Date, Doctor, Medications, Status
+  - Filters: Date, status (Pending/Dispensed/Partially Dispensed)
+  - Actions: View Prescription, Dispense, Verify
+- [ ] Create prescription dispensing component (`DispensePrescription.tsx`)
+  - Display prescription details (medications, dosage, instructions)
+  - Medication availability check (in stock / out of stock)
+  - Batch/lot number entry
+  - Expiry date verification
+  - Patient counseling notes
+  - Dispense confirmation
+- [ ] Create medication inventory component (`MedicationInventory.tsx`)
+  - Table: Medication Name, Generic Name, Stock Quantity, Unit Price, Expiry Date
+  - Filters: Category, low stock, expiring soon
+  - Actions: Add Stock, Adjust Stock, Edit Details
+- [ ] Create stock adjustment component (`StockAdjustment.tsx`)
+  - Reason (Purchase, Return, Expiry, Wastage)
+  - Quantity (add/remove)
+  - Batch/lot number
+  - Notes
+- [ ] Create low stock alerts widget
+  - List of medications below reorder threshold
+  - Action: Create purchase order (future)
+- [ ] Create expiring medications widget
+  - List of medications expiring in next 90 days
+  - Action: Mark for return or disposal
+- [ ] Patient medication history integration (show in patient record)
 
-import { useState, useEffect } from 'react';
-import { getApi } from '@/lib/api';
+**Acceptance Criteria**:
+- ✅ Pharmacist can view pending prescriptions in dispensing queue
+- ✅ Pharmacist can verify prescription and check drug interactions
+- ✅ Pharmacist can dispense medications and update inventory stock
+- ✅ Low stock alerts visible on pharmacy dashboard
+- ✅ Expiring medications list available for proactive management
+- ✅ Patient medication history visible across modules
+- ✅ Permission-based access control (only pharmacy staff can dispense)
 
-export default function PermissionsPage() {
-  const [permissions, setPermissions] = useState([]);
-  const [groupedPermissions, setGroupedPermissions] = useState({});
-  const [selectedModule, setSelectedModule] = useState('all');
-  
-  useEffect(() => {
-    fetchPermissions();
-  }, []);
-  
-  const fetchPermissions = async () => {
-    const api = getApi();
-    const response = await api.get('/permissions');
-    setPermissions(response.data.items);
-    
-    // Group by module
-    const grouped = response.data.items.reduce((acc, perm) => {
-      const module = perm.moduleName || 'other';
-      if (!acc[module]) acc[module] = [];
-      acc[module].push(perm);
-      return acc;
-    }, {});
-    setGroupedPermissions(grouped);
-  };
-  
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Permission Management</h1>
-      
-      {/* Module Filter */}
-      <div className="mb-4">
-        <select 
-          value={selectedModule} 
-          onChange={(e) => setSelectedModule(e.target.value)}
-          className="border rounded px-4 py-2"
-        >
-          <option value="all">All Modules</option>
-          {Object.keys(groupedPermissions).map(module => (
-            <option key={module} value={module}>{module}</option>
-          ))}
-        </select>
-      </div>
-      
-      {/* Permission List */}
-      <div className="bg-white rounded shadow">
-        {Object.entries(groupedPermissions)
-          .filter(([module]) => selectedModule === 'all' || module === selectedModule)
-          .map(([module, perms]) => (
-            <div key={module} className="p-4 border-b">
-              <h3 className="font-bold text-lg mb-2 capitalize">{module}</h3>
-              <div className="grid grid-cols-4 gap-4">
-                {perms.map(perm => (
-                  <div key={perm.id} className="flex items-center gap-2">
-                    <input type="checkbox" id={perm.id} />
-                    <label htmlFor={perm.id} className="text-sm">{perm.name}</label>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-      </div>
-    </div>
-  );
-}
-```
+**Dependencies**: Prescription module (must be completed first)
 
-**STEP 33: Create Permission Matrix View**
-
-Create file: `apps/hospital-portal-web/src/app/dashboard/admin/permissions/matrix/page.tsx`
-
-```typescript
-'use client';
-
-import { useState, useEffect } from 'react';
-import { getApi } from '@/lib/api';
-
-export default function PermissionMatrixPage() {
-  const [matrix, setMatrix] = useState(null);
-  
-  useEffect(() => {
-    fetchMatrix();
-  }, []);
-  
-  const fetchMatrix = async () => {
-    const api = getApi();
-    const response = await api.get('/permissions/matrix');
-    setMatrix(response.data);
-  };
-  
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Permission Matrix</h1>
-      
-      {matrix && (
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white border">
-            <thead>
-              <tr>
-                <th className="px-4 py-2 border">Role</th>
-                {matrix.permissions.map(perm => (
-                  <th key={perm.id} className="px-4 py-2 border text-sm rotate-90 whitespace-nowrap">
-                    {perm.code}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {matrix.roles.map(role => (
-                <tr key={role.id}>
-                  <td className="px-4 py-2 border font-medium">{role.name}</td>
-                  {matrix.permissions.map(perm => (
-                    <td key={`${role.id}-${perm.id}`} className="px-4 py-2 border text-center">
-                      {matrix.assignments[`${role.id}-${perm.id}`] ? '✓' : ''}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-```
-
-**STEP 34: Test Permission UI**
-
-```powershell
-cd apps/hospital-portal-web
-pnpm dev
-
-# Navigate to http://localhost:3000/dashboard/admin/permissions
-# Navigate to http://localhost:3000/dashboard/admin/permissions/matrix
-```
+**Risks**: Drug interaction checking may be complex - use simple lookup table initially
 
 ---
 
-### Week 5, Day 4-5 + Week 6: Role Management UI
+#### **Week 11-12: Appointment Calendar Enhancement (Frontend-Heavy)**
 
-**STEP 35: Create Role List Page**
+**Objective**: Replace basic appointment list with visual calendar, doctor availability, and drag-and-drop scheduling
 
-Create file: `apps/hospital-portal-web/src/app/dashboard/admin/roles/page.tsx`
+**Backend Tasks** (Week 11):
+- ✅ `AppointmentsController.cs` already exists with 15 endpoints
+- [ ] Add new endpoints for calendar features:
+  - `GET /api/appointments/calendar` - Appointments for calendar view (date range, doctor filter)
+  - `GET /api/appointments/availability/{doctorId}` - Doctor availability (time slots)
+  - `POST /api/appointments/availability` - Set doctor availability (recurring schedule)
+  - `PUT /api/appointments/{id}/reschedule` - Reschedule appointment (drag-and-drop support)
+  - `GET /api/appointments/time-slots` - Available time slots (for booking)
+  - `POST /api/appointments/waitlist` - Add patient to waitlist
+  - `GET /api/appointments/waitlist` - View waitlist
+- [ ] Implement doctor availability management:
+  - Create `doctor_availability` table (doctor_id, day_of_week, start_time, end_time, is_available)
+  - Allow blocking time slots (lunch break, personal time)
+  - Handle appointment conflicts (double-booking prevention)
+- [ ] Implement appointment reminders (prepare for Phase 3 SMS/email integration):
+  - Create `appointment_reminder` table (appointment_id, reminder_type, scheduled_time, sent_at, status)
+  - Endpoint: `POST /api/appointments/{id}/send-reminder` (future integration)
 
-```typescript
-'use client';
+**Frontend Tasks** (Week 12):
+- [ ] Install calendar library (FullCalendar, React Big Calendar, or custom)
+- [ ] Create `/dashboard/appointments/calendar` page (calendar view)
+  - Month/Week/Day views
+  - Doctor filter (show all doctors or specific doctor)
+  - Appointment blocks displayed on calendar
+  - Color coding by status (Scheduled/Confirmed/In Progress/Completed/Cancelled)
+  - Click appointment to view details
+- [ ] Implement drag-and-drop rescheduling
+  - Drag appointment to new time slot
+  - Validate availability before confirming
+  - Show confirmation dialog with new time
+  - Update appointment on backend
+- [ ] Create time slot selection component (`TimeSlotPicker.tsx`)
+  - Display available time slots for selected date and doctor
+  - 15-minute or 30-minute intervals (configurable)
+  - Block unavailable slots (lunch, personal time, already booked)
+  - Click slot to schedule appointment
+- [ ] Create doctor availability management component (`DoctorAvailability.tsx`)
+  - Weekly schedule grid (Mon-Sun, 9 AM - 6 PM)
+  - Set available/unavailable time slots
+  - Recurring schedule (same every week)
+  - Block specific dates (holidays, leave)
+- [ ] Create appointment booking wizard (`AppointmentBookingWizard.tsx`)
+  - Step 1: Select patient (search or create new)
+  - Step 2: Select doctor
+  - Step 3: Select date and time slot
+  - Step 4: Confirm appointment details
+- [ ] Create waitlist management component (`Waitlist.tsx`)
+  - List of patients on waitlist
+  - Auto-suggest available slots
+  - Convert waitlist to scheduled appointment
+- [ ] Dashboard widget: Today's appointments, upcoming appointments, waitlist count
 
-import { useState, useEffect } from 'react';
-import { getApi } from '@/lib/api';
-import Link from 'next/link';
+**Acceptance Criteria**:
+- ✅ Appointments displayed on visual calendar (Month/Week/Day views)
+- ✅ Front office staff can drag-and-drop appointments to reschedule
+- ✅ Doctor availability configurable with recurring weekly schedules
+- ✅ Available time slots displayed during appointment booking
+- ✅ Double-booking prevented by system
+- ✅ Waitlist functionality for fully booked time slots
+- ✅ Appointment booking wizard simplifies scheduling process
+- ✅ Today's appointments widget on dashboard
 
-export default function RolesPage() {
-  const [roles, setRoles] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  useEffect(() => {
-    fetchRoles();
-  }, []);
-  
-  const fetchRoles = async () => {
-    const api = getApi();
-    const response = await api.get('/roles');
-    setRoles(response.data);
-  };
-  
-  const filteredRoles = roles.filter(role => 
-    role.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  
-  return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Role Management</h1>
-        <Link href="/dashboard/admin/roles/create" className="bg-blue-600 text-white px-4 py-2 rounded">
-          Create Role
-        </Link>
-      </div>
-      
-      <input 
-        type="text"
-        placeholder="Search roles..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        className="mb-4 border rounded px-4 py-2 w-full"
-      />
-      
-      <div className="bg-white rounded shadow">
-        <table className="min-w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left">Role Name</th>
-              <th className="px-6 py-3 text-left">Description</th>
-              <th className="px-6 py-3 text-left">Permissions</th>
-              <th className="px-6 py-3 text-left">Users</th>
-              <th className="px-6 py-3 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRoles.map(role => (
-              <tr key={role.id} className="border-t">
-                <td className="px-6 py-4">{role.name}</td>
-                <td className="px-6 py-4">{role.description}</td>
-                <td className="px-6 py-4">{role.permissionCount || 0}</td>
-                <td className="px-6 py-4">{role.userCount || 0}</td>
-                <td className="px-6 py-4">
-                  <Link href={`/dashboard/admin/roles/${role.id}`} className="text-blue-600">
-                    Edit
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-```
+**Dependencies**: None (enhances existing Appointments module)
 
-**STEP 36: Create Role Edit Page with Permission Assignment**
-
-Create file: `apps/hospital-portal-web/src/app/dashboard/admin/roles/[id]/page.tsx`
-
-```typescript
-'use client';
-
-import { useState, useEffect } from 'react';
-import { getApi } from '@/lib/api';
-import { useParams, useRouter } from 'next/navigation';
-
-export default function RoleEditPage() {
-  const params = useParams();
-  const router = useRouter();
-  const roleId = params.id;
-  
-  const [role, setRole] = useState(null);
-  const [allPermissions, setAllPermissions] = useState([]);
-  const [selectedPermissions, setSelectedPermissions] = useState([]);
-  
-  useEffect(() => {
-    fetchRole();
-    fetchPermissions();
-  }, []);
-  
-  const fetchRole = async () => {
-    const api = getApi();
-    const response = await api.get(`/roles/${roleId}`);
-    setRole(response.data);
-    setSelectedPermissions(response.data.permissions.map(p => p.id));
-  };
-  
-  const fetchPermissions = async () => {
-    const api = getApi();
-    const response = await api.get('/permissions');
-    setAllPermissions(response.data.items);
-  };
-  
-  const handleSavePermissions = async () => {
-    const api = getApi();
-    await api.post(`/roles/${roleId}/assign-permissions`, {
-      permissionIds: selectedPermissions
-    });
-    router.push('/dashboard/admin/roles');
-  };
-  
-  const togglePermission = (permId) => {
-    setSelectedPermissions(prev => 
-      prev.includes(permId) 
-        ? prev.filter(id => id !== permId)
-        : [...prev, permId]
-    );
-  };
-  
-  if (!role) return <div>Loading...</div>;
-  
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Edit Role: {role.name}</h1>
-      
-      <div className="bg-white rounded shadow p-6">
-        <h2 className="text-lg font-bold mb-4">Assign Permissions</h2>
-        
-        {/* Group permissions by module */}
-        {Object.entries(
-          allPermissions.reduce((acc, perm) => {
-            const module = perm.moduleName || 'other';
-            if (!acc[module]) acc[module] = [];
-            acc[module].push(perm);
-            return acc;
-          }, {})
-        ).map(([module, perms]) => (
-          <div key={module} className="mb-6">
-            <h3 className="font-bold mb-2 capitalize">{module}</h3>
-            <div className="grid grid-cols-3 gap-4">
-              {perms.map(perm => (
-                <label key={perm.id} className="flex items-center gap-2">
-                  <input 
-                    type="checkbox"
-                    checked={selectedPermissions.includes(perm.id)}
-                    onChange={() => togglePermission(perm.id)}
-                  />
-                  <span className="text-sm">{perm.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        ))}
-        
-        <button 
-          onClick={handleSavePermissions}
-          className="bg-blue-600 text-white px-6 py-2 rounded mt-4"
-        >
-          Save Permissions
-        </button>
-      </div>
-    </div>
-  );
-}
-```
-
-**STEP 37: Test Role Management UI**
-
-```powershell
-# Navigate to http://localhost:3000/dashboard/admin/roles
-# Click "Edit" on Doctor role
-# Assign 15 permissions per document specification
-# Click "Save Permissions"
-```
+**Risks**: Calendar library integration may have learning curve - allocate time for customization
 
 ---
 
-### Week 7: Document Sharing UI
+### **Phase 2 Summary**
 
-**STEP 38: Create Document Type Management Page**
+**Completed by End of Month 3**:
+- ✅ Prescription Module (create, approve, print prescriptions)
+- ✅ Laboratory Orders Module (order tests, enter results, critical value alerts)
+- ✅ Billing & Invoicing Module (create invoices, revenue tracking)
+- ✅ Payment Processing (record payments, online payment gateway integration)
+- ✅ Pharmacy Management (dispense medications, inventory management)
+- ✅ Appointment Calendar (visual calendar, doctor availability, drag-and-drop)
 
-Create file: `apps/hospital-portal-web/src/app/dashboard/admin/document-sharing/page.tsx`
+**System Completion**: **~70%** (up from 50%)
 
-```typescript
-'use client';
-
-import { useState, useEffect } from 'react';
-import { getApi } from '@/lib/api';
-
-export default function DocumentSharingPage() {
-  const [documentTypes, setDocumentTypes] = useState([]);
-  
-  useEffect(() => {
-    fetchDocumentTypes();
-  }, []);
-  
-  const fetchDocumentTypes = async () => {
-    const api = getApi();
-    const response = await api.get('/documentsharing/document-types');
-    setDocumentTypes(response.data.items);
-  };
-  
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Document Sharing Management</h1>
-      
-      <div className="grid grid-cols-3 gap-4">
-        {documentTypes.map(docType => (
-          <div key={docType.id} className="bg-white rounded shadow p-4">
-            <h3 className="font-bold">{docType.typeName}</h3>
-            <p className="text-sm text-gray-600">{docType.description}</p>
-            <p className="text-sm mt-2">Access Rules: {docType.accessRuleCount || 0}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-```
-
-**STEP 39: Create Access Rule Management Page**
-
-Similar pattern to roles/permissions UI - create/edit access rules.
+**Production Readiness**: ✅ **Ready for Pilot Deployment** with early adopter clinics
 
 ---
 
-## WEEK 8-9: DOCUMENT SHARING DATA + MULTI-DEPT
+## Phase 3: Advanced Clinical & Infrastructure (Months 4-6)
 
-### Week 8: Seed Document Types and Access Rules
+**Goal**: Implement **Priority 2 (P2) features** for comprehensive clinical operations
 
-**STEP 40: Create document types seed script**
-
-Create file: `seed_document_types.sql`
-
-```sql
--- 9 Document Types
-INSERT INTO document_types (id, tenant_id, type_code, type_name, description, source_system, auto_share, status) VALUES
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'insurance_health_card', 'Insurance Health Card', 'Patient insurance card uploaded from portal', 'patient_portal', true, 'active'),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'lab_report', 'Laboratory Report', 'Lab test results', 'laboratory_system', true, 'active'),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'prescription', 'Prescription', 'Doctor prescription', 'clinical_system', true, 'active'),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'pharmacy_record', 'Pharmacy Record', 'Medicine dispensing record', 'pharmacy_system', true, 'active'),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'bill_invoice', 'Bill/Invoice', 'Patient billing document', 'billing_system', true, 'active'),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'medical_test_result', 'Medical Test Result', 'Imaging or lab result', 'imaging_system', true, 'active'),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'insurance_claim', 'Insurance Claim', 'Insurance claim document', 'insurance_system', true, 'active'),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'patient_consent', 'Patient Consent Form', 'Patient consent document', 'patient_portal', true, 'active'),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'medical_record', 'Medical Record/Discharge Summary', 'Clinical medical record', 'clinical_system', true, 'active');
-```
-
-**STEP 41: Create access rules for Insurance Health Card**
-
-```sql
--- Insurance Health Card → Insurance, Front Office, MRD, Billing
-INSERT INTO document_access_rules (id, tenant_id, document_type_id, target_role, permission_codes, scope, is_active)
-SELECT 
-    gen_random_uuid(),
-    '00000000-0000-0000-0000-000000000001',
-    dt.id,
-    'patient',
-    ARRAY['read'],
-    'own_records_only',
-    true
-FROM document_types dt WHERE dt.type_code = 'insurance_health_card'
-
-UNION ALL
-
-SELECT 
-    gen_random_uuid(),
-    '00000000-0000-0000-0000-000000000001',
-    dt.id,
-    'Insurance Officer',
-    ARRAY['read', 'update'],
-    'all',
-    true
-FROM document_types dt WHERE dt.type_code = 'insurance_health_card'
-
--- ... (continue for front_office, mrd, billing)
-```
-
-**STEP 42: Repeat for all 9 document types**
-
-Create access rules per document specification (from RBAC-ABAC document).
-
-**STEP 43: Execute document sharing seed scripts**
-
-```powershell
-psql -U postgres -d hospitalportal -f "seed_document_types.sql"
-psql -U postgres -d hospitalportal -f "seed_access_rules_insurance_card.sql"
-# ... (all 9)
-```
+**Deliverables**: Imaging/Radiology, Optical, Insurance, OT Management, SMS/WhatsApp Notifications, Reporting Foundation
 
 ---
 
-### Week 9: Test Multi-Department + Document Sharing
+### **Month 4: Imaging, Optical & Insurance**
 
-**STEP 44: Create test user with multi-department access**
+#### **Week 13-14: Imaging/Radiology Module**
 
-```sql
--- Assign Doctor to Ophthalmology (primary) + Optometry (secondary)
-INSERT INTO user_department_access (id, tenant_id, user_id, department_id, role_id, is_primary, access_level, status)
-VALUES 
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', '{doctor_user_id}', '{ophthalmology_dept_id}', '00000000-0000-0000-0000-000000000007', true, 'full', 'active'),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', '{doctor_user_id}', '{optometry_dept_id}', '00000000-0000-0000-0000-000000000007', false, 'full', 'active');
-```
+**Backend**:
+- Create `ImagingController.cs` (order imaging studies, enter reports, DICOM placeholder)
+- Implement `ImagingService` (imaging order workflow, report entry, critical findings alerts)
+- Add imaging study catalog (OCT, Fundus Photography, Visual Field, Corneal Topography, etc.)
 
-**STEP 45: Test document access checking**
+**Frontend**:
+- `/dashboard/imaging` page (imaging orders, pending reports, completed studies)
+- Imaging order form (patient, study type, clinical indication, priority)
+- Report entry form (findings, impression, recommendations)
+- DICOM viewer integration (future - Phase 4)
 
-```powershell
-# Patient uploads insurance card
-POST /api/patients/{patientId}/documents/upload
-{
-  "documentType": "insurance_health_card",
-  "fileUrl": "..."
-}
-
-# Check if Insurance Officer can access
-POST /api/documentsharing/access-rules/check-access
-{
-  "documentTypeId": "...",
-  "userId": "{insurance_officer_id}",
-  "userRole": "Insurance Officer",
-  "requiredPermissions": ["read"]
-}
-
-# Expected: hasAccess = true
-```
-
-**STEP 46: Verify audit logging**
-
-```sql
-SELECT * FROM document_access_audit WHERE document_id = '{uploaded_doc_id}' ORDER BY accessed_at DESC;
--- Should show upload event + access checks
-```
+**Acceptance Criteria**:
+- ✅ Doctors can order imaging studies (OCT, fundus photos, etc.)
+- ✅ Imaging technicians can mark studies as completed
+- ✅ Radiologists/doctors can enter findings and reports
+- ✅ Imaging reports visible in patient record
 
 ---
 
-## WEEK 10-11: TESTING + VALIDATION
+#### **Week 15-16: Optical Services Module**
 
-### Week 10: Backend Testing
+**Backend**:
+- Create `OpticalController.cs` (optical prescriptions, eyewear sales, inventory)
+- Implement `OpticalService` (prescription verification, lens fitting, sales tracking)
+- Seed optical inventory (frames, lenses, contact lenses)
 
-**STEP 47: Test all 297 permissions**
+**Frontend**:
+- `/dashboard/optical` page (optical prescriptions, sales, inventory)
+- Optical prescription form (sphere, cylinder, axis, PD, add power)
+- Eyewear sales form (frame selection, lens type, coating, pricing)
+- Optical inventory management (frames, lenses, contact lenses)
 
-```powershell
-# Create test script
-$permissions = @(
-    "patient.patient_record.create",
-    "patient.patient_record.read",
-    # ... (all 297)
-)
-
-foreach ($perm in $permissions) {
-    $response = Invoke-RestMethod -Uri "https://localhost:7001/api/permissions/code/$perm" -Headers @{Authorization="Bearer $token"}
-    if ($response -eq $null) {
-        Write-Host "MISSING: $perm" -ForegroundColor Red
-    } else {
-        Write-Host "OK: $perm" -ForegroundColor Green
-    }
-}
-```
-
-**STEP 48: Test role-permission mappings**
-
-```sql
--- Verify Doctor has 15 permissions
-SELECT r."Name", COUNT(rp."PermissionId") 
-FROM "AspNetRoles" r
-JOIN role_permissions rp ON r."Id" = rp."RoleId"
-WHERE r."Name" = 'Doctor' AND rp.status = 'active'
-GROUP BY r."Name";
--- Expected: 15
-
--- Verify System Admin has all 297
--- Expected: 297
-```
-
-**STEP 49: Performance testing**
-
-```powershell
-# Load test permission checking
-ab -n 1000 -c 10 -H "Authorization: Bearer $token" "https://localhost:7001/api/permissions/check?code=patient.patient_record.read"
-# Expected: < 100ms average
-```
+**Acceptance Criteria**:
+- ✅ Optometrists can create optical prescriptions
+- ✅ Optical staff can record eyewear sales
+- ✅ Optical inventory tracked with stock levels
+- ✅ Optical prescriptions linked to patient record
 
 ---
 
-### Week 11: Frontend Testing + Integration
+### **Month 5: Insurance & OT Management**
 
-**STEP 50: E2E test - Full RBAC flow**
+#### **Week 17-18: Insurance Management Module**
 
-```typescript
-// Playwright test
-test('Complete RBAC flow', async ({ page }) => {
-  // 1. Login as admin
-  await page.goto('http://localhost:3000/auth/login');
-  await page.fill('[name=username]', 'admin');
-  await page.fill('[name=password]', 'password');
-  await page.click('button[type=submit]');
-  
-  // 2. Navigate to roles
-  await page.click('text=Roles');
-  await expect(page).toHaveURL('/dashboard/admin/roles');
-  
-  // 3. Edit Doctor role
-  await page.click('text=Doctor >> .. >> text=Edit');
-  
-  // 4. Verify 15 permissions assigned
-  const checkedPermissions = await page.$$('input[type=checkbox]:checked');
-  expect(checkedPermissions.length).toBe(15);
-  
-  // 5. Add new permission
-  await page.click('text=patient.patient_preferences.read');
-  await page.click('text=Save Permissions');
-  
-  // 6. Verify saved
-  await expect(page.locator('text=Permissions updated')).toBeVisible();
-});
-```
+**Backend**:
+- Create `InsuranceController.cs` (eligibility verification, claims submission, denial management)
+- Implement `InsuranceService` (insurance verification, claims workflow, remittance processing)
+- Create `insurance_provider` table (payer details, contact, claim submission URL)
+- Create `patient_insurance` table (patient-insurance linkage)
+
+**Frontend**:
+- `/dashboard/insurance` page (claims list, pending verification, denials)
+- Insurance verification form (patient insurance card scan, eligibility check)
+- Claims submission form (services, diagnosis codes, provider details)
+- Denial management (rejection reason, appeal workflow)
+
+**Acceptance Criteria**:
+- ✅ Insurance coordinators can verify patient eligibility
+- ✅ Claims can be created and submitted to insurance providers
+- ✅ Denials tracked with rejection reasons
+- ✅ Insurance details visible on patient billing screen
 
 ---
 
-## WEEK 12: POLISH + DOCUMENTATION
+#### **Week 19-20: OT Scheduling & Management Module**
 
-**STEP 51: Update README.md**
+**Backend**:
+- Create `SurgeryController.cs` (surgical calendar, OT bookings, equipment tracking)
+- Implement `SurgeryService` (OT scheduling, conflict resolution, equipment allocation)
+- Create `ot_equipment` table (equipment catalog, availability, maintenance)
+- Create `ot_booking` table (surgery schedule, assigned staff, equipment)
 
-Add RBAC/ABAC implementation details, 297 permissions list, 20 roles.
+**Frontend**:
+- `/dashboard/surgery` or `/dashboard/ot-management` page (surgical calendar, OT bookings)
+- OT booking form (patient, procedure, surgeon, date/time, equipment needs)
+- OT calendar (visualize booked surgeries, available slots)
+- Equipment tracking (sterilization status, maintenance log)
 
-**STEP 52: Create API documentation**
-
-Document all new endpoints in Swagger/OpenAPI.
-
-**STEP 53: Create user guide**
-
-PDF guide: "How to manage permissions and roles in Hospital Portal"
-
-**STEP 54: Performance optimization**
-
-- Cache permission lookups
-- Optimize document access checks
-- Index tuning
-
-**STEP 55: Final validation**
-
-Run through all 50 test cases from RBAC-ABAC document (STEP 48-55).
+**Acceptance Criteria**:
+- ✅ Surgeons can view surgical calendar and book OT slots
+- ✅ Nurses can manage OT equipment and assignments
+- ✅ OT booking conflicts prevented
+- ✅ Equipment sterilization status tracked
 
 ---
 
-## 📊 SUMMARY
+### **Month 6: Communication & Reporting Foundation**
 
-### Total Work Breakdown
+#### **Week 21-22: SMS/WhatsApp/Email Notifications**
 
-| Phase | Steps | Duration | Deliverables |
-|-------|-------|----------|--------------|
-| **Week 1** | 1-9 | 5 days | Phase 4 enabled, 297 permissions created |
-| **Week 2** | 10-16 | 5 days | 20 roles created, permissions assigned |
-| **Week 3** | 17-24 | 5 days | 4 new tables, enhancements |
-| **Week 4** | 25-31 | 5 days | Multi-dept + Patient upload APIs |
-| **Week 5-7** | 32-39 | 15 days | Complete RBAC UI (Permissions, Roles, Docs) |
-| **Week 8-9** | 40-46 | 10 days | Document types + access rules seeded |
-| **Week 10-11** | 47-50 | 10 days | Testing + validation |
-| **Week 12** | 51-55 | 5 days | Polish + documentation |
+**Backend**:
+- Integrate **Twilio** for SMS and WhatsApp (https://www.twilio.com/docs)
+- Create `NotificationService` interface
+  - `SendSMS(phoneNumber, message)`
+  - `SendWhatsApp(phoneNumber, message)`
+  - `SendEmail(email, subject, body)` (using SendGrid or Azure Communication Services)
+- Create `NotificationController.cs` (send notifications, templates, logs)
+- Create `notification` table (notification_type, recipient, content, status, sent_at)
+- Create notification templates:
+  - Appointment reminders (1 day before, 1 hour before)
+  - OTP for login/password reset
+  - Prescription ready for pickup
+  - Lab results available
+  - Payment receipts
+  - Post-operative instructions
 
-**Total**: **55 Steps** | **12 Weeks** | **60 Days**
+**Frontend**:
+- `/dashboard/admin/notifications` page (notification logs, templates)
+- Notification template editor (create/edit SMS, WhatsApp, email templates)
+- Send test notification (manual trigger)
+- Notification preferences (per organization/branch)
 
-### Final Deliverables
-
-✅ **297 Permissions** - All granular CRUD permissions created  
-✅ **20 Roles** - All roles with appropriate permission mappings  
-✅ **99 Tables** - 4 new tables + enhancements  
-✅ **186 APIs** - 178 (Phase 4 enabled) + 8 new (multi-dept + patient upload)  
-✅ **Complete RBAC UI** - Permission, Role, Document Sharing management  
-✅ **9 Document Types** - With cross-department access rules  
-✅ **Multi-Department Access** - Users can belong to multiple departments  
-✅ **Audit Logging** - All document access tracked  
-✅ **Testing** - All 50+ test cases validated  
-✅ **Documentation** - Complete user guides + API docs
+**Acceptance Criteria**:
+- ✅ Appointment reminders sent via SMS/WhatsApp 1 day before
+- ✅ OTPs sent for password reset and MFA
+- ✅ Prescription ready notifications sent to patients
+- ✅ Lab results notifications sent to patients
+- ✅ Email receipts sent after payment
+- ✅ Notification logs available for audit
 
 ---
 
-**Implementation Plan Version**: 1.0  
-**Based On**: RBAC-ABAC-Complete-Permissions.md V3.0  
-**Created**: November 10, 2025  
-**Status**: READY TO START - Begin with STEP 1 (Day 1)
+#### **Week 23-24: Reporting & Analytics Foundation**
+
+**Backend**:
+- Create `ReportsController.cs` (pre-built reports, custom queries)
+- Implement pre-built reports:
+  - Daily census (patient visits, appointments, revenue)
+  - Financial summary (revenue by department, outstanding payments)
+  - Appointment summary (scheduled, completed, no-shows)
+  - Prescription summary (prescriptions issued, dispensed)
+  - Lab order summary (tests ordered, pending results)
+  - Inventory summary (stock levels, expiring medications)
+- Add report export functionality (PDF, Excel, CSV)
+
+**Frontend**:
+- `/dashboard/reports` page (report catalog, parameters, execution)
+- Report parameter form (date range, branch, department, doctor)
+- Report viewer (tables, charts, summary cards)
+- Report export (PDF, Excel, CSV download)
+- Scheduled reports configuration (future - auto-email daily/weekly reports)
+
+**Acceptance Criteria**:
+- ✅ Pre-built reports available (daily census, financial, appointments, prescriptions, lab, inventory)
+- ✅ Reports filterable by date range, branch, department
+- ✅ Reports exportable to PDF, Excel, CSV
+- ✅ Report execution logged for audit
+
+---
+
+### **Phase 3 Summary**
+
+**Completed by End of Month 6**:
+- ✅ Imaging/Radiology Module
+- ✅ Optical Services Module
+- ✅ Insurance Management Module
+- ✅ OT Scheduling & Management
+- ✅ SMS/WhatsApp/Email Notifications (Twilio integration)
+- ✅ Pre-Built Reports & Export Functionality
+
+**System Completion**: **~85%** (up from 70%)
+
+**Production Readiness**: ✅ **Ready for Full Clinical Deployment**
+
+---
+
+## Phase 4: Reporting, Localization & Polish (Months 7-9)
+
+**Goal**: Implement **Priority 3 (P3) features** for production-ready, globally deployable system
+
+**Deliverables**: Custom Report Builder, Multi-Language Support, Onboarding Wizard, Inventory Management, Nursing Workflows
+
+---
+
+### **Month 7: Inventory & Nursing**
+
+#### **Week 25-26: Inventory Management Module**
+
+**Backend**:
+- Create `InventoryController.cs` (stock tracking, purchase orders, suppliers)
+- Implement `InventoryService` (stock adjustments, reorder alerts, expiration tracking)
+- Create `supplier` table (supplier details, contact, payment terms)
+- Create `purchase_order` table (PO to suppliers, items, quantities, pricing)
+
+**Frontend**:
+- `/dashboard/inventory` page (inventory list, low stock, expiring items)
+- Stock adjustment form (purchase, return, expiry, wastage)
+- Purchase order form (supplier, items, quantities, delivery date)
+- Supplier management (add/edit suppliers)
+
+**Acceptance Criteria**:
+- ✅ Inventory managers can track stock levels across departments
+- ✅ Low stock alerts trigger reorder notifications
+- ✅ Purchase orders can be created and tracked
+- ✅ Expiring items flagged proactively
+
+---
+
+#### **Week 27-28: Nursing Workflows (MAR, Care Plans)**
+
+**Backend**:
+- Create `NursingController.cs` (medication administration records, care plans, vitals)
+- Implement `NursingService` (MAR workflow, care plan tracking, vitals logging)
+- Create `medication_administration_record` table (MAR entries)
+- Create `patient_care_plan` table (nursing care plans)
+- Create `patient_vitals` table (blood pressure, pulse, temperature, etc.)
+
+**Frontend**:
+- `/dashboard/nursing` page (MAR, care plans, vitals)
+- MAR component (medication administration checklist, sign-off)
+- Care plan component (nursing diagnoses, interventions, evaluations)
+- Vitals logging component (record patient vitals)
+
+**Acceptance Criteria**:
+- ✅ Nurses can document medication administration (MAR)
+- ✅ Nurses can create and update patient care plans
+- ✅ Nurses can log patient vitals (BP, pulse, temp, etc.)
+- ✅ MAR and care plans visible in patient record
+
+---
+
+### **Month 8: Reporting & Localization**
+
+#### **Week 29-30: Custom Report Builder**
+
+**Backend**:
+- Create `ReportBuilderController.cs` (custom queries, saved reports)
+- Implement query builder engine (SQL generation from UI selections)
+- Add security (prevent SQL injection, limit accessible tables)
+
+**Frontend**:
+- `/dashboard/reports/builder` page (drag-and-drop report builder)
+- Select data source (patients, appointments, prescriptions, billing, etc.)
+- Select columns, filters, grouping, sorting
+- Preview report, save, and execute
+- Share report with other users
+
+**Acceptance Criteria**:
+- ✅ Administrators can create custom reports without SQL knowledge
+- ✅ Reports can be saved and shared
+- ✅ Report builder prevents SQL injection
+- ✅ Custom reports executable with parameters
+
+---
+
+#### **Week 31-32: Multi-Language Support (3 Languages)**
+
+**Backend**:
+- Enhance `LocalizationController.cs` (bulk translation import/export)
+- Implement translation management (add, edit, delete translations)
+
+**Frontend**:
+- Add i18n library (react-i18next or next-intl)
+- Create translation files for 3 languages:
+  - English (en)
+  - Hindi (hi) or Spanish (es) based on target market
+  - Arabic (ar) or French (fr) based on target market
+- Add language switcher component in top navigation
+- Translate all UI labels, buttons, messages, error text
+- RTL support for Arabic (CSS changes)
+
+**Acceptance Criteria**:
+- ✅ UI available in 3 languages
+- ✅ Users can switch languages from profile settings
+- ✅ RTL layout for Arabic/Hebrew
+- ✅ All UI text translated (no hardcoded English strings)
+
+---
+
+### **Month 9: Onboarding & Polish**
+
+#### **Week 33-34: Onboarding Wizard & Bulk Import**
+
+**Backend**:
+- Create `OnboardingController.cs` (wizard steps, bulk user import)
+- Implement CSV parser for bulk user import
+- Validation: Check for duplicate emails, invalid roles, missing required fields
+
+**Frontend**:
+- Create `/onboarding` wizard (multi-step form)
+  - Step 1: Organization setup (name, address, timezone, currency, language)
+  - Step 2: Branch setup (add branches)
+  - Step 3: Department setup (select standard departments or customize)
+  - Step 4: User onboarding (bulk import CSV or manual entry)
+  - Step 5: Review and confirm
+- Create bulk user import component (CSV upload, validation, preview, import)
+- Create CSV template download (with sample data)
+
+**Acceptance Criteria**:
+- ✅ New organizations can complete onboarding wizard
+- ✅ Bulk user import via CSV works (with validation)
+- ✅ Onboarding wizard simplifies initial setup
+- ✅ Sample data generated for testing
+
+---
+
+#### **Week 35-36: Testing, Bug Fixes & Documentation**
+
+**Tasks**:
+- [ ] Comprehensive testing (unit, integration, end-to-end)
+- [ ] Bug fixes (prioritize critical and high-severity bugs)
+- [ ] Performance optimization (database query optimization, caching with Redis)
+- [ ] Security audit (penetration testing, vulnerability scanning)
+- [ ] Documentation updates (user manuals, admin guides, API documentation)
+- [ ] Training materials (video tutorials, knowledge base articles)
+- [ ] Deployment preparation (staging environment, production checklist)
+
+**Deliverables**:
+- ✅ Zero critical bugs
+- ✅ All high-priority bugs fixed
+- ✅ Performance benchmarks met (page load < 2 seconds, API response < 200ms)
+- ✅ Security audit passed
+- ✅ Documentation complete
+- ✅ Training materials ready
+- ✅ Staging environment deployed
+- ✅ Production deployment plan finalized
+
+---
+
+### **Phase 4 Summary**
+
+**Completed by End of Month 9**:
+- ✅ Inventory Management Module
+- ✅ Nursing Workflows (MAR, Care Plans, Vitals)
+- ✅ Custom Report Builder
+- ✅ Multi-Language Support (3 languages, RTL)
+- ✅ Onboarding Wizard & Bulk User Import
+- ✅ Comprehensive Testing & Bug Fixes
+- ✅ Documentation & Training Materials
+
+**System Completion**: **~95%** (up from 85%)
+
+**Production Readiness**: ✅ **Ready for Full Production Deployment Globally**
+
+---
+
+## Phase 5: Advanced Features (Months 10-12) - OPTIONAL
+
+**Goal**: Implement **Priority 4 (P4) advanced features** for competitive differentiation
+
+**Deliverables**: Patient Portal, Telemedicine, Native Mobile Apps, AI Decision Support (MVP)
+
+### **Month 10: Patient Engagement (Patient Portal & Telemedicine)**
+
+### **Month 11: Native Mobile Apps (iOS + Android)**
+
+### **Month 12: AI & Analytics (Predictive Analytics, Decision Support MVP)**
+
+_(Details available upon request - defer to future phases if needed)_
+
+---
+
+## Resource Requirements
+
+### **Team Composition** (Recommended)
+
+| Role | Headcount | Responsibility |
+|------|-----------|----------------|
+| **Backend Developer** | 2 FTE | API development, database design, integrations |
+| **Frontend Developer** | 2 FTE | UI/UX implementation, React components, state management |
+| **Full-Stack Developer** | 1 FTE | Cross-functional tasks, integration work |
+| **QA Engineer** | 1 FTE | Testing, bug tracking, automation (join from Week 20) |
+| **DevOps Engineer** | 0.5 FTE | Azure infrastructure, CI/CD, monitoring (part-time) |
+| **Project Manager** | 0.5 FTE | Sprint planning, stakeholder communication (part-time) |
+
+**Total**: **~5.5 FTEs** (can be 4-5 people with overlapping skills)
+
+---
+
+## Risk Management
+
+### **High-Risk Dependencies**
+
+1. **Payment Gateway Integration** (Week 7-8)
+   - **Risk**: API changes, sandbox issues, compliance requirements
+   - **Mitigation**: Start sandbox testing early, have fallback payment method (manual entry)
+
+2. **SMS/WhatsApp Integration** (Week 21-22)
+   - **Risk**: Twilio account approval delays, WhatsApp Business API approval
+   - **Mitigation**: Apply for Twilio account early, use SMS initially if WhatsApp delayed
+
+3. **DICOM Integration** (Future - Phase 4+)
+   - **Risk**: Complex medical imaging standards, vendor-specific implementations
+   - **Mitigation**: Use DICOM libraries (dcm4che, cornerstone.js), partner with imaging vendors
+
+4. **Performance at Scale** (Phase 3-4)
+   - **Risk**: Slow queries, high API latency with large datasets
+   - **Mitigation**: Implement Redis caching early, database query optimization, load testing
+
+---
+
+## Success Criteria
+
+### **Phase 2 Success** (End of Month 3):
+- ✅ 70%+ system completion
+- ✅ Core clinical workflows operational (prescriptions, billing, lab orders, pharmacy)
+- ✅ Ready for pilot deployment with 1-2 early adopter clinics
+- ✅ Positive feedback from pilot users
+
+### **Phase 3 Success** (End of Month 6):
+- ✅ 85%+ system completion
+- ✅ All critical clinical modules operational (imaging, optical, insurance, OT, notifications)
+- ✅ Ready for full clinical deployment with multiple clinics
+- ✅ Real-time notifications working (SMS/WhatsApp/Email)
+
+### **Phase 4 Success** (End of Month 9):
+- ✅ 95%+ system completion
+- ✅ Production-ready, globally deployable system
+- ✅ Multi-language support (3 languages)
+- ✅ Custom reporting and analytics
+- ✅ Comprehensive documentation and training materials
+- ✅ Zero critical bugs, performance benchmarks met
+
+---
+
+## Conclusion
+
+This sequential implementation plan provides a **clear, week-by-week roadmap** to complete the Eye Hospital Management System over **9 months** (Phases 2-4). The plan prioritizes **high-impact clinical and financial features** first, followed by advanced modules and global readiness features.
+
+With **3-4 dedicated developers** and disciplined execution, this timeline is achievable and will result in a **production-ready, HIPAA-compliant, globally deployable eye hospital management system**.
+
+---
+
+**Next Steps**:
+1. ✅ Review and approve this plan
+2. 📋 Assemble development team (4-5 FTEs)
+3. 📋 Set up development environment (Azure, Git, CI/CD)
+4. 📋 Kick off **Phase 2, Week 1: Prescription Module** (Backend)
+5. 📋 Schedule weekly sprint planning and reviews
+6. 📋 Track progress in project management tool (Jira, Azure DevOps, or GitHub Projects)
+
+**Let's build a world-class eye hospital management system! 🚀**
+
+---
+
+**Document Prepared By**: GitHub Copilot (AI Assistant)  
+**Review Status**: Pending stakeholder approval  
+**Version**: 1.0  
+**Last Updated**: December 8, 2025
+
+---
+
+**END OF SEQUENTIAL IMPLEMENTATION PLAN**

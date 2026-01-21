@@ -36,41 +36,41 @@ export interface RegisterDeviceDto {
 export const deviceManagementApi = {
   // Get all devices for current user
   getMyDevices: async () => {
-    return getApi().get<Device[]>('/device-management/my-devices');
+    return getApi().get<Device[]>('/device-management/devices');
   },
 
-  // Get all devices for a specific user (admin)
-  getUserDevices: async (userId: string) => {
-    return getApi().get<Device[]>(`/device-management/user/${userId}/devices`);
+  // Get device by ID
+  getDeviceById: async (deviceId: string) => {
+    return getApi().get<Device>(`/device-management/devices/${deviceId}`);
   },
 
   // Register a new device
   register: async (data: RegisterDeviceDto) => {
-    return getApi().post<Device>('/device-management/register', data);
+    return getApi().post<Device>('/device-management/devices', data);
   },
 
   // Update device trust level
   setTrustLevel: async (deviceId: string, trustLevel: string) => {
-    return getApi().put(`/device-management/${deviceId}/trust-level`, { trustLevel });
+    return getApi().patch(`/device-management/devices/${deviceId}/trust-level`, { trustLevel });
   },
 
   // Set primary device
   setPrimary: async (deviceId: string) => {
-    return getApi().put(`/device-management/${deviceId}/set-primary`, {});
+    return getApi().patch(`/device-management/devices/${deviceId}/set-primary`, {});
   },
 
   // Block device
   block: async (deviceId: string, reason: string) => {
-    return getApi().put(`/device-management/${deviceId}/block`, { reason });
+    return getApi().patch(`/device-management/devices/${deviceId}/block`, { reason });
   },
 
   // Unblock device
   unblock: async (deviceId: string) => {
-    return getApi().put(`/device-management/${deviceId}/unblock`, {});
+    return getApi().patch(`/device-management/devices/${deviceId}/unblock`, {});
   },
 
   // Delete device
   delete: async (deviceId: string) => {
-    return getApi().delete(`/device-management/${deviceId}`);
+    return getApi().delete(`/device-management/devices/${deviceId}`);
   }
 };

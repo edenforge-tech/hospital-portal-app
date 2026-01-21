@@ -1,31 +1,37 @@
 import { getApi } from '../api';
 
-// Types
+// Types - Aligned with backend DepartmentDto
 export interface Department {
   id: string;
-  tenantId: string;
-  organizationId: string;
-  branchId: string;
   departmentCode: string;
   departmentName: string;
   departmentType: string;
-  description?: string;
+  description: string;
+  status: string;
   parentDepartmentId?: string;
+  parentDepartmentName?: string;
   departmentHeadId?: string;
   departmentHeadName?: string;
+  staffCount: number;
+  subDepartmentsCount: number;
+  branchId?: string | null;  // Made nullable to match backend
+  branchName?: string | null; // Made nullable to match backend
+  
+  // Legacy fields - keep for backward compatibility but mark optional
+  tenantId?: string;
+  organizationId?: string;
   operatingHours?: string;
   budget?: number;
   currency?: string;
   maxConcurrentPatients?: number;
-  approvalWorkflowRequired: boolean;
-  status: 'Active' | 'Inactive' | 'UnderMaintenance';
+  approvalWorkflowRequired?: boolean;
   totalStaff?: number;
   totalSubDepartments?: number;
   activePatients?: number;
   createdBy?: string;
-  createdAt: string;
+  createdAt?: string;
   updatedAt?: string;
-  isDeleted: boolean;
+  isDeleted?: boolean;
 }
 
 export interface DepartmentFormData {

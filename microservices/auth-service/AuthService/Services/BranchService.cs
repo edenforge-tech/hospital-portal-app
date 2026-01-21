@@ -105,14 +105,17 @@ namespace AuthService.Services
                 _logger.LogInformation("Retrieved {Count} branches after pagination", branches.Count);
 
                 // Get organization names separately
-                var organizationIds = branches.Select(b => b.OrganizationId).Distinct().ToList();
+                var organizationIds = branches.Select(b => b.OrganizationId).Where(id => id != Guid.Empty).Distinct().ToList();
                 Dictionary<Guid, string> organizations = new Dictionary<Guid, string>();
                 
                 try
                 {
-                    organizations = await _context.Organizations
-                        .Where(o => organizationIds.Contains(o.Id))
-                        .ToDictionaryAsync(o => o.Id, o => o.Name);
+                    if (organizationIds.Any())
+                    {
+                        organizations = await _context.Organizations
+                            .Where(o => organizationIds.Contains(o.Id))
+                            .ToDictionaryAsync(o => o.Id, o => o.Name);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -137,18 +140,21 @@ namespace AuthService.Services
                     CreatedAt = b.CreatedAt
                 }).ToList();
 
-                // Breakdowns
+                // Breakdowns - handle null values
                 var statusBreakdown = branches
+                    .Where(b => !string.IsNullOrEmpty(b.Status))
                     .GroupBy(b => b.Status)
-                    .ToDictionary(g => g.Key, g => g.Count());
+                    .ToDictionary(g => g.Key ?? "Unknown", g => g.Count());
 
                 var operationalBreakdown = branches
+                    .Where(b => !string.IsNullOrEmpty(b.OperationalStatus))
                     .GroupBy(b => b.OperationalStatus)
-                    .ToDictionary(g => g.Key, g => g.Count());
+                    .ToDictionary(g => g.Key ?? "Unknown", g => g.Count());
 
                 var regionBreakdown = branches
+                    .Where(b => !string.IsNullOrEmpty(b.Region))
                     .GroupBy(b => b.Region)
-                    .ToDictionary(g => g.Key, g => g.Count());
+                    .ToDictionary(g => g.Key ?? "Unknown", g => g.Count());
 
                 return new BranchListResponse
                 {
@@ -310,6 +316,7 @@ namespace AuthService.Services
                 if (request.Name != null) branch.Name = request.Name;
                 if (request.Description != null) branch.Description = request.Description;
                 if (request.Status != null) branch.Status = request.Status;
+                if (request.BranchType != null) branch.BranchType = request.BranchType;
                 if (request.Region != null) branch.Region = request.Region;
                 if (request.Timezone != null) branch.Timezone = request.Timezone;
                 if (request.Currency != null) branch.CurrencyCode = request.Currency;
@@ -325,10 +332,22 @@ namespace AuthService.Services
                 if (request.Phone != null) branch.Phone = request.Phone;
                 if (request.Email != null) branch.Email = request.Email;
                 if (request.Fax != null) branch.Fax = request.Fax;
+                if (request.Website != null) branch.Website = request.Website;
                 if (request.OperationalHoursStart.HasValue) branch.OperationalHoursStart = request.OperationalHoursStart;
                 if (request.OperationalHoursEnd.HasValue) branch.OperationalHoursEnd = request.OperationalHoursEnd;
                 if (request.EmergencySupport24x7.HasValue) branch.EmergencySupport24x7 = request.EmergencySupport24x7.Value;
                 if (request.OperationalStatus != null) branch.OperationalStatus = request.OperationalStatus;
+                
+                // Update capacity fields (map DTO names to entity names)
+                if (request.TotalBeds.HasValue) branch.BedCapacityTotal = request.TotalBeds.Value;
+                if (request.IcuBeds.HasValue) branch.BedCapacityIcu = request.IcuBeds.Value;
+                if (request.EmergencyBeds.HasValue) branch.BedCapacityEmergency = request.EmergencyBeds.Value;
+                
+                // Update compliance fields (map DTO names to entity names)
+                if (request.HipaaCompliant.HasValue) branch.HipaaCoveredEntity = request.HipaaCompliant.Value;
+                if (request.NabhAccredited.HasValue) branch.NabhAccredited = request.NabhAccredited.Value;
+                if (request.JciAccredited.HasValue) branch.JciAccredited = request.JciAccredited.Value;
+                if (request.Iso9001Certified.HasValue) branch.IsoCertified = request.Iso9001Certified.Value;
 
                 branch.UpdatedAt = DateTime.UtcNow;
                 branch.UpdatedBy = updatedBy;
@@ -836,6 +855,7 @@ namespace AuthService.Services
                 Code = branch.BranchCode,
                 Description = branch.Description,
                 Status = branch.Status,
+                BranchType = branch.BranchType,
                 Region = branch.Region,
                 Timezone = branch.Timezone,
                 Currency = branch.CurrencyCode,
@@ -846,17 +866,27 @@ namespace AuthService.Services
                 StateProvince = branch.StateProvince,
                 PostalCode = branch.PostalCode,
                 CountryCode = branch.CountryCode,
+                Country = branch.Country,
                 Latitude = branch.Latitude,
                 Longitude = branch.Longitude,
                 Phone = branch.Phone,
                 Email = branch.Email,
                 Fax = branch.Fax,
+                Website = branch.Website,
                 OperationalHoursStart = branch.OperationalHoursStart,
                 OperationalHoursEnd = branch.OperationalHoursEnd,
                 EmergencySupport24x7 = branch.EmergencySupport24x7,
                 TotalDepartments = branch.TotalDepartments,
                 TotalStaff = branch.TotalStaff,
                 OperationalStatus = branch.OperationalStatus,
+                TotalBeds = branch.BedCapacityTotal > 0 ? branch.BedCapacityTotal : (branch.BedCapacityIcu + branch.BedCapacityGeneral + branch.BedCapacityEmergency),
+                AvailableBeds = branch.AvailableBeds,
+                IcuBeds = branch.BedCapacityIcu,
+                EmergencyBeds = branch.BedCapacityEmergency,
+                HipaaCompliant = branch.HipaaCoveredEntity || branch.PhiStorageApproved,
+                NabhAccredited = branch.NabhAccredited,
+                JciAccredited = branch.JciAccredited,
+                Iso9001Certified = branch.IsoCertified,
                 CreatedAt = branch.CreatedAt,
                 CreatedBy = branch.CreatedBy,
                 UpdatedAt = branch.UpdatedAt,

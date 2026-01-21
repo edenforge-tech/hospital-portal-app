@@ -222,22 +222,22 @@ export default function OrganizationHierarchyModal({
                   <Building2 className="h-8 w-8 text-indigo-400" />
                 </div>
               </div>
-              <div className="bg-white rounded-lg p-4 shadow-sm">
+              <div className="bg-white rounded-lg p-3 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Total Branches</p>
-                    <p className="text-2xl font-bold text-blue-600">{getTotalBranches(hierarchy)}</p>
+                    <p className="text-xs font-medium text-gray-600">Total Branches</p>
+                    <p className="text-lg font-bold text-blue-600">{getTotalBranches(hierarchy)}</p>
                   </div>
-                  <GitBranch className="h-8 w-8 text-blue-400" />
+                  <GitBranch className="h-5 w-5 text-blue-400" />
                 </div>
               </div>
-              <div className="bg-white rounded-lg p-4 shadow-sm">
+              <div className="bg-white rounded-lg p-3 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Total Users</p>
-                    <p className="text-2xl font-bold text-green-600">{getTotalUsers(hierarchy)}</p>
+                    <p className="text-xs font-medium text-gray-600">Total Users</p>
+                    <p className="text-lg font-bold text-green-600">{getTotalUsers(hierarchy)}</p>
                   </div>
-                  <Users className="h-8 w-8 text-green-400" />
+                  <Users className="h-5 w-5 text-green-400" />
                 </div>
               </div>
               <div className="bg-white rounded-lg p-4 shadow-sm">

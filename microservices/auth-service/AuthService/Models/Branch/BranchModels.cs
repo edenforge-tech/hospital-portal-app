@@ -37,6 +37,9 @@ namespace AuthService.Models.Branch
         public string? Description { get; set; }
         public string Status { get; set; } = "active";
         
+        // Type & Classification
+        public string? BranchType { get; set; }
+        
         // Regional
         public string? Region { get; set; }
         public string? Timezone { get; set; }
@@ -50,6 +53,7 @@ namespace AuthService.Models.Branch
         public string? StateProvince { get; set; }
         public string? PostalCode { get; set; }
         public string? CountryCode { get; set; }
+        public string? Country { get; set; } // Full country name
         public decimal? Latitude { get; set; }
         public decimal? Longitude { get; set; }
         
@@ -57,6 +61,7 @@ namespace AuthService.Models.Branch
         public string? Phone { get; set; }
         public string? Email { get; set; }
         public string? Fax { get; set; }
+        public string? Website { get; set; }
         
         // Operational
         public TimeSpan? OperationalHoursStart { get; set; }
@@ -65,6 +70,18 @@ namespace AuthService.Models.Branch
         public int TotalDepartments { get; set; }
         public int TotalStaff { get; set; }
         public string? OperationalStatus { get; set; }
+        
+        // Capacity
+        public int? TotalBeds { get; set; }
+        public int? AvailableBeds { get; set; }
+        public int? IcuBeds { get; set; }
+        public int? EmergencyBeds { get; set; }
+        
+        // Compliance & Certifications
+        public bool HipaaCompliant { get; set; }
+        public bool NabhAccredited { get; set; }
+        public bool JciAccredited { get; set; }
+        public bool Iso9001Certified { get; set; }
         
         // Settings
         public Dictionary<string, object>? BranchSettings { get; set; }
@@ -130,6 +147,9 @@ namespace AuthService.Models.Branch
         public string? Description { get; set; }
         public string? Status { get; set; }
         
+        // Type & Classification
+        public string? BranchType { get; set; }
+        
         // Regional
         public string? Region { get; set; }
         public string? Timezone { get; set; }
@@ -157,9 +177,22 @@ namespace AuthService.Models.Branch
         public bool? EmergencySupport24x7 { get; set; }
         public string? OperationalStatus { get; set; }
         
+        // Capacity
+        public int? TotalBeds { get; set; }
+        public int? AvailableBeds { get; set; }
+        public int? IcuBeds { get; set; }
+        public int? EmergencyBeds { get; set; }
+        
+        // Compliance & Certifications
+        public bool? HipaaCompliant { get; set; }
+        public bool? NabhAccredited { get; set; }
+        public bool? JciAccredited { get; set; }
+        public bool? Iso9001Certified { get; set; }
+        
         // Settings
         public Dictionary<string, object>? BranchSettings { get; set; }
         public string? CurrencyCode { get; set; }
+        public string? Website { get; set; }
     }
 
     /// <summary>

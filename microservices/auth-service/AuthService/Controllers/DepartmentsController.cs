@@ -65,7 +65,23 @@ public class DepartmentsController : ControllerBase
         try
         {
             var tenantId = GetTenantId();
+            Console.WriteLine($"🔍 GetAll Departments - TenantId: {tenantId}, BranchFilter: {filters?.BranchId}");
+            
             var departments = await _departmentService.GetAllAsync(tenantId, filters);
+            
+            Console.WriteLine($"🔍 Retrieved {departments.Count} departments");
+            foreach (var dept in departments.Take(3))
+            {
+                Console.WriteLine($"   - {dept.DepartmentCode}: {dept.DepartmentName} (Branch: {dept.BranchId})");
+            }
+            
+            // Serialize and log the JSON response
+            var json = System.Text.Json.JsonSerializer.Serialize(departments, new System.Text.Json.JsonSerializerOptions 
+            { 
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase 
+            });
+            Console.WriteLine($"🔍 JSON Response (first 500 chars): {json.Substring(0, Math.Min(500, json.Length))}");
+            
             return Ok(departments);
         }
         catch (UnauthorizedAccessException ex)

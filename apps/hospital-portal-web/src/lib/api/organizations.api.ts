@@ -31,6 +31,7 @@ export interface OrganizationDetails {
   parentOrganizationName?: string;
   hierarchyLevel: number;
   childOrganizationsCount: number;
+  totalChildOrganizations?: number;
   
   // Address
   addressLine1?: string;

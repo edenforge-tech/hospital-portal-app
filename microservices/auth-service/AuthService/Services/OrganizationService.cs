@@ -67,20 +67,42 @@ namespace AuthService.Services
                     .Take(filters.PageSize)
                     .ToListAsync();
 
-                // Map to DTOs (only using properties that exist in OrganizationDto)
+                // Get branch counts for each organization
+                var organizationIds = organizations.Select(o => o.Id).ToList();
+                
+                var branchCounts = await _context.Branches
+                    .Where(b => organizationIds.Contains(b.OrganizationId) && b.DeletedAt == null)
+                    .GroupBy(b => b.OrganizationId)
+                    .Select(g => new { OrganizationId = g.Key, Count = g.Count() })
+                    .ToDictionaryAsync(x => x.OrganizationId, x => x.Count);
+
+                // Get user counts for each organization (via branches -> departments -> user_departments)
+                var userCounts = await (from b in _context.Branches
+                                       where organizationIds.Contains(b.OrganizationId) && b.DeletedAt == null
+                                       join d in _context.Departments on b.Id equals d.BranchId
+                                       where d.DeletedAt == null
+                                       join ud in _context.UserDepartments on d.Id equals ud.DepartmentId
+                                       where ud.DeletedAt == null
+                                       join u in _context.Users on ud.UserId equals u.Id
+                                       where u.LockoutEnd == null || u.LockoutEnd < DateTime.UtcNow
+                                       group u by b.OrganizationId into g
+                                       select new { OrganizationId = g.Key, Count = g.Select(u => u.Id).Distinct().Count() })
+                                       .ToDictionaryAsync(x => x.OrganizationId, x => x.Count);
+
+                // Map to DTOs
                 var organizationDtos = organizations.Select(o => new OrganizationDto
                 {
                     Id = o.Id,
                     TenantId = o.TenantId,
                     Name = o.Name,
-                    Code = o.OrganizationCode, // Map organization_code to Code in DTO
+                    Code = o.OrganizationCode,
                     Status = o.Status,
-                    Type = null, // Not in simplified schema
-                    ParentOrganizationId = null, // Not in simplified schema  
+                    Type = null, // Not in database schema
+                    ParentOrganizationId = null, // Not in database schema
                     ParentOrganizationName = null,
                     HierarchyLevel = 0,
-                    TotalBranches = 0,
-                    TotalUsers = 0,
+                    TotalBranches = branchCounts.ContainsKey(o.Id) ? branchCounts[o.Id] : 0,
+                    TotalUsers = userCounts.ContainsKey(o.Id) ? userCounts[o.Id] : 0,
                     CreatedAt = DateTime.UtcNow
                 }).ToList();
 
@@ -121,18 +143,68 @@ namespace AuthService.Services
                 if (organization == null)
                     return null;
 
+                // Count child organizations
+                var childOrganizationsCount = await _context.Organizations
+                    .CountAsync(o => o.TenantId == organization.TenantId && o.Id != organization.Id);
+
+                // Count total branches
+                var totalBranches = await _context.Branches
+                    .CountAsync(b => b.OrganizationId == organization.Id && b.DeletedAt == null);
+
                 return new OrganizationDetailsDto
                 {
+                    // Basic Information
                     Id = organization.Id,
                     TenantId = organization.TenantId,
                     Name = organization.Name,
                     Code = organization.OrganizationCode,
+                    Type = organization.OrganizationName, // Maps organization_name column to Type
+                    Description = null, // Not in database schema
                     Status = organization.Status,
-                    CountryCode = organization.CountryCode,
+                    
+                    // Hierarchy
+                    ParentOrganizationId = null, // Not implemented in current schema
+                    ParentOrganizationName = null,
+                    HierarchyLevel = 0,
+                    ChildOrganizationsCount = childOrganizationsCount,
+                    
+                    // Address
+                    AddressLine1 = organization.Address, // Maps address column to AddressLine1
+                    AddressLine2 = null, // Not in database schema
+                    City = organization.City,
                     StateProvince = organization.StateProvince,
-                    CurrencyCode = organization.CurrencyCode,
+                    PostalCode = organization.PostalCode,
+                    CountryCode = organization.CountryCode,
+                    
+                    // Contact
+                    Phone = organization.Phone,
+                    Email = organization.Email,
+                    Website = organization.Website,
+                    PrimaryContactName = organization.PrimaryContactName,
+                    PrimaryContactEmail = organization.PrimaryContactEmail,
+                    PrimaryContactPhone = organization.PrimaryContactPhone,
+                    PrimaryContactAddress = null,
+                    
+                    // Configuration
+                    Timezone = organization.Timezone,
                     LanguageCode = organization.LanguageCode,
-                    Timezone = organization.Timezone
+                    CurrencyCode = organization.CurrencyCode,
+                    
+                    // Operations
+                    TotalBranches = totalBranches,
+                    TotalUsers = 0, // Calculated separately in GetAllOrganizationsAsync
+                    OperationalSince = organization.OperationalSince,
+                    RegistrationNumber = organization.LicenseNumber, // Maps license_number to RegistrationNumber
+                    
+                    // Settings & Branding - Not populated for now
+                    Settings = null,
+                    BrandingConfig = null,
+                    
+                    // Audit - Not tracked in current schema
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = null,
+                    UpdatedAt = null,
+                    UpdatedBy = null
                 };
             }
             catch (Exception ex)
@@ -152,18 +224,68 @@ namespace AuthService.Services
                 if (organization == null)
                     return null;
 
+                // Count child organizations
+                var childOrganizationsCount = await _context.Organizations
+                    .CountAsync(o => o.TenantId == organization.TenantId && o.Id != organization.Id);
+
+                // Count total branches
+                var totalBranches = await _context.Branches
+                    .CountAsync(b => b.OrganizationId == organization.Id && b.DeletedAt == null);
+
                 return new OrganizationDetailsDto
                 {
+                    // Basic Information
                     Id = organization.Id,
                     TenantId = organization.TenantId,
                     Name = organization.Name,
                     Code = organization.OrganizationCode,
+                    Type = organization.OrganizationName, // Maps organization_name column to Type
+                    Description = organization.Description,
                     Status = organization.Status,
-                    CountryCode = organization.CountryCode,
+                    
+                    // Hierarchy
+                    ParentOrganizationId = null, // Not implemented in current schema
+                    ParentOrganizationName = null,
+                    HierarchyLevel = 0,
+                    ChildOrganizationsCount = childOrganizationsCount,
+                    
+                    // Address
+                    AddressLine1 = organization.Address, // Maps address column to AddressLine1
+                    AddressLine2 = null, // Not in database schema
+                    City = organization.City,
                     StateProvince = organization.StateProvince,
-                    CurrencyCode = organization.CurrencyCode,
+                    PostalCode = organization.PostalCode,
+                    CountryCode = organization.CountryCode,
+                    
+                    // Contact
+                    Phone = organization.Phone,
+                    Email = organization.Email,
+                    Website = organization.Website,
+                    PrimaryContactName = organization.PrimaryContactName,
+                    PrimaryContactEmail = organization.PrimaryContactEmail,
+                    PrimaryContactPhone = organization.PrimaryContactPhone,
+                    PrimaryContactAddress = null,
+                    
+                    // Configuration
+                    Timezone = organization.Timezone,
                     LanguageCode = organization.LanguageCode,
-                    Timezone = organization.Timezone
+                    CurrencyCode = organization.CurrencyCode,
+                    
+                    // Operations
+                    TotalBranches = totalBranches,
+                    TotalUsers = 0, // Calculated separately in GetAllOrganizationsAsync
+                    OperationalSince = organization.OperationalSince,
+                    RegistrationNumber = organization.LicenseNumber, // Maps license_number to RegistrationNumber
+                    
+                    // Settings & Branding - Not populated for now
+                    Settings = null,
+                    BrandingConfig = null,
+                    
+                    // Audit - Not tracked in current schema
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = null,
+                    UpdatedAt = null,
+                    UpdatedBy = null
                 };
             }
             catch (Exception ex)
@@ -227,21 +349,62 @@ namespace AuthService.Services
                     };
                 }
 
+                // Basic Info
                 if (!string.IsNullOrEmpty(request.Name))
                     organization.Name = request.Name;
+                if (request.Type != null)
+                    organization.OrganizationName = request.Type;
+                if (request.Description != null)
+                    organization.Description = request.Description;
                 if (!string.IsNullOrEmpty(request.Status))
                     organization.Status = request.Status;
-                if (request.CountryCode != null)
-                    organization.CountryCode = request.CountryCode;
+                
+                // Address
+                if (request.AddressLine1 != null)
+                    organization.Address = request.AddressLine1;
+                if (request.City != null)
+                    organization.City = request.City;
                 if (request.StateProvince != null)
                     organization.StateProvince = request.StateProvince;
-                if (request.CurrencyCode != null)
-                    organization.CurrencyCode = request.CurrencyCode;
-                if (request.LanguageCode != null)
-                    organization.LanguageCode = request.LanguageCode;
+                if (request.PostalCode != null)
+                    organization.PostalCode = request.PostalCode;
+                if (request.CountryCode != null)
+                    organization.CountryCode = request.CountryCode;
+                
+                // Contact
+                if (request.Phone != null)
+                    organization.Phone = request.Phone;
+                if (request.Email != null)
+                    organization.Email = request.Email;
+                if (request.Website != null)
+                    organization.Website = request.Website;
+                if (request.PrimaryContactName != null)
+                    organization.PrimaryContactName = request.PrimaryContactName;
+                if (request.PrimaryContactEmail != null)
+                    organization.PrimaryContactEmail = request.PrimaryContactEmail;
+                if (request.PrimaryContactPhone != null)
+                    organization.PrimaryContactPhone = request.PrimaryContactPhone;
+                
+                // Configuration
                 if (request.Timezone != null)
                     organization.Timezone = request.Timezone;
+                if (request.LanguageCode != null)
+                    organization.LanguageCode = request.LanguageCode;
+                if (request.CurrencyCode != null)
+                    organization.CurrencyCode = request.CurrencyCode;
+                
+                // Operations
+                if (request.OperationalSince != null)
+                {
+                    organization.OperationalSince = request.OperationalSince.Value.Kind == DateTimeKind.Utc 
+                        ? request.OperationalSince 
+                        : DateTime.SpecifyKind(request.OperationalSince.Value, DateTimeKind.Utc);
+                }
+                if (request.RegistrationNumber != null)
+                    organization.LicenseNumber = request.RegistrationNumber;
 
+                // UpdatedAt and UpdatedBy fields don't exist in Organization entity
+                
                 await _context.SaveChangesAsync();
 
                 return new OrganizationOperationResult

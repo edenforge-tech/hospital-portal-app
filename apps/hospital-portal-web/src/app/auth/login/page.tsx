@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { authApi, initializeApi, getApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import axios from 'axios';
+import { Loader2, Smartphone, Key } from 'lucide-react';
 
 interface Tenant {
   id: string;
@@ -16,13 +18,21 @@ export default function LoginPage() {
   const router = useRouter();
   const setAuth = useAuthStore((state) => state.setAuth);
   
-  const [email, setEmail] = useState('admin@hospital.com');
-  const [password, setPassword] = useState('Admin@123456');
-  const [tenantId, setTenantId] = useState('');
+  const [email, setEmail] = useState('admin@test.com');
+  const [password, setPassword] = useState('Admin123!');
+  const [tenantId, setTenantId] = useState('155fe198-6ae5-4a01-9254-ead5b427247e');
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingTenants, setIsLoadingTenants] = useState(true);
+  
+  // MFA challenge states
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaMethod, setMfaMethod] = useState<'authenticator' | 'sms' | 'email' | null>(null);
+  const [mfaCode, setMfaCode] = useState('');
+  const [useBackupCode, setUseBackupCode] = useState(false);
+  const [temporaryToken, setTemporaryToken] = useState('');
+  const [mfaUserId, setMfaUserId] = useState('');
 
   // Fetch tenants on component mount
   useEffect(() => {
@@ -65,17 +75,13 @@ export default function LoginPage() {
         }
       } catch (err) {
         console.error('Error fetching tenants:', err);
-        // Fallback to hardcoded tenant only if both APIs fail
+        // Fallback to India Eye Hospital Network (the actual tenant in database)
         const fallbackTenants = [
-          { id: '11111111-1111-1111-1111-111111111111', name: 'Apollo Hospitals - Main', tenantCode: 'APOLLO-MAIN' },
-          { id: '22222222-2222-2222-2222-222222222222', name: 'Fortis Healthcare', tenantCode: 'FORTIS-01' },
-          { id: '33333333-3333-3333-3333-333333333333', name: 'Max Healthcare', tenantCode: 'MAX-HC' },
-          { id: '44444444-4444-4444-4444-444444444444', name: 'Narayana Health', tenantCode: 'NARAYANA' },
-          { id: '55555555-5555-5555-5555-555555555555', name: 'Sankara Eye Hospital', tenantCode: 'SANKARA' }
+          { id: '155fe198-6ae5-4a01-9254-ead5b427247e', name: 'India Eye Hospital Network', tenantCode: 'INDIA_EYE_NET' }
         ];
         setTenants(fallbackTenants);
         setTenantId(fallbackTenants[0].id);
-        console.log('Using fallback tenants:', fallbackTenants.length);
+        console.log('Using fallback tenant (India Eye Hospital Network)');
       } finally {
         setIsLoadingTenants(false);
       }
@@ -91,8 +97,8 @@ export default function LoginPage() {
     try {
       const api = getApi();
       
-      // Use the selected tenant or default to Apollo
-      const createTenantId = tenantId || '11111111-1111-1111-1111-111111111111';
+      // Use the selected tenant or default to India Eye Hospital Network
+      const createTenantId = tenantId || '155fe198-6ae5-4a01-9254-ead5b427247e';
       
       const response = await api.post(`/auth/debug/create-admin?tenantId=${createTenantId}`);
       
@@ -133,6 +139,17 @@ export default function LoginPage() {
       if (!data.success) {
         console.log('Login failed - no success flag');
         setError(data.message || 'Login failed');
+        return;
+      }
+
+      // Check if MFA is required
+      if (data.requiresMfa) {
+        console.log('MFA required for this user, userId:', data.userId);
+        setMfaRequired(true);
+        setMfaUserId(data.userId || '');
+        setMfaMethod(data.mfaMethod || 'authenticator');
+        setTemporaryToken(data.temporaryToken || '');
+        setIsLoading(false);
         return;
       }
 
@@ -180,6 +197,69 @@ export default function LoginPage() {
     }
   };
 
+  const handleVerifyMfa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5073/api';
+
+      console.log('Verifying MFA with userId:', mfaUserId, 'code:', mfaCode);
+      const response = await fetch(`${apiUrl}/auth/mfa/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Tenant-ID': tenantId
+        },
+        body: JSON.stringify({
+          userId: mfaUserId,
+          code: mfaCode,
+          method: useBackupCode ? 'backup' : 'totp'
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Invalid MFA code');
+      }
+
+      const data = await response.json();
+
+      // Store auth state
+      setAuth(
+        data.accessToken,
+        data.refreshToken,
+        data.user,
+        data.roles,
+        data.permissions,
+        tenantId,
+        data.mustChangePassword
+      );
+
+      // Redirect to dashboard
+      if (data.mustChangePassword) {
+        router.push('/auth/change-password');
+      } else {
+        router.push('/dashboard');
+      }
+    } catch (err: any) {
+      console.error('MFA verification error:', err);
+      setError(err.message || 'Failed to verify MFA code');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBackToLogin = () => {
+    setMfaRequired(false);
+    setMfaCode('');
+    setUseBackupCode(false);
+    setTemporaryToken('');
+    setMfaUserId('');
+    setPassword('');
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
@@ -188,101 +268,199 @@ export default function LoginPage() {
           <p className="text-gray-600 mt-2">Hospital Management System</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-6">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-              {error}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tenant
-            </label>
-            {isLoadingTenants ? (
-              <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
-                Loading tenants...
+        {!mfaRequired ? (
+          <form onSubmit={handleLogin} className="space-y-6">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                {error}
               </div>
-            ) : tenants.length > 0 ? (
-              <select
-                value={tenantId}
-                onChange={(e) => setTenantId(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
-                required
-              >
-                <option value="">Select your hospital</option>
-                {tenants.map((tenant) => (
-                  <option key={tenant.id} value={tenant.id}>
-                    {tenant.name}
-                  </option>
-                ))}
-              </select>
-            ) : (
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tenant
+              </label>
+              {isLoadingTenants ? (
+                <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                  Loading tenants...
+                </div>
+              ) : tenants.length > 0 ? (
+                <select
+                  value={tenantId}
+                  onChange={(e) => setTenantId(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+                  required
+                >
+                  <option value="">Select your hospital</option>
+                  {tenants.map((tenant) => (
+                    <option key={tenant.id} value={tenant.id}>
+                      {tenant.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={tenantId}
+                  onChange={(e) => setTenantId(e.target.value)}
+                  placeholder="Enter your hospital tenant ID"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  required
+                />
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email Address
+              </label>
               <input
-                type="text"
-                value={tenantId}
-                onChange={(e) => setTenantId(e.target.value)}
-                placeholder="Enter your hospital tenant ID"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 required
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                required
+              />
+              <div className="mt-2 text-right">
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              {isLoading ? 'Logging in...' : 'Login'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleCreateAdmin}
+              disabled={isLoading}
+              className="w-full mt-2 bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              {isLoading ? 'Creating...' : 'Create Admin User (Dev Only)'}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleVerifyMfa} className="space-y-6">
+            <div className="text-center mb-6">
+              <div className="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                {useBackupCode ? <Key className="w-8 h-8 text-indigo-600" /> : <Smartphone className="w-8 h-8 text-indigo-600" />}
+              </div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                {useBackupCode ? 'Enter Backup Code' : 'Two-Factor Authentication'}
+              </h2>
+              <p className="text-gray-600 mt-2">
+                {useBackupCode 
+                  ? 'Enter one of your backup codes'
+                  : mfaMethod === 'authenticator'
+                    ? 'Enter the code from your authenticator app'
+                    : `A code has been sent to your ${mfaMethod}`
+                }
+              </p>
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                {error}
+              </div>
             )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {useBackupCode ? 'Backup Code' : 'Authentication Code'}
+              </label>
+              <input
+                type="text"
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, useBackupCode ? 8 : 6))}
+                placeholder={useBackupCode ? '12345678' : '000000'}
+                maxLength={useBackupCode ? 8 : 6}
+                required
+                autoFocus
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-center text-2xl tracking-widest"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading || mfaCode.length < (useBackupCode ? 8 : 6)}
+              className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                'Verify & Login'
+              )}
+            </button>
+
+            <div className="text-center space-y-2">
+              {!useBackupCode && (
+                <button
+                  type="button"
+                  onClick={() => setUseBackupCode(true)}
+                  className="text-sm text-indigo-600 hover:text-indigo-700"
+                >
+                  Use a backup code instead
+                </button>
+              )}
+              {useBackupCode && (
+                <button
+                  type="button"
+                  onClick={() => setUseBackupCode(false)}
+                  className="text-sm text-indigo-600 hover:text-indigo-700"
+                >
+                  Use authenticator code
+                </button>
+              )}
+              <div>
+                <button
+                  type="button"
+                  onClick={handleBackToLogin}
+                  className="text-sm text-gray-600 hover:text-gray-700"
+                >
+                  Back to login
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+
+        {!mfaRequired && (
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-700">
+              <strong>Demo Credentials:</strong><br/>
+              Email: admin@test.com<br/>
+              Password: Admin123!<br/>
+              Tenant: India Eye Hospital Network
+            </p>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="your@email.com"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-          >
-            {isLoading ? 'Logging in...' : 'Login'}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleCreateAdmin}
-            disabled={isLoading}
-            className="w-full mt-2 bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-          >
-            {isLoading ? 'Creating...' : 'Create Admin User (Dev Only)'}
-          </button>
-        </form>
-
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-700">
-            <strong>Demo Credentials:</strong><br/>
-            Email: admin@hospital.com<br/>
-            Password: Use the one provided<br/>
-            Tenant: Select from dropdown above
-          </p>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ namespace AuthService.Services
         Task<EmergencyAccess> RejectEmergencyAccessAsync(Guid requestId, Guid rejectorId, string reason);
         Task RevokeEmergencyAccessAsync(Guid requestId, Guid revokerId, string reason);
         Task<List<EmergencyAccess>> GetActiveEmergencyAccessAsync(Guid userId);
+        Task<List<EmergencyAccess>> GetMyRequestsAsync(Guid userId);
         Task<List<EmergencyAccess>> GetPendingApprovalsAsync(Guid approverId);
         Task AuditEmergencyUseAsync(Guid accessId, string action, Guid resourceId, string resourceType);
         Task<int> AutoRevokeExpiredAsync();
@@ -34,7 +35,29 @@ namespace AuthService.Services
 
         private Guid GetCurrentTenantId()
         {
+            // Try to get tenant ID from HttpContext.Items (set during login)
             var tenantId = _httpContextAccessor?.HttpContext?.Items["TenantId"] as Guid?;
+            
+            // If not found, try to get from JWT claims
+            if (tenantId == null)
+            {
+                var tenantIdClaim = _httpContextAccessor?.HttpContext?.User?.FindFirst("tenant_id")?.Value;
+                if (!string.IsNullOrEmpty(tenantIdClaim) && Guid.TryParse(tenantIdClaim, out var parsedTenantId))
+                {
+                    tenantId = parsedTenantId;
+                }
+            }
+            
+            // If still not found, try to get from X-Tenant-ID header
+            if (tenantId == null)
+            {
+                var tenantIdHeader = _httpContextAccessor?.HttpContext?.Request.Headers["X-Tenant-ID"].FirstOrDefault();
+                if (!string.IsNullOrEmpty(tenantIdHeader) && Guid.TryParse(tenantIdHeader, out var parsedTenantId))
+                {
+                    tenantId = parsedTenantId;
+                }
+            }
+            
             return tenantId ?? Guid.Parse("11111111-1111-1111-1111-111111111111");
         }
 
@@ -263,6 +286,16 @@ namespace AuthService.Services
                     && ea.Status == "pending"
                     && ea.RequiresApproval)
                 .OrderBy(ea => ea.CreatedAt)
+                .ToListAsync();
+        }
+
+        public async Task<List<EmergencyAccess>> GetMyRequestsAsync(Guid userId)
+        {
+            var tenantId = GetCurrentTenantId();
+
+            return await _context.EmergencyAccesses
+                .Where(ea => ea.UserId == userId && ea.TenantId == tenantId)
+                .OrderByDescending(ea => ea.CreatedAt)
                 .ToListAsync();
         }
 

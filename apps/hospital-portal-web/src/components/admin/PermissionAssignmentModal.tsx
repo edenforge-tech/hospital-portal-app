@@ -54,14 +54,37 @@ export default function PermissionAssignmentModal({
     try {
       // Load all permissions grouped by module
       const permissionsResponse = await permissionsApi.getAllGrouped();
-      setPermissions(permissionsResponse.data || []);
+      
+      // Backend returns Dictionary<string, ModulePermissionsDto>, convert to array
+      const permissionsData = permissionsResponse.data;
+      if (permissionsData && typeof permissionsData === 'object') {
+        const permissionGroups: PermissionGroup[] = Object.entries(permissionsData).map(([moduleName, moduleData]: [string, any]) => ({
+          module: moduleName,
+          permissions: (moduleData.permissions || []).map((p: any) => ({
+            ...p,
+            id: (p.id || p.Id)?.toString().toLowerCase()  // Normalize to lowercase string
+          }))
+        }));
+        console.log('✅ Loaded permission groups:', permissionGroups.length);
+        setPermissions(permissionGroups);
+      } else {
+        console.log('❌ No permissions data');
+        setPermissions([]);
+      }
 
       // Load current role permissions
       const rolePermissionsResponse = await rolesApi.getRolePermissions(roleId);
-      const assignedPermissionIds = rolePermissionsResponse.data?.map((p: Permission) => p.id) || [];
-      setAssignedPermissions(new Set(assignedPermissionIds));
+      const assignedData = rolePermissionsResponse.data || [];
+      
+      // Normalize IDs to lowercase strings for consistent comparison
+      const assignedIds = assignedData.map((p: any) => (p.id || p.Id)?.toString().toLowerCase());
+      
+      console.log('✅ Role has', assignedIds.length, 'assigned permissions');
+      console.log('📋 Assigned IDs:', assignedIds);
+      
+      setAssignedPermissions(new Set(assignedIds));
     } catch (error) {
-      console.error('Error loading permissions:', error);
+      console.error('❌ Error loading permissions:', error);
     } finally {
       setLoading(false);
     }
@@ -97,11 +120,12 @@ export default function PermissionAssignmentModal({
     setSaving(true);
     try {
       const permissionIds = Array.from(assignedPermissions);
+      console.log('💾 Saving', permissionIds.length, 'permissions');
       await rolesApi.assignPermissions(roleId, permissionIds);
       onPermissionsUpdated();
       onClose();
     } catch (error) {
-      console.error('Error saving permissions:', error);
+      console.error('❌ Error saving permissions:', error);
       alert('Failed to save permissions. Please try again.');
     } finally {
       setSaving(false);
@@ -122,6 +146,14 @@ export default function PermissionAssignmentModal({
     .filter(group => group.permissions.length > 0);
 
   const uniqueModules = Array.from(new Set(permissions.map(g => g.module)));
+
+  // Format module name for display
+  const formatModuleName = (moduleName: string) => {
+    return moduleName
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
 
   if (!isOpen) return null;
 
@@ -167,8 +199,8 @@ export default function PermissionAssignmentModal({
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
                 <option value="all">All Modules</option>
-                {uniqueModules.map(module => (
-                  <option key={module} value={module}>{module}</option>
+                {uniqueModules.sort().map(module => (
+                  <option key={module} value={module}>{formatModuleName(module)}</option>
                 ))}
               </select>
             </div>
@@ -193,14 +225,21 @@ export default function PermissionAssignmentModal({
                         <input
                           type="checkbox"
                           checked={group.permissions.every(p => assignedPermissions.has(p.id))}
+                          ref={(el) => {
+                            if (el) {
+                              const someChecked = group.permissions.some(p => assignedPermissions.has(p.id));
+                              const allChecked = group.permissions.every(p => assignedPermissions.has(p.id));
+                              el.indeterminate = someChecked && !allChecked;
+                            }
+                          }}
                           onChange={() => handleModuleToggle(group.module, group.permissions)}
                           className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                         />
-                        <h3 className="text-lg font-medium text-gray-900 capitalize">
-                          {group.module.replace('_', ' ')}
+                        <h3 className="text-lg font-medium text-gray-900">
+                          {formatModuleName(group.module)}
                         </h3>
                         <span className="text-sm text-gray-500">
-                          ({group.permissions.length} permissions)
+                          ({group.permissions.filter(p => assignedPermissions.has(p.id)).length}/{group.permissions.length} selected)
                         </span>
                       </div>
                     </div>
@@ -217,25 +256,22 @@ export default function PermissionAssignmentModal({
                           className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                         />
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium text-gray-900">{permission.name}</h4>
-                            <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded text-gray-600">
-                              {permission.code}
-                            </span>
-                            {permission.isSystemPermission && (
-                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                System
-                              </span>
-                            )}
-                          </div>
+                          <h4 className="font-medium text-gray-900">{permission.name}</h4>
                           {permission.description && (
-                            <p className="text-sm text-gray-600 mt-1">{permission.description}</p>
+                            <p className="text-sm text-gray-600 mt-1">
+                              {permission.description.replace(/billing_revenue/g, 'Billing Revenue')
+                                .replace(/patient_management/g, 'Patient Management')
+                                .replace(/clinical_documentation/g, 'Clinical Documentation')
+                                .replace(/lab_diagnostics/g, 'Lab Diagnostics')
+                                .replace(/ot_management/g, 'OT Management')
+                                .replace(/vendor_procurement/g, 'Vendor Procurement')
+                                .replace(/bed_management/g, 'Bed Management')
+                                .replace(/document_sharing/g, 'Document Sharing')
+                                .replace(/system_settings/g, 'System Settings')
+                                .replace(/quality_assurance/g, 'Quality Assurance')
+                                .replace(/_/g, ' ')}
+                            </p>
                           )}
-                          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                            <span>Action: <strong>{permission.action}</strong></span>
-                            <span>Scope: <strong>{permission.scope}</strong></span>
-                            <span>Resource: <strong>{permission.resourceType}</strong></span>
-                          </div>
                         </div>
                       </div>
                     ))}
@@ -260,7 +296,9 @@ export default function PermissionAssignmentModal({
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
           <div className="flex justify-between items-center">
             <div className="text-sm text-gray-600">
-              {assignedPermissions.size} permission{assignedPermissions.size !== 1 ? 's' : ''} assigned
+              {Array.from(assignedPermissions).filter(id => 
+                permissions.some(g => g.permissions.some(p => p.id === id))
+              ).length} permission{assignedPermissions.size !== 1 ? 's' : ''} selected
             </div>
             <div className="flex gap-3">
               <button

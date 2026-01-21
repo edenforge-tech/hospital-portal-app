@@ -17,6 +17,13 @@ export const initializeApi = () => {
   axiosInstance.interceptors.request.use((config) => {
     const { tenantId, token } = useAuthStore.getState();
     
+    console.log('🌐 API Request Interceptor:', {
+      url: config.url,
+      hasTenantId: !!tenantId,
+      hasToken: !!token,
+      tenantId: tenantId
+    });
+    
     if (tenantId) {
       (config.headers as any)['X-Tenant-ID'] = tenantId;
     }
@@ -79,7 +86,7 @@ export const authApi = {
 };
 
 export const usersApi = {
-  getAll: () => getApi().get('/users'),
+  getAll: (params?: { pageNumber?: number; pageSize?: number }) => getApi().get('/users', { params }),
   getAllWithDetails: () => getApi().get('/users/with-details'),
   getById: (id: string) => getApi().get(`/users/${id}`),
   create: (data: any) => getApi().post('/users', data),
@@ -106,8 +113,8 @@ export const rolesApi = {
 };
 
 export const permissionsApi = {
-  getAll: () => getApi().get('/permissions'),
-  getAllGrouped: () => getApi().get('/permissions/grouped'),
+  getAll: () => getApi().get('/permissions', { params: { pageSize: 500 } }), // Request all permissions
+  getAllGrouped: () => getApi().get('/permissions/by-module'),
   getById: (id: string) => getApi().get(`/permissions/${id}`),
   create: (data: any) => getApi().post('/permissions', data),
   update: (id: string, data: any) => getApi().put(`/permissions/${id}`, data),
@@ -119,12 +126,18 @@ export const permissionsApi = {
     getApi().delete('/permissions/bulk-remove', { data: { roleId, permissionIds } }),
   getMatrix: () => getApi().get('/permissions/matrix'),
   getStatistics: () => getApi().get('/permissions/statistics'),
+  getUserPermissions: (userId: string) => getApi().get(`/permissions/user/${userId}`),
 };
 
 export const departmentsApi = {
   getAll: () => getApi().get('/departments'),
   getAllWithStaffCount: () => getApi().get('/departments/with-staff-count'),
   getById: (id: string) => getApi().get(`/departments/${id}`),
+  getUserAccess: (userId: string) => getApi().get(`/departments/user/${userId}/access`),
+  grantUserAccess: (userId: string, departmentId: string, data: any) =>
+    getApi().post(`/departments/${departmentId}/users/${userId}/access`, data),
+  revokeUserAccess: (userId: string, departmentId: string) =>
+    getApi().delete(`/departments/${departmentId}/users/${userId}/access`),
 };
 
 export const branchesApi = {
@@ -133,6 +146,18 @@ export const branchesApi = {
 
 export const dashboardApi = {
   getStats: () => getApi().get('/admin/dashboard/stats'),
+  getOverview: () => getApi().get('/admin/dashboard/overview'),
+  getQuickStats: () => getApi().get('/admin/dashboard/quick-stats'),
+  getRecentActivities: (limit: number = 10) => getApi().get('/admin/dashboard/recent-activities', { params: { limit } }),
+  getAlerts: () => getApi().get('/admin/dashboard/alerts'),
+};
+
+export const settingsApi = {
+  getAll: () => getApi().get('/settings'),
+  getByCategory: (category: string) => getApi().get(`/settings/${category}`),
+  update: (category: string, settings: any) => getApi().put(`/settings/${category}`, settings),
+  reset: (category: string) => getApi().post(`/settings/${category}/reset`),
 };
 
 export { userDepartmentAccessApi } from './api/user-department-access.api';
+export { auditLogsApi } from './api/audit-logs.api';

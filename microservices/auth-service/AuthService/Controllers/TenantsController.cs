@@ -111,16 +111,16 @@ namespace AuthService.Controllers
                         id = tenant.Id,
                         name = tenant.Name,
                         tenantCode = tenant.TenantCode,
-                        tenantType = "Hospital", // Default type
+                        tenantType = tenant.TenantType ?? "Hospital",
                         status = tenant.Status,
                         tier = tenant.SubscriptionTier,
-                        region = tenant.Country,
+                        region = tenant.PrimaryRegion ?? "India",
                         currentUserCount = userCount,
                         maxUsers = tenant.MaxUsers,
                         subscriptionEndDate = DateTime.UtcNow.AddYears(1).ToString("yyyy-MM-dd"), // Mock subscription date
                         complianceStatus = (tenant.HipaaCompliant || tenant.NabhAccredited || tenant.GdprCompliant || tenant.DpaCompliant) 
                             ? "Compliant" : "Pending",
-                        currency = "USD",
+                        currency = tenant.DefaultCurrency ?? "USD",
                         language = "English",
                         primaryDomain = $"{tenant.TenantCode?.ToLower()}.hospital.com",
                         contactEmail = tenant.Email,
@@ -312,7 +312,11 @@ namespace AuthService.Controllers
                 if (!string.IsNullOrEmpty(request.Status))
                     tenant.Status = request.Status;
                 
-                // Allow tier updates with validation
+                // Support frontend tenantType field
+                if (!string.IsNullOrEmpty(request.TenantType))
+                    tenant.TenantType = request.TenantType;
+                
+                // Allow tier updates with validation (support both frontend lowercase and backend formats)
                 if (!string.IsNullOrEmpty(request.Tier) || !string.IsNullOrEmpty(request.SubscriptionType))
                 {
                     var newTier = request.Tier ?? request.SubscriptionType;
@@ -321,7 +325,7 @@ namespace AuthService.Controllers
                     if (!string.IsNullOrEmpty(newTier) && validTiers.Contains(newTier))
                     {
                         tenant.SubscriptionTier = newTier;
-                        _logger.LogInformation($"Subscription tier updated from '{tenant.SubscriptionTier}' to '{newTier}'");
+                        _logger.LogInformation($"Subscription tier updated to '{newTier}'");
                     }
                     else
                     {
@@ -329,15 +333,35 @@ namespace AuthService.Controllers
                     }
                 }
                 
-                if (!string.IsNullOrEmpty(request.CompanyEmail))
+                // Support both frontend (contactEmail/contactPhone) and backend (CompanyEmail/CompanyPhone) formats
+                if (!string.IsNullOrEmpty(request.ContactEmail))
+                    tenant.Email = request.ContactEmail;
+                else if (!string.IsNullOrEmpty(request.CompanyEmail))
                     tenant.Email = request.CompanyEmail;
-                if (!string.IsNullOrEmpty(request.CompanyPhone))
-                    tenant.Phone = request.CompanyPhone;
-                if (!string.IsNullOrEmpty(request.PrimaryRegion))
-                    tenant.PrimaryRegion = request.PrimaryRegion;
-                if (!string.IsNullOrEmpty(request.DefaultCurrency))
-                    tenant.DefaultCurrency = request.DefaultCurrency;
                     
+                if (!string.IsNullOrEmpty(request.ContactPhone))
+                    tenant.Phone = request.ContactPhone;
+                else if (!string.IsNullOrEmpty(request.CompanyPhone))
+                    tenant.Phone = request.CompanyPhone;
+                    
+                // Map region to PrimaryRegion (frontend uses region for regional configuration)
+                if (!string.IsNullOrEmpty(request.Region))
+                    tenant.PrimaryRegion = request.Region;
+                else if (!string.IsNullOrEmpty(request.PrimaryRegion))
+                    tenant.PrimaryRegion = request.PrimaryRegion;
+                    
+                // Support frontend tier field
+                if (!string.IsNullOrEmpty(request.Tier))
+                    tenant.SubscriptionTier = request.Tier;
+                else if (!string.IsNullOrEmpty(request.SubscriptionType))
+                    tenant.SubscriptionTier = request.SubscriptionType;
+                    
+                // Support frontend currency field
+                if (!string.IsNullOrEmpty(request.Currency))
+                    tenant.DefaultCurrency = request.Currency;
+                else if (!string.IsNullOrEmpty(request.DefaultCurrency))
+                    tenant.DefaultCurrency = request.DefaultCurrency;
+                
                 if (request.MaxBranches.HasValue)
                     tenant.MaxBranches = request.MaxBranches.Value;
                 if (request.MaxUsers.HasValue)
@@ -352,7 +376,7 @@ namespace AuthService.Controllers
                 if (request.DpaCompliant.HasValue)
                     tenant.DpaCompliant = request.DpaCompliant.Value;
                 
-                // Update address from flat fields (frontend sends flat structure)
+                // Handle address fields
                 if (!string.IsNullOrEmpty(request.Address))
                     tenant.Address = request.Address;
                 if (!string.IsNullOrEmpty(request.City))
@@ -363,19 +387,6 @@ namespace AuthService.Controllers
                     tenant.Country = request.Country;
                 if (!string.IsNullOrEmpty(request.ZipCode))
                     tenant.Pincode = request.ZipCode;
-                
-                // Also support dictionary format for backwards compatibility
-                if (request.ContactInfo != null)
-                {
-                    if (request.ContactInfo.TryGetValue("address", out var address))
-                        tenant.Address = address?.ToString();
-                    if (request.ContactInfo.TryGetValue("city", out var city))
-                        tenant.City = city?.ToString();
-                    if (request.ContactInfo.TryGetValue("state", out var state))
-                        tenant.State = state?.ToString();
-                    if (request.ContactInfo.TryGetValue("zipCode", out var zipCode))
-                        tenant.Pincode = zipCode?.ToString();
-                }
                 
                 tenant.IsActive = tenant.Status != "Inactive" && tenant.Status != "Suspended";
                 tenant.UpdatedAt = DateTime.UtcNow;
@@ -392,9 +403,10 @@ namespace AuthService.Controllers
                     id = result.Id,
                     name = result.Name,
                     tenantCode = result.TenantCode,
+                    tenantType = result.TenantType,
                     status = result.Status,
                     tier = result.SubscriptionTier,
-                    region = result.Country,
+                    region = result.PrimaryRegion,
                     maxUsers = result.MaxUsers,
                     complianceStatus = (result.HipaaCompliant || result.NabhAccredited || result.GdprCompliant || result.DpaCompliant) 
                         ? "Compliant" : "Pending",

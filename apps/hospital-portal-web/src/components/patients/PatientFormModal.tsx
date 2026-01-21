@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { X, User, Phone, Mail, Calendar, Droplet, MapPin } from 'lucide-react';
 import { patientApi } from '@/lib/api';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 
 interface Patient {
   id?: string;
@@ -275,11 +277,31 @@ export default function PatientFormModal({
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Phone Number
                 </label>
-                <input
-                  type="tel"
+                <PhoneInput
+                  country={'us'}
                   value={formData.contactNumber}
-                  onChange={(e) => handleInputChange('contactNumber', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  onChange={(phone) => handleInputChange('contactNumber', phone)}
+                  containerClass="w-full"
+                  inputClass="w-full"
+                  buttonClass="border-gray-300"
+                  inputStyle={{
+                    width: '100%',
+                    height: '42px',
+                    fontSize: '14px',
+                    paddingLeft: '48px',
+                    borderRadius: '0.5rem',
+                    border: '1px solid #d1d5db',
+                  }}
+                  buttonStyle={{
+                    borderRadius: '0.5rem 0 0 0.5rem',
+                    border: '1px solid #d1d5db',
+                    backgroundColor: '#f9fafb',
+                  }}
+                  dropdownStyle={{
+                    borderRadius: '0.5rem',
+                  }}
+                  enableSearch
+                  searchPlaceholder="Search country"
                   placeholder="+1 (555) 123-4567"
                 />
               </div>
@@ -336,11 +358,31 @@ export default function PatientFormModal({
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Emergency Contact Phone
                 </label>
-                <input
-                  type="tel"
+                <PhoneInput
+                  country={'us'}
                   value={formData.emergencyContactNumber}
-                  onChange={(e) => handleInputChange('emergencyContactNumber', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  onChange={(phone) => handleInputChange('emergencyContactNumber', phone)}
+                  containerClass="w-full"
+                  inputClass="w-full"
+                  buttonClass="border-gray-300"
+                  inputStyle={{
+                    width: '100%',
+                    height: '42px',
+                    fontSize: '14px',
+                    paddingLeft: '48px',
+                    borderRadius: '0.5rem',
+                    border: '1px solid #d1d5db',
+                  }}
+                  buttonStyle={{
+                    borderRadius: '0.5rem 0 0 0.5rem',
+                    border: '1px solid #d1d5db',
+                    backgroundColor: '#f9fafb',
+                  }}
+                  dropdownStyle={{
+                    borderRadius: '0.5rem',
+                  }}
+                  enableSearch
+                  searchPlaceholder="Search country"
                   placeholder="+1 (555) 123-4567"
                 />
               </div>

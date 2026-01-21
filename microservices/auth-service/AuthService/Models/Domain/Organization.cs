@@ -33,6 +33,14 @@ namespace AuthService.Models.Domain
         // Contact Information
         public string? Email { get; set; }
         public string? Phone { get; set; }
+        public string? Website { get; set; }
+        public string? PrimaryContactName { get; set; }
+        public string? PrimaryContactEmail { get; set; }
+        public string? PrimaryContactPhone { get; set; }
+        
+        // Business Information
+        public string? Description { get; set; }
+        public DateTime? OperationalSince { get; set; }
         
         // Configuration
         public string? CurrencyCode { get; set; }

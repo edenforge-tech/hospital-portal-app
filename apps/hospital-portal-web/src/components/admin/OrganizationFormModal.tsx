@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { X, Loader2, Building2, MapPin, Phone, Mail, Globe, Calendar, FileText } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
+import { Country, State, City } from 'country-state-city';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 import {
   organizationsApi,
   CreateOrganizationRequest,
@@ -22,8 +25,13 @@ export default function OrganizationFormModal({ organization, onClose, onSaved }
   const isEditMode = !!organization;
 
   const [loading, setLoading] = useState(false);
-  const [parentOrganizations, setParentOrganizations] = useState<Organization[]>([]);
   const [activeTab, setActiveTab] = useState<'basic' | 'contact' | 'config'>('basic');
+  
+  // Cascading address state
+  const [selectedCountryIso, setSelectedCountryIso] = useState<string>('');
+  const [selectedStateIso, setSelectedStateIso] = useState<string>('');
+  const [availableStates, setAvailableStates] = useState<any[]>([]);
+  const [availableCities, setAvailableCities] = useState<any[]>([]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -32,7 +40,6 @@ export default function OrganizationFormModal({ organization, onClose, onSaved }
     type: organization?.type || '',
     description: organization?.description || '',
     status: organization?.status || 'active',
-    parentOrganizationId: organization?.parentOrganizationId || '',
     
     // Address
     addressLine1: organization?.addressLine1 || '',
@@ -60,27 +67,59 @@ export default function OrganizationFormModal({ organization, onClose, onSaved }
     registrationNumber: organization?.registrationNumber || '',
   });
 
+  // Initialize country/state/city from existing data
   useEffect(() => {
-    loadParentOrganizations();
-  }, []);
-
-  const loadParentOrganizations = async () => {
-    try {
-      const response = await organizationsApi.getAllOrganizations({
-        tenantId: user?.tenantId,
-        status: 'active',
-        pageSize: 100,
-      });
-      
-      // Filter out current organization when editing
-      let orgs = response.organizations;
-      if (organization) {
-        orgs = orgs.filter(o => o.id !== organization.id);
+    if (organization) {
+      // Find country ISO code from country name
+      const country = Country.getAllCountries().find(c => 
+        c.name === organization.countryCode || c.isoCode === organization.countryCode
+      );
+      if (country) {
+        setSelectedCountryIso(country.isoCode);
+        const states = State.getStatesOfCountry(country.isoCode);
+        setAvailableStates(states);
+        
+        // Find state ISO code from state name
+        const state = states.find(s => s.name === organization.stateProvince);
+        if (state) {
+          setSelectedStateIso(state.isoCode);
+          const cities = City.getCitiesOfState(country.isoCode, state.isoCode);
+          setAvailableCities(cities);
+        }
       }
-      setParentOrganizations(orgs);
-    } catch (err) {
-      console.error('Error loading parent organizations:', err);
     }
+  }, [organization]);
+
+  const handleCountryChange = (countryIso: string) => {
+    setSelectedCountryIso(countryIso);
+    setSelectedStateIso('');
+    setFormData({ ...formData, countryCode: countryIso, stateProvince: '', city: '' });
+    
+    if (countryIso) {
+      const states = State.getStatesOfCountry(countryIso);
+      setAvailableStates(states);
+      setAvailableCities([]);
+    } else {
+      setAvailableStates([]);
+      setAvailableCities([]);
+    }
+  };
+
+  const handleStateChange = (stateIso: string) => {
+    setSelectedStateIso(stateIso);
+    const stateName = availableStates.find(s => s.isoCode === stateIso)?.name || '';
+    setFormData({ ...formData, stateProvince: stateName, city: '' });
+    
+    if (stateIso && selectedCountryIso) {
+      const cities = City.getCitiesOfState(selectedCountryIso, stateIso);
+      setAvailableCities(cities);
+    } else {
+      setAvailableCities([]);
+    }
+  };
+
+  const handleCityChange = (cityName: string) => {
+    setFormData({ ...formData, city: cityName });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -228,128 +267,118 @@ export default function OrganizationFormModal({ organization, onClose, onSaved }
           {/* Basic Info Tab */}
           {activeTab === 'basic' && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Organization Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Enter organization name"
-                  />
-                </div>
+              {/* Basic Details */}
+              <div className="bg-white rounded-lg p-6 border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Details</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Organization Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="Enter organization name"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Organization Code
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.code}
-                    onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono"
-                    placeholder="ORG001"
-                    disabled={isEditMode}
-                  />
-                  {isEditMode && (
-                    <p className="text-xs text-gray-500 mt-1">Code cannot be changed after creation</p>
-                  )}
-                </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Organization Code
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.code}
+                        onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono"
+                        placeholder="ORG001"
+                        disabled={isEditMode}
+                      />
+                      {isEditMode && (
+                        <p className="text-xs text-gray-500 mt-1">Code cannot be changed after creation</p>
+                      )}
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Organization Type
-                  </label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="">Select type</option>
-                    <option value="Hospital">Hospital</option>
-                    <option value="Clinic">Clinic</option>
-                    <option value="Diagnostic">Diagnostic Center</option>
-                    <option value="Pharmacy">Pharmacy</option>
-                    <option value="Laboratory">Laboratory</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Organization Type
+                      </label>
+                      <select
+                        value={formData.type}
+                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      >
+                        <option value="">Select type</option>
+                        <option value="Hospital">Hospital</option>
+                        <option value="Clinic">Clinic</option>
+                        <option value="Diagnostic">Diagnostic Center</option>
+                        <option value="Pharmacy">Pharmacy</option>
+                        <option value="Laboratory">Laboratory</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Parent Organization
-                  </label>
-                  <select
-                    value={formData.parentOrganizationId}
-                    onChange={(e) => setFormData({ ...formData, parentOrganizationId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="">None (Root Organization)</option>
-                    {parentOrganizations.map((org) => (
-                      <option key={org.id} value={org.id}>
-                        {org.name} {org.code && `(${org.code})`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Status
+                      </label>
+                      <select
+                        value={formData.status}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="suspended">Suspended</option>
+                      </select>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Status
-                  </label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                    <option value="suspended">Suspended</option>
-                  </select>
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <FileText className="h-4 w-4 inline mr-1" />
+                        Registration Number
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.registrationNumber}
+                        onChange={(e) => setFormData({ ...formData, registrationNumber: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="REG123456"
+                      />
+                    </div>
+                  </div>
 
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Enter organization description"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Description
+                    </label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      rows={2}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="Enter organization description"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    <Calendar className="h-4 w-4 inline mr-1" />
-                    Operational Since
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.operationalSince}
-                    onChange={(e) => setFormData({ ...formData, operationalSince: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    <FileText className="h-4 w-4 inline mr-1" />
-                    Registration Number
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.registrationNumber}
-                    onChange={(e) => setFormData({ ...formData, registrationNumber: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="REG123456"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Calendar className="h-4 w-4 inline mr-1" />
+                      Operational Since
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.operationalSince}
+                      onChange={(e) => setFormData({ ...formData, operationalSince: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -358,177 +387,173 @@ export default function OrganizationFormModal({ organization, onClose, onSaved }
           {/* Contact & Address Tab */}
           {activeTab === 'contact' && (
             <div className="space-y-6">
-              {/* Address Section */}
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <MapPin className="h-5 w-5 mr-2 text-indigo-600" />
-                  Address Information
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Address Line 1
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.addressLine1}
-                      onChange={(e) => setFormData({ ...formData, addressLine1: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="Street address"
-                    />
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Address Line 2
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.addressLine2}
-                      onChange={(e) => setFormData({ ...formData, addressLine2: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="Apartment, suite, etc."
-                    />
-                  </div>
-
+              {/* Contact Information */}
+              <div className="bg-white rounded-lg p-6 border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      City
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      State/Province
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.stateProvince}
-                      onChange={(e) => setFormData({ ...formData, stateProvince: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Postal Code
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.postalCode}
-                      onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Country Code
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.countryCode}
-                      onChange={(e) => setFormData({ ...formData, countryCode: e.target.value.toUpperCase() })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono"
-                      placeholder="US"
-                      maxLength={2}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Contact Section */}
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <Phone className="h-5 w-5 mr-2 text-indigo-600" />
-                  Contact Information
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <Phone className="h-4 w-4 inline mr-1" />
-                      Phone
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="+1 (555) 123-4567"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <Mail className="h-4 w-4 inline mr-1" />
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="contact@organization.com"
-                    />
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <Globe className="h-4 w-4 inline mr-1" />
-                      Website
-                    </label>
-                    <input
-                      type="url"
-                      value={formData.website}
-                      onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="https://www.organization.com"
-                    />
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Primary Contact Name
                     </label>
                     <input
                       type="text"
                       value={formData.primaryContactName}
                       onChange={(e) => setFormData({ ...formData, primaryContactName: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       placeholder="John Doe"
                     />
                   </div>
-
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Primary Contact Email
                     </label>
                     <input
                       type="email"
                       value={formData.primaryContactEmail}
                       onChange={(e) => setFormData({ ...formData, primaryContactEmail: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       placeholder="john.doe@organization.com"
                     />
                   </div>
-
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Primary Contact Phone
                     </label>
-                    <input
-                      type="tel"
+                    <PhoneInput
+                      country={'us'}
                       value={formData.primaryContactPhone}
-                      onChange={(e) => setFormData({ ...formData, primaryContactPhone: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      onChange={(phone) => setFormData({ ...formData, primaryContactPhone: phone })}
+                      containerClass="w-full"
+                      inputClass="w-full"
+                      buttonClass="border-gray-300"
+                      inputStyle={{
+                        width: '100%',
+                        height: '42px',
+                        fontSize: '14px',
+                        paddingLeft: '48px',
+                        borderRadius: '0.5rem',
+                        border: '1px solid #d1d5db',
+                      }}
+                      buttonStyle={{
+                        borderRadius: '0.5rem 0 0 0.5rem',
+                        border: '1px solid #d1d5db',
+                        backgroundColor: '#f9fafb',
+                      }}
+                      dropdownStyle={{
+                        borderRadius: '0.5rem',
+                      }}
+                      enableSearch
+                      searchPlaceholder="Search country"
                       placeholder="+1 (555) 123-4567"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Website
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.website}
+                      onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="https://www.organization.com"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Address Information */}
+              <div className="bg-white rounded-lg p-6 border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Address Information</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Street Address
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.addressLine1}
+                      onChange={(e) => setFormData({ ...formData, addressLine1: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="123 Main Street, Suite 100"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Country <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={selectedCountryIso}
+                      onChange={(e) => handleCountryChange(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    >
+                      <option value="">Select Country</option>
+                      {Country.getAllCountries().map((country) => (
+                        <option key={country.isoCode} value={country.isoCode}>
+                          {country.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        State/Province {selectedCountryIso && availableStates.length > 0 && <span className="text-red-500">*</span>}
+                      </label>
+                      <select
+                        value={selectedStateIso}
+                        onChange={(e) => handleStateChange(e.target.value)}
+                        disabled={!selectedCountryIso || availableStates.length === 0}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      >
+                        <option value="">
+                          {!selectedCountryIso ? 'Select country first' : availableStates.length === 0 ? 'No states available' : 'Select State'}
+                        </option>
+                        {availableStates.map((state) => (
+                          <option key={state.isoCode} value={state.isoCode}>
+                            {state.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        City
+                      </label>
+                      <select
+                        value={formData.city}
+                        onChange={(e) => handleCityChange(e.target.value)}
+                        disabled={!selectedStateIso || availableCities.length === 0}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      >
+                        <option value="">
+                          {!selectedStateIso ? 'Select state first' : availableCities.length === 0 ? 'No cities available' : 'Select City'}
+                        </option>
+                        {availableCities.map((city) => (
+                          <option key={city.name} value={city.name}>
+                            {city.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Zip/Postal Code
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.postalCode}
+                        onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="12345"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -538,60 +563,63 @@ export default function OrganizationFormModal({ organization, onClose, onSaved }
           {/* Configuration Tab */}
           {activeTab === 'config' && (
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Timezone
-                  </label>
-                  <select
-                    value={formData.timezone}
-                    onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="UTC">UTC</option>
-                    <option value="America/New_York">Eastern Time</option>
-                    <option value="America/Chicago">Central Time</option>
-                    <option value="America/Denver">Mountain Time</option>
-                    <option value="America/Los_Angeles">Pacific Time</option>
-                    <option value="Asia/Kolkata">India Standard Time</option>
-                    <option value="Europe/London">London</option>
-                  </select>
-                </div>
+              <div className="bg-white rounded-lg p-6 border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Regional Settings</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Timezone
+                    </label>
+                    <select
+                      value={formData.timezone}
+                      onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    >
+                      <option value="UTC">UTC</option>
+                      <option value="America/New_York">Eastern Time</option>
+                      <option value="America/Chicago">Central Time</option>
+                      <option value="America/Denver">Mountain Time</option>
+                      <option value="America/Los_Angeles">Pacific Time</option>
+                      <option value="Asia/Kolkata">India Standard Time</option>
+                      <option value="Europe/London">London</option>
+                    </select>
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Language
-                  </label>
-                  <select
-                    value={formData.languageCode}
-                    onChange={(e) => setFormData({ ...formData, languageCode: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="en">English</option>
-                    <option value="es">Spanish</option>
-                    <option value="fr">French</option>
-                    <option value="de">German</option>
-                    <option value="hi">Hindi</option>
-                    <option value="ar">Arabic</option>
-                  </select>
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Language
+                    </label>
+                    <select
+                      value={formData.languageCode}
+                      onChange={(e) => setFormData({ ...formData, languageCode: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    >
+                      <option value="en">English</option>
+                      <option value="es">Spanish</option>
+                      <option value="fr">French</option>
+                      <option value="de">German</option>
+                      <option value="hi">Hindi</option>
+                      <option value="ar">Arabic</option>
+                    </select>
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Currency
-                  </label>
-                  <select
-                    value={formData.currencyCode}
-                    onChange={(e) => setFormData({ ...formData, currencyCode: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="USD">USD - US Dollar</option>
-                    <option value="EUR">EUR - Euro</option>
-                    <option value="GBP">GBP - British Pound</option>
-                    <option value="INR">INR - Indian Rupee</option>
-                    <option value="AED">AED - UAE Dirham</option>
-                    <option value="CAD">CAD - Canadian Dollar</option>
-                  </select>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Currency
+                    </label>
+                    <select
+                      value={formData.currencyCode}
+                      onChange={(e) => setFormData({ ...formData, currencyCode: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    >
+                      <option value="USD">USD - US Dollar</option>
+                      <option value="EUR">EUR - Euro</option>
+                      <option value="GBP">GBP - British Pound</option>
+                      <option value="INR">INR - Indian Rupee</option>
+                      <option value="AED">AED - UAE Dirham</option>
+                      <option value="CAD">CAD - Canadian Dollar</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 

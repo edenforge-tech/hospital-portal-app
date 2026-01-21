@@ -24,6 +24,13 @@ export interface DepartmentAccessDto {
   isPrimary: boolean;
   grantedAt?: string;
   status: string;
+  // Granular permissions
+  canView?: boolean;
+  canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canApprove?: boolean;
+  canExport?: boolean;
 }
 
 export interface UserAccessDto {
@@ -38,8 +45,15 @@ export interface UserAccessDto {
 export interface BulkAssignmentDto {
   userId: string;
   departmentId: string;
-  accessType: string;
+  accessType?: string;
   isPrimary: boolean;
+  // Granular permissions
+  canView: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  canApprove: boolean;
+  canExport: boolean;
 }
 
 export interface AccessMatrixDto {
@@ -123,13 +137,57 @@ export const userDepartmentAccessApi = {
   },
 
   /**
-   * Bulk assign multiple users to multiple departments
+   * Update permissions for a user's department access
+   */
+  updatePermissions: async (
+    userId: string,
+    departmentId: string,
+    permissions: {
+      canView: boolean;
+      canCreate: boolean;
+      canEdit: boolean;
+      canDelete: boolean;
+      canApprove: boolean;
+      canExport: boolean;
+    }
+  ) => {
+    return getApi().put(`/users/${userId}/department-access/${departmentId}/permissions`, permissions);
+  },
+
+  /**
+   * Bulk assign multiple departments to a user with granular permissions
    */
   bulkAssign: async (assignments: BulkAssignmentDto[]) => {
-    return getApi().post<UserDepartmentAccessDto[]>(
-      '/user-department-access/bulk-assign',
-      { assignments }
+    // Group assignments by userId and make separate calls for each user
+    const groupedByUser = assignments.reduce((acc, assignment) => {
+      if (!acc[assignment.userId]) {
+        acc[assignment.userId] = [];
+      }
+      acc[assignment.userId].push({
+        departmentId: assignment.departmentId,
+        isPrimary: assignment.isPrimary,
+        canView: assignment.canView,
+        canCreate: assignment.canCreate,
+        canEdit: assignment.canEdit,
+        canDelete: assignment.canDelete,
+        canApprove: assignment.canApprove,
+        canExport: assignment.canExport,
+      });
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    // Make a bulk call for each user
+    const results = await Promise.all(
+      Object.entries(groupedByUser).map(([userId, userAssignments]) =>
+        getApi().post<UserDepartmentAccessDto[]>(
+          `/users/${userId}/department-access/bulk`,
+          userAssignments
+        )
+      )
     );
+
+    // Flatten results
+    return results.flatMap(r => r.data);
   },
 
   /**

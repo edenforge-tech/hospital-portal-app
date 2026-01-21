@@ -84,6 +84,130 @@ namespace AuthService.Controllers
             public string? Description { get; set; }
         }
 
+        [HttpPost]
+        [RequirePermission("role.create")]
+        public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest req)
+        {
+            if (!TryGetTenantId(out var tenantId)) 
+                return BadRequest(new { message = "TenantId missing" });
+
+            if (string.IsNullOrWhiteSpace(req.Name))
+                return BadRequest(new { message = "Role name is required" });
+
+            // Check for duplicate role name within tenant
+            var existingRole = await _roleManager.Roles
+                .FirstOrDefaultAsync(r => r.TenantId == tenantId && r.Name.ToLower() == req.Name.ToLower());
+            
+            if (existingRole != null)
+                return BadRequest(new { message = "A role with this name already exists" });
+
+            var newRole = new AppRole
+            {
+                Name = req.Name.Trim(),
+                NormalizedName = req.Name.Trim().ToUpperInvariant(),
+                TenantId = tenantId,
+                Description = req.Description?.Trim(),
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            var result = await _roleManager.CreateAsync(newRole);
+            
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                return BadRequest(new { message = $"Failed to create role: {errors}" });
+            }
+
+            return Ok(new { 
+                id = newRole.Id, 
+                name = newRole.Name,
+                description = newRole.Description,
+                message = "Role created successfully" 
+            });
+        }
+
+        [HttpPut("{id}")]
+        [RequirePermission("role.edit")]
+        public async Task<IActionResult> UpdateRole(Guid id, [FromBody] CreateRoleRequest req)
+        {
+            if (!TryGetTenantId(out var tenantId)) 
+                return BadRequest(new { message = "TenantId missing" });
+
+            if (string.IsNullOrWhiteSpace(req.Name))
+                return BadRequest(new { message = "Role name is required" });
+
+            var role = await _roleManager.FindByIdAsync(id.ToString());
+            if (role == null || role.TenantId != tenantId) 
+                return NotFound(new { message = "Role not found" });
+
+            // Check for duplicate role name (excluding current role)
+            var existingRole = await _roleManager.Roles
+                .FirstOrDefaultAsync(r => r.TenantId == tenantId && 
+                                        r.Name.ToLower() == req.Name.ToLower() && 
+                                        r.Id != id);
+            
+            if (existingRole != null)
+                return BadRequest(new { message = "A role with this name already exists" });
+
+            role.Name = req.Name.Trim();
+            role.NormalizedName = req.Name.Trim().ToUpperInvariant();
+            role.Description = req.Description?.Trim();
+            role.UpdatedAt = DateTime.UtcNow;
+
+            var result = await _roleManager.UpdateAsync(role);
+            
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                return BadRequest(new { message = $"Failed to update role: {errors}" });
+            }
+
+            return Ok(new { 
+                id = role.Id, 
+                name = role.Name,
+                description = role.Description,
+                message = "Role updated successfully" 
+            });
+        }
+
+        [HttpDelete("{id}")]
+        [RequirePermission("role.delete")]
+        public async Task<IActionResult> DeleteRole(Guid id)
+        {
+            if (!TryGetTenantId(out var tenantId)) 
+                return BadRequest(new { message = "TenantId missing" });
+
+            var role = await _roleManager.FindByIdAsync(id.ToString());
+            if (role == null || role.TenantId != tenantId) 
+                return NotFound(new { message = "Role not found" });
+
+            // Check if role is assigned to any users
+            var userCount = await _context.UserRoles.CountAsync(ur => ur.RoleId == id);
+            if (userCount > 0)
+            {
+                return BadRequest(new { 
+                    message = $"Cannot delete role. It is currently assigned to {userCount} user(s). Please remove all users from this role before deleting." 
+                });
+            }
+
+            // Soft delete
+            role.DeletedAt = DateTime.UtcNow;
+            role.IsActive = false;
+            role.UpdatedAt = DateTime.UtcNow;
+
+            var result = await _roleManager.UpdateAsync(role);
+            
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                return BadRequest(new { message = $"Failed to delete role: {errors}" });
+            }
+
+            return Ok(new { message = "Role deleted successfully" });
+        }
+
         [HttpGet("{id}/permissions")]
         [RequirePermission("role.view")]
         public async Task<IActionResult> GetRolePermissions(Guid id)

@@ -15,11 +15,11 @@ namespace AuthService.Services
 
     public class NotificationService : INotificationService
     {
-        private readonly IHubContext<NotificationHub, INotificationClient> _hubContext;
+        private readonly IHubContext<NotificationHub, AuthService.Hubs.INotificationClient> _hubContext;
         private readonly ILogger<NotificationService> _logger;
 
         public NotificationService(
-            IHubContext<NotificationHub, INotificationClient> hubContext,
+            IHubContext<NotificationHub, AuthService.Hubs.INotificationClient> hubContext,
             ILogger<NotificationService> logger)
         {
             _hubContext = hubContext;

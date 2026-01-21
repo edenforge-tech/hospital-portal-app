@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TOTP QR Code - Receptionist6</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #5B47DA; margin-bottom: 20px; }
+        .info { background: #E8F4FD; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .warning { background: #FFF3CD; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #FF9800; }
+        .secret { font-family: monospace; background: #f0f0f0; padding: 10px; border-radius: 3px; margin: 10px 0; word-break: break-all; }
+        #qrcode { margin: 20px 0; display: flex; justify-content: center; }
+        .steps { counter-reset: step; }
+        .steps li { margin: 15px 0; padding-left: 35px; position: relative; }
+        .steps li:before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; background: #5B47DA; color: white; width: 25px; height: 25px; border-radius: 50%; text-align: center; line-height: 25px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 TOTP Re-enrollment for receptionist6@hospital.com</h1>
+        
+        <div class="warning">
+            <strong>⚠️ Important:</strong> If you already have this account in your authenticator app, DELETE IT FIRST before scanning this QR code!
+        </div>
+
+        <div class="info">
+            <strong>Current Secret in Database:</strong>
+            <div class="secret">EU5O7HQO5KPCP5MT3KDOTYWYQNKCU3QL</div>
+        </div>
+
+        <div id="qrcode"></div>
+
+        <h2>📱 Setup Instructions:</h2>
+        <ol class="steps">
+            <li>Open your authenticator app (Google Authenticator, Authy, or Microsoft Authenticator)</li>
+            <li>If you see "receptionist6@hospital.com" or "Eye Hospital", DELETE that entry</li>
+            <li>Tap "Add Account" or the "+" button</li>
+            <li>Select "Scan QR Code"</li>
+            <li>Scan the QR code above</li>
+            <li>Verify the account name shows as "Eye Hospital (receptionist6@hospital.com)"</li>
+            <li>Wait for a fresh 6-digit code to appear</li>
+            <li>Test it by logging in at <a href="http://localhost:3000">http://localhost:3000</a></li>
+        </ol>
+
+        <div class="info">
+            <strong>Manual Entry (if QR scan doesn't work):</strong><br>
+            Account Name: <strong>Eye Hospital</strong><br>
+            Your Email: <strong>receptionist6@hospital.com</strong><br>
+            Key: <div class="secret">EU5O7HQO5KPCP5MT3KDOTYWYQNKCU3QL</div>
+            Time-based: <strong>Yes</strong><br>
+            Digits: <strong>6</strong><br>
+            Period: <strong>30 seconds</strong>
+        </div>
+    </div>
+
+    <script>
+        // Generate QR Code
+        const secret = "EU5O7HQO5KPCP5MT3KDOTYWYQNKCU3QL";
+        const issuer = "Eye Hospital";
+        const accountName = "receptionist6@hospital.com";
+        
+        // Format: otpauth://totp/Issuer:AccountName?secret=SECRET&issuer=Issuer&digits=6&period=30
+        const otpauthUrl = `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(accountName)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&digits=6&period=30`;
+        
+        QRCode.toCanvas(
+            document.getElementById('qrcode'),
+            otpauthUrl,
+            {
+                width: 300,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            },
+            function (error) {
+                if (error) console.error(error);
+                console.log('QR code generated successfully!');
+            }
+        );
+        
+        // Create canvas element
+        const canvas = document.createElement('canvas');
+        document.getElementById('qrcode').appendChild(canvas);
+        QRCode.toCanvas(canvas, otpauthUrl, { width: 300 });
+    </script>
+</body>
+</html>
