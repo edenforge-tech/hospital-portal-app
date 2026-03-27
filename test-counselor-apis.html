@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Counselor Module API Test</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; }
+        h1 { color: #333; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .warning { background: #fff3cd; border-color: #ffeeba; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
+        button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        .status { font-weight: bold; margin-bottom: 10px; }
+        input { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 4px; width: 300px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏥 Counselor Module API Dashboard</h1>
+        
+        <div class="test-section">
+            <h2>1️⃣ Authentication</h2>
+            <input type="email" id="email" placeholder="Email" value="admin@hospital.com">
+            <input type="password" id="password" placeholder="Password" value="Admin@123">
+            <button onclick="testLogin()">Login</button>
+            <div id="auth-status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>2️⃣ Patient Search</h2>
+            <input type="text" id="patientSearch" placeholder="Search term" value="trump">
+            <button onclick="testPatientSearch()">Search Patients</button>
+            <div id="patient-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>3️⃣ Doctor Search</h2>
+            <input type="text" id="doctorSearch" placeholder="Search term" value="ra">
+            <button onclick="testDoctorSearch()">Search Doctors</button>
+            <div id="doctor-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>4️⃣ Surgery Types</h2>
+            <button onclick="testSurgeryTypes()">Load Surgery Types</button>
+            <div id="surgery-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>5️⃣ Surgery Types with Pricing</h2>
+            <button onclick="testSurgeryPricing()">Load Surgery Pricing</button>
+            <div id="pricing-results"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5073/api';
+        let authToken = '';
+        let tenantId = '';
+        let branchId = '';
+
+        async function testLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const statusDiv = document.getElementById('auth-status');
+            
+            statusDiv.innerHTML = '<div class="status">🔄 Logging in...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.token;
+                    tenantId = data.tenantId;
+                    branchId = data.user?.branchId || data.tenantId;
+                    
+                    statusDiv.innerHTML = `
+                        <div class="status" style="color: green;">✅ Login Successful</div>
+                        <pre>Token: ${authToken.substring(0, 50)}...
+Tenant ID: ${tenantId}
+Branch ID: ${branchId}</pre>
+                    `;
+                } else {
+                    statusDiv.innerHTML = `
+                        <div class="status" style="color: red;">❌ Login Failed</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `
+                    <div class="status" style="color: red;">❌ Error</div>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+
+        async function testPatientSearch() {
+            if (!authToken) {
+                alert('Please login first');
+                return;
+            }
+            
+            const searchTerm = document.getElementById('patientSearch').value;
+            const resultsDiv = document.getElementById('patient-results');
+            
+            resultsDiv.innerHTML = '<div class="status">🔄 Searching patients...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/patients?pageSize=10&search=${searchTerm}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'X-Tenant-ID': tenantId
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultsDiv.innerHTML = `
+                        <div class="status" style="color: green;">✅ Found ${data.length || 0} patients</div>
+                        <pre>${JSON.stringify(data.slice(0, 3), null, 2)}</pre>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="status" style="color: red;">❌ Failed (${response.status})</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="status" style="color: red;">❌ Error</div>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+
+        async function testDoctorSearch() {
+            if (!authToken) {
+                alert('Please login first');
+                return;
+            }
+            
+            const searchTerm = document.getElementById('doctorSearch').value;
+            const resultsDiv = document.getElementById('doctor-results');
+            
+            resultsDiv.innerHTML = '<div class="status">🔄 Searching doctors...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/users/doctors/search?searchTerm=${searchTerm}&limit=10`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'X-Tenant-ID': tenantId
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultsDiv.innerHTML = `
+                        <div class="status" style="color: green;">✅ Found ${data.data?.length || 0} doctors</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="status" style="color: red;">❌ Failed (${response.status})</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="status" style="color: red;">❌ Error</div>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+
+        async function testSurgeryTypes() {
+            if (!authToken) {
+                alert('Please login first');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('surgery-results');
+            
+            resultsDiv.innerHTML = '<div class="status">🔄 Loading surgery types...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/masterdata/surgery-types`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'X-Tenant-ID': tenantId
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultsDiv.innerHTML = `
+                        <div class="status" style="color: green;">✅ Loaded ${data.length || 0} surgery types</div>
+                        <pre>${JSON.stringify(data.slice(0, 3), null, 2)}</pre>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="status" style="color: red;">❌ Failed (${response.status})</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="status" style="color: red;">❌ Error</div>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+
+        async function testSurgeryPricing() {
+            if (!authToken) {
+                alert('Please login first');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('pricing-results');
+            
+            resultsDiv.innerHTML = '<div class="status">🔄 Loading surgery pricing...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/masterdata/surgery-types-with-pricing?branchId=${branchId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'X-Tenant-ID': tenantId
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultsDiv.innerHTML = `
+                        <div class="status" style="color: green;">✅ Loaded - Count: ${data.count || 0}</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="status" style="color: red;">❌ Failed (${response.status})</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="status" style="color: red;">❌ Error</div>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

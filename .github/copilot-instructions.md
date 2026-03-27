@@ -47,7 +47,17 @@ turbo build                     # Build all apps
 ### Database Operations
 ```powershell
 # Use the consolidated script at the root for database operations
-pwsh -ExecutionPolicy Bypass -File .\consolidated\run_all.ps1 -RunMigrations    # Execute all SQL migrations (Azure PostgreSQL)
+cd consolidated
+.\run_all.ps1 -RunMigrations              # Execute all SQL migrations (Azure PostgreSQL)
+.\run_all.ps1 -SeedPermissions            # Seed permissions data
+.\run_all.ps1 -RunTests                   # Validate database compliance
+.\run_all.ps1 -StartBackend               # Start backend server
+
+# Alternative: Direct migration execution (from project root)
+cd microservices/auth-service/AuthService
+dotnet ef database update
+```
+
 ## Database Conventions
 
 - **Identity tables**: MixedCase (`AspNetUsers`, `AspNetRoles`) but aliased to lowercase in EF
@@ -77,10 +87,11 @@ Set tenant context via custom header `X-Tenant-ID` in API requests (see `apps/ho
 ## Database Conventions
 
 ### Critical Migration Pattern
-**NEVER** modify database directly. All schema changes via SQL scripts in root directory:
-- Run migrations with `consolidated/run_all.ps1 -RunMigrations` (automated execution)
-- Test compliance with `consolidated/run_all.ps1 -RunTests`
-- See `MASTER_DATABASE_MIGRATIONS.sql` for consolidated reference
+**NEVER** modify database directly. All schema changes via SQL scripts:
+- **Consolidated Runner**: `consolidated/run_all.ps1` (preferred method)
+- **Migration Files**: See `MASTER_DATABASE_MIGRATIONS.sql` for reference
+- **Test Compliance**: Run `.\consolidated\run_all.ps1 -RunTests` to validate
+- Individual migrations in root: `08_hipaa_preset_roles.sql`, `add_appointments_related_permissions.sql`, etc.
 
 ### Table Naming & Column Mapping
 - **Custom tables**: snake_case (`tenant`, `branch`, `clinical_examination`)
@@ -138,7 +149,12 @@ Some advanced features are disabled via `.csproj`:
 <Compile Remove="Services/_Phase4_Disabled\**" />
 <Compile Remove="Controllers/_Phase4_Disabled\**" />
 ```
-Do NOT reference these files. See `PHASE4_DISABLED_STATUS.md` for rationale.
+
+**Still Disabled** (as of Jan 2026):
+- **Controllers**: `DocumentSharingController.cs`, `SystemSettingsController.cs`
+- **Services**: `BulkOperationsService.cs` (controller enabled but service disabled), `DocumentSharingService.cs`, `SystemSettingsService.cs`
+
+**Recently Enabled**: `BulkOperationsController.cs`, `LicenseController.cs` (moved from Phase4_Disabled)
 
 ## Testing & Validation
 
@@ -149,7 +165,8 @@ Do NOT reference these files. See `PHASE4_DISABLED_STATUS.md` for rationale.
 
 ### Database Testing
 ```powershell
-.\run_tests.ps1   # Runs test_database_compliance.sql
+cd consolidated
+.\run_all.ps1 -RunTests   # Runs test_database_compliance.sql
 # Validates: UUID keys, timestamps, soft deletes, RLS, audit trails, status columns
 # Target: 10/10 compliance score (currently achieved)
 ```
@@ -209,7 +226,7 @@ Do NOT reference these files. See `PHASE4_DISABLED_STATUS.md` for rationale.
 - Verify tenant ID is set in auth store for API calls
 
 ### Database Migration Failures
-- Run `.\run_migrations.ps1` from project root
+- Run `consolidated\run_all.ps1 -RunMigrations` from project root
 - Check Azure PostgreSQL connection credentials
 - Verify RLS policies are correctly applied
 
@@ -220,7 +237,7 @@ Do NOT reference these files. See `PHASE4_DISABLED_STATUS.md` for rationale.
 3. **Missing Tenant Context**: API calls fail with 403 if `X-Tenant-ID` header missing. Check `api.ts` interceptor.
 4. **Package Manager**: Use `pnpm`, NOT `npm`. Running `npm install` breaks workspace links.
 5. **Database Connection**: Uses Azure PostgreSQL - check `appsettings.json` for connection string.
-6. **SQL Scripts**: Migration scripts are in root directory, executed via `run_migrations.ps1`.
+6. **SQL Scripts**: Migration scripts are in root directory, executed via `consolidated\run_all.ps1`.
 7. **Identity Table Names**: `AspNetUsers` → mapped to `users` table in DB. Use lowercase in raw SQL queries.
 8. **Frontend API URL**: Configured in `.env.local` as `http://localhost:5073/api`.
 9. **Documentation**: Everything consolidated into `README.md`. No more scattered docs!

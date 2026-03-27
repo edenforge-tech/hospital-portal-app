@@ -17,9 +17,12 @@ public interface IDepartmentService
     Task<List<DepartmentHierarchy>> GetHierarchyAsync(Guid tenantId);
     Task<List<DepartmentDto>> GetSubDepartmentsAsync(Guid parentId, Guid tenantId);
     Task<DepartmentDetails?> GetDetailsAsync(Guid id, Guid tenantId);
-    Task<List<DepartmentStaff>> GetStaffAsync(Guid id, Guid tenantId);
+    Task<List<DepartmentStaff>> GetStaffAsync(Guid departmentId, Guid tenantId);
     Task<DepartmentMetrics> GetMetricsAsync(Guid id, Guid tenantId);
     Task<List<string>> GetDepartmentTypesAsync();
+    Task<DepartmentEntity?> MoveDepartmentAsync(Guid departmentId, Guid? newParentId, Guid tenantId, Guid userId);
+    Task<DepartmentEntity> CreateFromTemplateAsync(string templateName, DepartmentFormData data, Guid tenantId, Guid userId);
+    Task<List<string>> GetTemplateNamesAsync();
 }
 
 public class DepartmentService : IDepartmentService
@@ -310,10 +313,31 @@ public class DepartmentService : IDepartmentService
         return await GetByIdAsync(id, tenantId);
     }
 
-    public async Task<List<DepartmentStaff>> GetStaffAsync(Guid id, Guid tenantId)
+    public async Task<List<DepartmentStaff>> GetStaffAsync(Guid departmentId, Guid tenantId)
     {
-        // TODO: Implement after user_department_access table exists in PostgreSQL
-        return await Task.FromResult(new List<DepartmentStaff>());
+        var staff = await _context.UserDepartments
+            .Where(ud => ud.DepartmentId == departmentId && ud.TenantId == tenantId && ud.DeletedAt == null)
+            .Join(_context.Users,
+                ud => ud.UserId,
+                u => u.Id,
+                (ud, u) => new { ud, u })
+            .Where(x => x.u.DeletedAt == null)
+            .Select(x => new DepartmentStaff
+            {
+                Id = x.u.Id,
+                UserName = x.u.UserName ?? string.Empty,
+                FirstName = x.u.FirstName,
+                LastName = x.u.LastName,
+                Email = x.u.Email ?? string.Empty,
+                Designation = x.u.Designation,
+                UserType = x.u.UserType,
+                UserStatus = x.u.UserStatus,
+                IsPrimary = x.ud.IsPrimary,
+                AccessLevel = x.ud.AccessLevel
+            })
+            .ToListAsync();
+
+        return staff;
     }
 
     public async Task<DepartmentMetrics> GetMetricsAsync(Guid id, Guid tenantId)
@@ -358,5 +382,223 @@ public class DepartmentService : IDepartmentService
 
         return await Task.FromResult(types);
     }
+
+    public async Task<DepartmentEntity?> MoveDepartmentAsync(Guid departmentId, Guid? newParentId, Guid tenantId, Guid userId)
+    {
+        var department = await _context.Set<DepartmentEntity>()
+            .FirstOrDefaultAsync(d => d.Id == departmentId && d.TenantId == tenantId && d.DeletedAt == null);
+
+        if (department == null)
+            throw new InvalidOperationException("Department not found");
+
+        // If new parent is same as current parent, no change needed
+        if (department.ParentDepartmentId == newParentId)
+            return department;
+
+        // Validate circular reference
+        if (newParentId.HasValue)
+        {
+            var wouldCreateCircular = await ValidateNoCircularReference(departmentId, newParentId.Value, tenantId);
+            if (wouldCreateCircular)
+                throw new InvalidOperationException("Cannot move department: would create circular reference");
+        }
+
+        // Update parent
+        department.ParentDepartmentId = newParentId;
+        department.UpdatedAt = DateTime.UtcNow;
+        department.UpdatedBy = userId;
+
+        await _context.SaveChangesAsync();
+
+        return department;
+    }
+
+    public async Task<DepartmentEntity> CreateFromTemplateAsync(string templateName, DepartmentFormData data, Guid tenantId, Guid userId)
+    {
+        // Define department templates
+        var templates = new Dictionary<string, DepartmentTemplateConfig>
+        {
+            ["Emergency Department"] = new DepartmentTemplateConfig
+            {
+                DepartmentType = "Emergency",
+                Is24x7 = true,
+                RequiresApproval = false,
+                MaxConcurrentPatients = 50,
+                WaitingRoomCapacity = 30,
+                SubDepartments = new List<string> { "Triage", "Trauma Bay", "Observation" }
+            },
+            ["Cardiology Department"] = new DepartmentTemplateConfig
+            {
+                DepartmentType = "Cardiology",
+                Is24x7 = false,
+                RequiresApproval = true,
+                ApprovalLevel = 2,
+                MaxConcurrentPatients = 20,
+                WaitingRoomCapacity = 15,
+                SubDepartments = new List<string> { "Cardiac Catheterization", "Echocardiography", "Cardiac Rehabilitation" }
+            },
+            ["Surgery Department"] = new DepartmentTemplateConfig
+            {
+                DepartmentType = "Surgery",
+                Is24x7 = true,
+                RequiresApproval = true,
+                ApprovalLevel = 3,
+                MaxConcurrentPatients = 10,
+                SubDepartments = new List<string> { "Operating Room 1", "Operating Room 2", "Recovery Room", "Pre-Op" }
+            },
+            ["Pediatrics Department"] = new DepartmentTemplateConfig
+            {
+                DepartmentType = "Pediatrics",
+                Is24x7 = false,
+                RequiresApproval = false,
+                MaxConcurrentPatients = 30,
+                WaitingRoomCapacity = 25,
+                SubDepartments = new List<string> { "Pediatric Clinic", "NICU", "Pediatric Ward" }
+            },
+            ["Laboratory Department"] = new DepartmentTemplateConfig
+            {
+                DepartmentType = "Laboratory",
+                Is24x7 = true,
+                RequiresApproval = false,
+                MaxConcurrentPatients = 0,
+                SubDepartments = new List<string> { "Hematology", "Biochemistry", "Microbiology", "Pathology" }
+            },
+            ["Radiology Department"] = new DepartmentTemplateConfig
+            {
+                DepartmentType = "Radiology",
+                Is24x7 = true,
+                RequiresApproval = true,
+                ApprovalLevel = 1,
+                MaxConcurrentPatients = 15,
+                SubDepartments = new List<string> { "X-Ray", "CT Scan", "MRI", "Ultrasound" }
+            }
+        };
+
+        if (!templates.TryGetValue(templateName, out var template))
+            throw new InvalidOperationException($"Template '{templateName}' not found");
+
+        // Create main department with template defaults merged with user data
+        var department = new DepartmentEntity
+        {
+            Id = Guid.NewGuid(),
+            DepartmentCode = data.DepartmentCode,
+            DepartmentName = data.DepartmentName,
+            DepartmentType = string.IsNullOrWhiteSpace(data.DepartmentType) ? template.DepartmentType : data.DepartmentType,
+            Description = data.Description,
+            Status = data.Status,
+            ParentDepartmentId = data.ParentDepartmentId,
+            DepartmentHeadId = data.DepartmentHeadId,
+            OperatingHoursStart = data.OperatingHoursStart,
+            OperatingHoursEnd = data.OperatingHoursEnd,
+            DaysOfOperation = data.DaysOfOperation,
+            Is24x7 = template.Is24x7,
+            AnnualBudget = data.AnnualBudget,
+            BudgetCurrency = data.BudgetCurrency,
+            RequiresApproval = template.RequiresApproval,
+            ApprovalLevel = template.ApprovalLevel ?? data.ApprovalLevel,
+            AutoApprovalThreshold = data.AutoApprovalThreshold,
+            MaxConcurrentPatients = template.MaxConcurrentPatients ?? data.MaxConcurrentPatients,
+            WaitingRoomCapacity = template.WaitingRoomCapacity ?? data.WaitingRoomCapacity,
+            BranchId = data.BranchId,
+            TenantId = tenantId,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = userId,
+            UpdatedAt = DateTime.UtcNow,
+            UpdatedBy = userId
+        };
+
+        _context.Set<DepartmentEntity>().Add(department);
+        await _context.SaveChangesAsync();
+
+        // Create sub-departments from template
+        if (template.SubDepartments != null && template.SubDepartments.Any())
+        {
+            foreach (var subDeptName in template.SubDepartments)
+            {
+                var subDepartment = new DepartmentEntity
+                {
+                    Id = Guid.NewGuid(),
+                    DepartmentCode = $"{data.DepartmentCode}-{subDeptName.Replace(" ", "").ToUpper().Substring(0, Math.Min(4, subDeptName.Replace(" ", "").Length))}",
+                    DepartmentName = subDeptName,
+                    DepartmentType = template.DepartmentType,
+                    Description = $"{subDeptName} - Part of {data.DepartmentName}",
+                    Status = "Active",
+                    ParentDepartmentId = department.Id,
+                    Is24x7 = template.Is24x7,
+                    BranchId = data.BranchId,
+                    TenantId = tenantId,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = userId,
+                    UpdatedAt = DateTime.UtcNow,
+                    UpdatedBy = userId
+                };
+                _context.Set<DepartmentEntity>().Add(subDepartment);
+            }
+            await _context.SaveChangesAsync();
+        }
+
+        return department;
+    }
+
+    public async Task<List<string>> GetTemplateNamesAsync()
+    {
+        var templates = new List<string>
+        {
+            "Emergency Department",
+            "Cardiology Department",
+            "Surgery Department",
+            "Pediatrics Department",
+            "Laboratory Department",
+            "Radiology Department"
+        };
+
+        return await Task.FromResult(templates);
+    }
+
+    private async Task<bool> ValidateNoCircularReference(Guid departmentId, Guid newParentId, Guid tenantId)
+    {
+        // A department cannot be moved to itself
+        if (departmentId == newParentId)
+            return true;
+
+        // Check if newParentId is a descendant of departmentId
+        var currentParent = newParentId;
+        var visited = new HashSet<Guid>();
+
+        while (currentParent != Guid.Empty)
+        {
+            // Prevent infinite loops
+            if (!visited.Add(currentParent))
+                return true;
+
+            // If we reach the department we're trying to move, circular reference detected
+            if (currentParent == departmentId)
+                return true;
+
+            // Get next parent
+            var parent = await _context.Set<DepartmentEntity>()
+                .Where(d => d.Id == currentParent && d.TenantId == tenantId && d.DeletedAt == null)
+                .Select(d => d.ParentDepartmentId)
+                .FirstOrDefaultAsync();
+
+            if (!parent.HasValue)
+                break;
+
+            currentParent = parent.Value;
+        }
+
+        return false;
+    }
+}
+
+public class DepartmentTemplateConfig
+{
+    public string DepartmentType { get; set; } = string.Empty;
+    public bool Is24x7 { get; set; }
+    public bool RequiresApproval { get; set; }
+    public int? ApprovalLevel { get; set; }
+    public int? MaxConcurrentPatients { get; set; }
+    public int? WaitingRoomCapacity { get; set; }
+    public List<string>? SubDepartments { get; set; }
 }
 

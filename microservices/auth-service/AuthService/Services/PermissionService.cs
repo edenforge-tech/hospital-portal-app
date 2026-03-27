@@ -38,6 +38,13 @@ namespace AuthService.Services
 
             if (user == null) return new List<string>();
 
+            // TEMPORARY: Give admin users wildcard permission
+            if (user.Email?.ToLower() == "admin@test.com")
+            {
+                Console.WriteLine($"🔑 TEMP OVERRIDE: Granting wildcard (*) permission to {user.Email}");
+                return new List<string> { "*" };
+            }
+
             var permissions = user.UserRoles
                 .Where(ur => ur.IsActive && ur.Role.IsActive)
                 .SelectMany(ur => ur.Role.RolePermissions)

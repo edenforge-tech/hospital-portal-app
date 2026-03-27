@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useAuthStore } from '@/lib/auth-store';
 import { departmentsApi, Department, DepartmentFilters } from '@/lib/api/departments.api';
+import { branchesApi } from '@/lib/api/branches.api';
+import { usersApi } from '@/lib/api/users.api';
 import { useRouter } from 'next/navigation';
 import { SearchFilter } from '@/components/ui/SearchFilter';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -10,6 +13,27 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import DepartmentForm from '@/components/admin/DepartmentForm';
 import DepartmentDetailsModal from '@/components/admin/DepartmentDetailsModal';
 import DepartmentHierarchyModal from '@/components/admin/DepartmentHierarchyModal';
+import DepartmentHierarchyTree from '@/components/admin/DepartmentHierarchyTree';
+import ParentDepartmentSelector from '@/components/admin/ParentDepartmentSelector';
+import { DepartmentStatistics } from '@/components/admin/DepartmentStatistics';
+
+// Dynamically import components that use browser APIs (react-beautiful-dnd uses document/window)
+const DepartmentTree = dynamic(
+  () => import('@/components/departments/DepartmentTree').then(mod => ({ default: mod.DepartmentTree })),
+  { ssr: false }
+);
+
+const DepartmentCreationWizard = dynamic(
+  () => import('@/components/departments/DepartmentCreationWizard').then(mod => ({ default: mod.DepartmentCreationWizard })),
+  { ssr: false }
+);
+
+const DepartmentStaffModal = dynamic(
+  () => import('@/components/departments/DepartmentStaffModal').then(mod => ({ default: mod.DepartmentStaffModal })),
+  { ssr: false }
+);
+
+import { getApi } from '@/lib/api';
 
 // Department type icons mapping
 const getDepartmentIcon = (type: string) => {
@@ -35,6 +59,9 @@ export default function DepartmentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // View mode: list or tree or stats
+  const [viewMode, setViewMode] = useState<'list' | 'tree' | 'stats'>('list');
+
   // Hierarchy state
   const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(new Set());
   const [standardDepartments, setStandardDepartments] = useState<Department[]>([]);
@@ -51,11 +78,28 @@ export default function DepartmentsPage() {
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showHierarchy, setShowHierarchy] = useState(false);
+  
+  // New modals for Week 11-12
+  const [showWizard, setShowWizard] = useState(false);
+  const [showStaffModal, setShowStaffModal] = useState(false);
+  const [staffModalData, setStaffModalData] = useState<{ department: Department; staff: any[] }>({ 
+    department: null as any, 
+    staff: [] 
+  });
+  const [staffLoading, setStaffLoading] = useState(false);
+  
+  // Data for wizard
+  const [branches, setBranches] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<string[]>([]);
 
   useEffect(() => {
     if (user) {
       loadDepartments();
       loadDepartmentTypes();
+      loadBranches();
+      loadUsers();
+      loadTemplates();
     }
   }, [user]);
 
@@ -111,6 +155,37 @@ export default function DepartmentsPage() {
         'Surgical',
         'Medical',
       ]);
+    }
+  };
+  
+  const loadBranches = async () => {
+    try {
+      const api = getApi();
+      const response = await api.get('/branches');
+      setBranches(response.data);
+    } catch (err) {
+      console.error('Error loading branches:', err);
+    }
+  };
+  
+  const loadUsers = async () => {
+    try {
+      const api = getApi();
+      const response = await api.get('/users');
+      setUsers(response.data.users || response.data);
+    } catch (err) {
+      console.error('Error loading users:', err);
+    }
+  };
+  
+  const loadTemplates = async () => {
+    try {
+      const api = getApi();
+      const response = await api.get('/departments/templates');
+      setTemplates(response.data);
+    } catch (err) {
+      console.error('Error loading templates:', err);
+      setTemplates([]);
     }
   };
 
@@ -219,6 +294,49 @@ export default function DepartmentsPage() {
       await loadDepartments();
     }
   };
+  
+  const handleMoveDepartment = async (departmentId: string, newParentId: string | null) => {
+    try {
+      const api = getApi();
+      await api.put(`/departments/${departmentId}/move`, { newParentId });
+      await loadDepartments();
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to move department');
+    }
+  };
+  
+  const handleViewStaff = async (department: Department) => {
+    setStaffLoading(true);
+    setShowStaffModal(true);
+    setStaffModalData({ department, staff: [] });
+    
+    try {
+      const api = getApi();
+      const response = await api.get(`/departments/${department.id}/staff`);
+      setStaffModalData({ department, staff: response.data });
+    } catch (err) {
+      console.error('Error loading staff:', err);
+    } finally {
+      setStaffLoading(false);
+    }
+  };
+  
+  const handleWizardSubmit = async (data: any, templateName?: string) => {
+    try {
+      const api = getApi();
+      if (templateName) {
+        await api.post('/departments/from-template', {
+          templateName,
+          data
+        });
+      } else {
+        await api.post('/departments', data);
+      }
+      await loadDepartments();
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to create department');
+    }
+  };
 
   if (loading || !user) {
     return (
@@ -241,15 +359,55 @@ export default function DepartmentsPage() {
             <p className="mt-1 text-sm text-gray-600">Manage hospital departments and their hierarchies</p>
           </div>
           <div className="flex gap-3">
+            {/* View Mode Toggle */}
+            <div className="flex rounded-lg border border-gray-300 bg-white">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-4 py-2 text-sm font-medium rounded-l-lg ${
+                  viewMode === 'list'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                📋 List
+              </button>
+              <button
+                onClick={() => setViewMode('tree')}
+                className={`px-4 py-2 text-sm font-medium ${
+                  viewMode === 'tree'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                🌳 Tree
+              </button>
+              <button
+                onClick={() => setViewMode('stats')}
+                className={`px-4 py-2 text-sm font-medium rounded-r-lg ${
+                  viewMode === 'stats'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                📊 Stats
+              </button>
+            </div>
+            
             <button
-              onClick={() => setShowHierarchy(true)}
-              className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              onClick={() => router.push('/dashboard/admin/departments/management')}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
-              📊 View Hierarchy
+              🏗️ Department Hierarchy
+            </button>
+            <button
+              onClick={() => setShowWizard(true)}
+              className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700"
+            >
+              ✨ Create from Template
             </button>
             <button
               onClick={handleCreate}
-              className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700"
+              className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               + Create Department
             </button>
@@ -314,8 +472,25 @@ export default function DepartmentsPage() {
           />
         </div>
 
-        {/* Clean Table Design */}
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
+        {/* Content: Tree, List, or Stats View */}
+        {viewMode === 'stats' ? (
+          <DepartmentStatistics 
+            departments={departments as any}
+            standardDepartments={standardDepartments as any}
+            subDepartmentsMap={subDepartmentsMap as any}
+          />
+        ) : viewMode === 'tree' ? (
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
+            <DepartmentTree
+              departments={departments as any}
+              onMove={handleMoveDepartment}
+              onViewStaff={handleViewStaff}
+              onEdit={handleEdit}
+            />
+          </div>
+        ) : (
+          /* Clean Table Design */
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
           {filteredDepartments.length === 0 ? (
             <div className="p-12">
               <EmptyState
@@ -510,6 +685,7 @@ export default function DepartmentsPage() {
             </table>
           )}
         </div>
+        )}
       </div>
 
       {/* Modals */}
@@ -517,6 +693,28 @@ export default function DepartmentsPage() {
         <DepartmentForm
           department={selectedDepartment}
           onClose={handleFormClose}
+        />
+      )}
+      
+      {showWizard && (
+        <DepartmentCreationWizard
+          isOpen={showWizard}
+          onClose={() => setShowWizard(false)}
+          onSubmit={handleWizardSubmit}
+          branches={branches}
+          users={users}
+          departments={departments}
+          templates={templates}
+        />
+      )}
+      
+      {showStaffModal && (
+        <DepartmentStaffModal
+          isOpen={showStaffModal}
+          onClose={() => setShowStaffModal(false)}
+          departmentName={staffModalData.department?.departmentName || ''}
+          staff={staffModalData.staff}
+          loading={staffLoading}
         />
       )}
 

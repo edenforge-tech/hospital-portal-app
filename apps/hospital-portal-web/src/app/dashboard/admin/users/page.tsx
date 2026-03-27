@@ -94,7 +94,12 @@ export default function UsersPage() {
       console.log('Departments response:', deptsRes.data);
       console.log('Branches response:', branchesRes.data);
       
-      setRoles(Array.isArray(rolesRes.data) ? rolesRes.data : []);
+      // Filter out roles with empty/null names to prevent white space in dropdown
+      const validRoles = Array.isArray(rolesRes.data) 
+        ? rolesRes.data.filter(r => r.name && r.name.trim().length > 0) 
+        : [];
+      setRoles(validRoles);
+      
       setDepartments(Array.isArray(deptsRes.data) ? deptsRes.data : []);
       // Branches API returns { branches: [], totalCount, ... }
       setBranches(branchesRes.data?.branches || branchesRes.data || []);

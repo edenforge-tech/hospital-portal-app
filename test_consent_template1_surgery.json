@@ -1,0 +1,11 @@
+{
+  "templateName": "Cataract Surgery Consent",
+  "consentCategory": "SurgeryConsent",
+  "description": "Informed consent for cataract surgery with IOL implantation",
+  "templateHtml": "<h1>Cataract Surgery Consent Form</h1><p>Patient Name: {{PatientName}}</p><p>Surgery Date: {{SurgeryDate}}</p><p>Eye to be operated: {{Eye}}</p><p>I, {{PatientName}}, hereby consent to undergo cataract surgery on my {{Eye}} eye. I understand the risks and benefits explained to me.</p><div>Patient Signature: _______________</div><div>Date: {{Date}}</div>",
+  "requiresPatientSignature": true,
+  "requiresWitnessSignature": true,
+  "requiresGuardianSignature": false,
+  "complianceStandards": ["HIPAA", "Medical Council Guidelines"],
+  "version": "1.0"
+}

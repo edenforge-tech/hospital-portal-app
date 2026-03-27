@@ -144,5 +144,53 @@ namespace AuthService.Services
         /// Search roles by name, code, or description
         /// </summary>
         Task<List<RoleDto>> SearchRolesAsync(Guid tenantId, string searchTerm);
+
+        // ================================================================================
+        // ROLE TEMPLATE OPERATIONS
+        // ================================================================================
+
+        /// <summary>
+        /// Get all role templates with filters
+        /// </summary>
+        Task<RoleTemplateListResponse> GetTemplatesAsync(Guid tenantId, RoleTemplateFilters filters);
+
+        /// <summary>
+        /// Get role template by ID
+        /// </summary>
+        Task<RoleTemplateDto> GetTemplateByIdAsync(Guid tenantId, Guid templateId);
+
+        /// <summary>
+        /// Create role from template
+        /// </summary>
+        Task<RoleOperationResult> CreateRoleFromTemplateAsync(Guid tenantId, Guid userId, CreateRoleFromTemplateRequest request);
+
+        /// <summary>
+        /// Get all template names for dropdown/selection
+        /// </summary>
+        Task<List<string>> GetTemplateNamesAsync(Guid tenantId);
+
+        // ================================================================================
+        // ROLE HIERARCHY OPERATIONS
+        // ================================================================================
+
+        /// <summary>
+        /// Update role hierarchy (move role to new parent)
+        /// </summary>
+        Task<RoleOperationResult> UpdateHierarchyAsync(Guid tenantId, Guid userId, UpdateRoleHierarchyRequest request);
+
+        /// <summary>
+        /// Get role inheritance preview (what permissions would be inherited)
+        /// </summary>
+        Task<RoleInheritancePreviewDto> GetInheritancePreviewAsync(Guid tenantId, Guid roleId, Guid? newParentId);
+
+        /// <summary>
+        /// Apply inheritance to all child roles (refresh inherited permissions)
+        /// </summary>
+        Task<BulkRoleOperationResult> RefreshInheritanceAsync(Guid tenantId, Guid userId, Guid parentRoleId);
+
+        /// <summary>
+        /// Validate role hierarchy (check for circular references)
+        /// </summary>
+        Task<bool> ValidateHierarchyAsync(Guid tenantId, Guid roleId, Guid? newParentId);
     }
 }

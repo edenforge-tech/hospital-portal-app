@@ -351,7 +351,7 @@ namespace AuthService.Controllers
         /// Bulk create access rules
         /// </summary>
         [HttpPost("access-rules/bulk")]
-        [ProducesResponseType(typeof(BulkOperationResult), 200)]
+        [ProducesResponseType(typeof(Models.DocumentSharing.BulkOperationResult), 200)]
         [ProducesResponseType(400)]
         public async Task<IActionResult> BulkCreateAccessRules([FromBody] BulkCreateAccessRulesRequest request)
         {

@@ -4,6 +4,7 @@ using AuthService.Models;
 using AuthService.Models.Identity;
 using AuthService.Models.Domain;
 using AuthService.Services;
+using AuthService.Services.Interfaces;
 using AuthService.Authorization;
 using AuthService.Authorization.Policies;
 using Microsoft.OpenApi.Models;
@@ -50,7 +51,7 @@ async Task SeedBasicDataForTestingAsync(AppDbContext context)
                 PhoneNumberConfirmed = true,
                 TenantId = existingTenant.Id,
                 UserType = "Admin",
-                UserStatus = "Active",
+                UserStatus = "active",
                 MustChangePasswordOnLogin = false,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -524,9 +525,34 @@ try
 
     // Add services to the container
     Console.WriteLine("Adding controllers...");
-    builder.Services.AddControllers();
+    builder.Services.AddControllers()
+        .AddJsonOptions(options =>
+        {
+            // Convert PascalCase to camelCase in JSON responses
+            // This fixes frontend property mapping (PatientName → patientName)
+            options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+            options.JsonSerializerOptions.DictionaryKeyPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        });
     builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen();
+    
+    // Add SignalR for real-time updates
+    builder.Services.AddSignalR();
+    
+    builder.Services.AddSwaggerGen(c =>
+    {
+        c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+        {
+            Title = "Hospital Portal API",
+            Version = "v1",
+            Description = "ASP.NET Core 8.0 API for Hospital Management System"
+        });
+        
+        // Handle multiple actions with same HTTP method and route
+        c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
+        
+        // Ignore obsolete actions
+        c.IgnoreObsoleteActions();
+    });
     Console.WriteLine("✓ Controllers configured");
 
     // Configure database: use Postgres when connection string provided, otherwise fall back to InMemory for local dev
@@ -647,6 +673,13 @@ try
 
     // Register services
     Console.WriteLine("Registering services...");
+    
+    // Add Memory Cache for performance optimization
+    builder.Services.AddMemoryCache();
+    
+    // Add Branch Cache Service (reduces database queries by ~90%)
+    builder.Services.AddScoped<IBranchCacheService, BranchCacheService>();
+    
     builder.Services.AddScoped<IJwtService, JwtService>();
     builder.Services.AddScoped<IPermissionService, PermissionService>();
     builder.Services.AddScoped<IUserService, UserService>();
@@ -658,11 +691,105 @@ try
     builder.Services.AddScoped<IRoleService, RoleService>();
     builder.Services.AddScoped<IPermissionManagementService, PermissionManagementService>();
     builder.Services.AddScoped<IDashboardService, DashboardService>();
+    
+    // Phase 2: Branch Capacity Service (Real-time bed tracking)
+    builder.Services.AddScoped<IBranchCapacityService, BranchCapacityService>();
+    
+    // Phase 2: Onboarding & Progressive Access Service
+    builder.Services.AddScoped<IOnboardingService, OnboardingService>();
+    
+    // Phase 2: Advanced Search Service (Dynamic LINQ search)
+    builder.Services.AddScoped<ISearchService, SearchService>();
+    
+    // Phase 2: Performance Review Service (13 weighted criteria, 3-step approval)
+    builder.Services.AddScoped<IPerformanceReviewService, PerformanceReviewService>();
+    
+    // Phase 2: Training & Compliance Management Service
+    builder.Services.AddScoped<ITrainingManagementService, TrainingManagementService>();
+    
+    // Phase 2: Diagnostic & Imaging Services
+    builder.Services.AddScoped<IBiometryService, BiometryService>();
+    builder.Services.AddScoped<IIOLInventoryService, IOLInventoryService>();
+    builder.Services.AddScoped<IRetinopathyScreeningService, RetinopathyScreeningService>();
+    builder.Services.AddScoped<IOctImagingService, OctImagingService>();
+    builder.Services.AddScoped<IElectrophysiologyService, ElectrophysiologyService>();
+    
     builder.Services.AddScoped<AppointmentService>();
     // builder.Services.AddScoped<IAppointmentService, CachedAppointmentService>(); // Disabled - interface mismatch
     builder.Services.AddScoped<IAppointmentService, AppointmentService>();
+    builder.Services.AddScoped<IPatientService, PatientService>();
+    builder.Services.AddScoped<IPatientDuplicateDetectionService, PatientDuplicateDetectionService>(); // Feb 2026 - Duplicate prevention
     builder.Services.AddScoped<INotificationService, NotificationService>();
     builder.Services.AddScoped<INotificationClient, NotificationClient>(); // Notification microservice client
+    
+    // Phase 2: Follow-Up Management Services (Dec 2025)
+    builder.Services.AddScoped<IFollowUpService, FollowUpService>();
+    builder.Services.AddScoped<IPostOpCareService, PostOpCareService>();
+    builder.Services.AddScoped<IAdherenceService, AdherenceService>();
+    builder.Services.AddScoped<IReminderService, ReminderService>();
+    
+    // Phase 3: Prescription Management Services (Jan 2026)
+    builder.Services.AddScoped<IDrugInteractionService, DrugInteractionService>();
+    builder.Services.AddScoped<IMedicationDatabaseService, MedicationDatabaseService>();
+    builder.Services.AddScoped<IPrescriptionService, PrescriptionService>();
+    builder.Services.AddScoped<IDiagnosisService, DiagnosisService>(); // Phase 3: ICD-10 Diagnosis Management
+    builder.Services.AddScoped<IReportService, ReportService>();
+    
+    // OPD Visit & Billing Services (Phase 1 OPD Workflow - Jan 2026)
+    builder.Services.AddScoped<IOpdBillService, OpdBillService>();
+    builder.Services.AddScoped<IVisitService, VisitService>();
+    builder.Services.AddScoped<IRefundService, RefundService>();
+    
+    // Day 4: Itemized Billing Services (Feb 6, 2026)
+    builder.Services.AddScoped<IServiceCatalogService, ServiceCatalogService>();
+    builder.Services.AddScoped<IBillItemService, BillItemService>();
+    
+    // Module 3: Counseling & Surgery Package Management Services (Feb 15, 2026)
+    builder.Services.AddScoped<IPackageManagementService, PackageManagementService>();
+    builder.Services.AddScoped<ICounselingWorkflowService, CounselingWorkflowService>();
+    builder.Services.AddScoped<ICounselorCommunicationService, CounselorCommunicationService>(); // Comm logs, callbacks, overdue (Phase B)
+    builder.Services.AddScoped<IDeptCoordinationService, DeptCoordinationService>(); // Dept coordination requests (Mar 16, 2026)
+    builder.Services.AddScoped<IPatientTypeConfigurationsService, PatientTypeConfigurationsService>(); // Patient type configs (Mar 1, 2026)
+    builder.Services.AddScoped<ITranscriptionService, TranscriptionService>(); // Audio transcription & translation
+    builder.Services.AddScoped<IPatientTypeWorkflowService, PatientTypeWorkflowService>();
+    builder.Services.AddScoped<IPreOpTestManagementService, PreOpTestManagementService>();
+    builder.Services.AddScoped<IOTBookingSystemService, OTBookingSystemService>();
+    builder.Services.AddScoped<IOtFinalizeService, OtFinalizeService>();
+    builder.Services.AddScoped<IInsuranceWorkflowService, InsuranceWorkflowService>();
+    builder.Services.AddScoped<IPaymentProcessingService, PaymentProcessingService>();
+    builder.Services.AddScoped<IAdmissionManagementService, AdmissionManagementService>();
+    builder.Services.AddScoped<IConsentManagementService, ConsentManagementService>();
+    builder.Services.AddScoped<IWorkflowOrchestrationService, WorkflowOrchestrationService>();
+    builder.Services.AddScoped<IMasterDataService, MasterDataService>(); // Master data for dropdowns (Feb 23, 2026)
+    builder.Services.AddScoped<IInventoryAvailabilityService, InventoryAvailabilityService>(); // IOL availability check (Feb 25, 2026)
+    
+    // Module 4: Front Office/OPD Management Services (Feb 3, 2026)
+    builder.Services.AddScoped<IQueueService, QueueService>();
+    builder.Services.AddScoped<IQueueNotificationService, QueueNotificationService>(); // SignalR real-time notifications
+    builder.Services.AddScoped<IVisitorService, VisitorService>();
+    builder.Services.AddScoped<IProcedureService, ProcedureService>();
+    builder.Services.AddScoped<IReportsService, ReportsService>();
+
+    // Module 1: Doctor Desk Services (Phase 3 - Feb 2026)
+    builder.Services.AddScoped<IExaminationService, ExaminationService>();
+    builder.Services.AddScoped<IExaminationDraftService, ExaminationDraftService>();
+    builder.Services.AddScoped<IDoctorQueueService, DoctorQueueService>();
+    builder.Services.AddScoped<IOptometryService, OptometryService>();
+    builder.Services.AddScoped<ISurgeryService, SurgeryService>(); // Phase 4: Surgery Recommendation (Feb 2026)
+    builder.Services.AddScoped<IImagingService, ImagingService>(); // Phase 5: Imaging Orders (Feb 2026)
+    builder.Services.AddScoped<IImagingExportService, ImagingExportService>(); // Phase 6: PDF Export (Feb 2026)
+    builder.Services.AddScoped<IImagingAccessAuditService, ImagingAccessAuditService>(); // Phase 8: HIPAA Audit
+builder.Services.AddScoped<IImagingAIAnalysisService, ImagingAIAnalysisService>(); // Phase 8: AI Analysis (Feb 2026)
+    
+    // HttpClient for external API calls (image downloads, etc.)
+    builder.Services.AddHttpClient();
+    
+    // Reminder Services (Email & SMS)
+    builder.Services.AddSingleton<IEmailService, EmailService>();
+    builder.Services.AddSingleton<ISmsService, SmsService>();
+    
+    // Background Services
+    builder.Services.AddHostedService<BackgroundReminderService>();
     
     // Device & Session Management Services (Backend Enhancements)
     builder.Services.AddScoped<IDeviceManagementService, DeviceManagementService>();
@@ -670,6 +797,14 @@ try
     
     // Enhanced Audit Service (Blockchain-like Hash Chain)
     builder.Services.AddScoped<IAuditService, AuditService>();
+    
+    // Azure Blob Storage Service (Patient Photos & Documents) - Phase 7
+    builder.Services.AddSingleton(x =>
+    {
+        var connectionString = builder.Configuration["AzureBlobStorage:ConnectionString"];
+        return new Azure.Storage.Blobs.BlobServiceClient(connectionString);
+    });
+    builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
     
     // Activation Audit Service (HIPAA Compliance - Track all activation steps)
     builder.Services.AddScoped<IActivationAuditService, ActivationAuditService>();
@@ -682,6 +817,12 @@ try
     
     // Emergency Access Service (Break-the-Glass)
     builder.Services.AddScoped<IEmergencyAccessService, EmergencyAccessService>();
+    
+    // Emergency Access Audit Service (HIPAA Compliance) - TODO: Fix navigation property names
+    // builder.Services.AddScoped<IEmergencyAccessAuditService, EmergencyAccessAuditService>();
+    
+    // License Management Service (Professional Licenses) - ENABLED
+    builder.Services.AddScoped<ILicenseManagementService, LicenseManagementService>();
     
     // ===== PHASE 1 CRITICAL: Department Access Enhancements (Dec 9, 2025) =====
     // Validation Service - Enforce permitted/restricted department combinations
@@ -706,10 +847,13 @@ try
     // Access Automation - Background job configuration for expiration and cleanup
     // builder.Services.AddScoped<IAccessAutomationService, AccessAutomationService>(); // TODO: Implement next
     
-    // Phase 4 Services - DISABLED (Schema Mismatch - 248 errors)
+    // Bulk Operations Service (CSV Import/Export, Bulk Actions) - ENABLED
+    builder.Services.AddScoped<IBulkOperationsService, BulkOperationsService>();
+    
+    // Phase 4 Services - BLOCKED: Schema Mismatch (102 compilation errors)
+    // DocumentSharing requires extensive refactoring - models/DB schema mismatch
     // builder.Services.AddScoped<IDocumentSharingService, DocumentSharingService>();
     // builder.Services.AddScoped<ISystemSettingsService, SystemSettingsService>();
-    // builder.Services.AddScoped<IBulkOperationsService, BulkOperationsService>();
     
     builder.Services.AddMemoryCache();
     Console.WriteLine("✓ Services registered");
@@ -729,9 +873,13 @@ try
     {
         options.AddPolicy("AllowAll", builder =>
         {
-            builder.AllowAnyOrigin()
+            builder.WithOrigins("http://localhost:3000", "https://localhost:3000", 
+                               "http://localhost:3001", "https://localhost:3001",
+                               "http://localhost:3002", "https://localhost:3002",
+                               "http://localhost:3003", "https://localhost:3003")
                    .AllowAnyMethod()
-                   .AllowAnyHeader();
+                   .AllowAnyHeader()
+                   .AllowCredentials();
         });
     });
     Console.WriteLine("✓ CORS configured");
@@ -755,6 +903,15 @@ try
     // Configure the HTTP request pipeline
     Console.WriteLine("Configuring HTTP pipeline...");
     
+    // Enable Swagger in all environments
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Hospital Portal API v1");
+        c.RoutePrefix = "swagger"; // Serve at /swagger
+    });
+    Console.WriteLine("✓ Swagger UI enabled at /swagger");
+    
     // Use ForwardedHeaders middleware to capture IP addresses
     app.UseForwardedHeaders();
     
@@ -772,13 +929,19 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
     Console.WriteLine("✓ Authentication/Authorization configured");
+    
+    // Add check-in validation middleware (Day 3: OPD Workflow Gates)
+    app.UseMiddleware<CheckInValidationMiddleware>();
+    Console.WriteLine("✓ Check-in validation middleware applied (enforces patient check-in for clinical endpoints)");
 
     app.MapControllers();
     Console.WriteLine("✓ Controllers mapped");
 
     // Map SignalR hubs
     app.MapHub<AuthService.Hubs.NotificationHub>("/notificationHub");
-    Console.WriteLine("✓ SignalR hubs mapped");
+    app.MapHub<AuthService.Hubs.CapacityHub>("/capacityHub");
+    app.MapHub<AuthService.Hubs.QueueHub>("/hubs/queue");
+    Console.WriteLine("✓ SignalR hubs mapped (NotificationHub, CapacityHub, QueueHub)");
 
     // Ensure database is created and migrations are applied when using a relational provider
     using (var scope = app.Services.CreateScope())
@@ -807,6 +970,47 @@ try
             }
 
             await SeedBasicDataForTestingAsync(context);
+            
+            // Seed patient type configurations for tenant 155fe198-6ae5-4a01-9254-ead5b427247e
+            try
+            {
+                Console.WriteLine("🌱 Seeding patient type configurations...");
+                var tenantId = Guid.Parse("155fe198-6ae5-4a01-9254-ead5b427247e");
+                
+                var existingConfigs = await context.PatientTypeConfigurations
+                    .Where(c => c.TenantId == tenantId)
+                    .ToListAsync();
+                    
+                if (existingConfigs.Any())
+                {
+                    Console.WriteLine($"Found {existingConfigs.Count} existing configs. Deleting...");
+                    context.PatientTypeConfigurations.RemoveRange(existingConfigs);
+                    await context.SaveChangesAsync();
+                }
+                
+                var patientTypeConfigs = new[]
+                {
+                    new PatientTypeConfiguration { TenantId = tenantId, PatientType = "Cash", DisplayName = "Cash Patient", Description = "Direct payment by patient", ConfigurationJson = "{\"requires_advance_payment\": true, \"advance_percentage\": 50, \"required_documents\": [\"ID Proof\", \"Address Proof\"], \"skip_insurance\": true, \"billing_mode\": \"direct\"}", IsActive = true, DisplayOrder = 1 },
+                    new PatientTypeConfiguration { TenantId = tenantId, PatientType = "Insurance", DisplayName = "Insurance Patient", Description = "Insurance company cashless treatment", ConfigurationJson = "{\"requires_pre_authorization\": true, \"max_pre_auth_wait_hours\": 72, \"required_documents\": [\"Insurance Card\", \"Policy Document\", \"ID Proof\", \"Employer Letter\"], \"skip_advance_if_approved\": true, \"billing_mode\": \"cashless\"}", IsActive = true, DisplayOrder = 2 },
+                    new PatientTypeConfiguration { TenantId = tenantId, PatientType = "CoPay", DisplayName = "Co-Pay Patient", Description = "Insurance with patient co-payment", ConfigurationJson = "{\"requires_pre_authorization\": true, \"patient_pays_percentage\": 20, \"required_documents\": [\"Insurance Card\", \"ID Proof\"], \"copay_due_at\": \"admission\", \"billing_mode\": \"split\"}", IsActive = true, DisplayOrder = 3 },
+                    new PatientTypeConfiguration { TenantId = tenantId, PatientType = "ESH", DisplayName = "ESH (Employee State Health)", Description = "ESH government scheme", ConfigurationJson = "{\"requires_claim_form\": true, \"claim_forms\": [\"ESH Form 1\", \"ESH Form 2\"], \"required_documents\": [\"ESH Card\", \"Employee ID\", \"Salary Slip\"], \"zero_advance_payment\": true, \"billing_mode\": \"direct_billing\"}", IsActive = true, DisplayOrder = 4 },
+                    new PatientTypeConfiguration { TenantId = tenantId, PatientType = "CGHS", DisplayName = "CGHS (Central Govt Health Scheme)", Description = "CGHS government scheme", ConfigurationJson = "{\"requires_pre_approval\": true, \"approval_authority\": \"CGHS Wellness Center\", \"required_documents\": [\"CGHS Card\", \"Referral from CGHS Dispensary\"], \"zero_advance_payment\": true, \"billing_mode\": \"reimbursement\"}", IsActive = true, DisplayOrder = 5 },
+                    new PatientTypeConfiguration { TenantId = tenantId, PatientType = "Arograshree", DisplayName = "Arograshree (Karnataka State Scheme)", Description = "Karnataka state health scheme for BPL families", ConfigurationJson = "{\"requires_pre_approval\": true, \"approval_authority\": \"District Health Officer\", \"income_certificate_required\": true, \"required_documents\": [\"Income Certificate\", \"Ration Card\", \"ID Proof\"], \"zero_advance_payment\": true, \"billing_mode\": \"government_reimbursement\"}", IsActive = true, DisplayOrder = 6 },
+                    new PatientTypeConfiguration { TenantId = tenantId, PatientType = "SGHS", DisplayName = "SGHS (State Govt Health Scheme)", Description = "State government employee health scheme", ConfigurationJson = "{\"requires_departmental_approval\": true, \"required_documents\": [\"SGHS Card\", \"Employee ID\"], \"zero_advance_payment\": true, \"billing_mode\": \"direct_billing\"}", IsActive = true, DisplayOrder = 7 },
+                    new PatientTypeConfiguration { TenantId = tenantId, PatientType = "Camp", DisplayName = "Camp Patient (Sponsored)", Description = "Free surgery camp sponsored by NGO/CSR", ConfigurationJson = "{\"zero_cost_surgery\": true, \"sponsor\": \"NGO/CSR\", \"required_documents\": [\"Camp Registration Form\", \"Income Certificate\"], \"zero_advance_payment\": true, \"billing_mode\": \"sponsored\"}", IsActive = true, DisplayOrder = 8 }
+                };
+                
+                context.PatientTypeConfigurations.AddRange(patientTypeConfigs);
+                await context.SaveChangesAsync();
+                
+                Console.WriteLine($"✅ Successfully seeded {patientTypeConfigs.Length} patient type configurations");
+                Console.WriteLine($"   Patient Types: {string.Join(", ", patientTypeConfigs.Select(c => c.PatientType))}");
+            }
+            catch (Exception ptEx)
+            {
+                Console.WriteLine($"⚠️ Patient type seeding failed: {ptEx.Message}");
+            }
+            
             Console.WriteLine("✓ Database initialization completed");
         }
         catch (Exception ex)
@@ -835,7 +1039,9 @@ try
     Console.WriteLine("=== BACKEND STARTUP: Starting server ===");
     try
     {
-        app.Run();
+        // Run the application - this blocks until shutdown
+        await app.RunAsync();
+        Console.WriteLine("=== BACKEND SHUTDOWN: Server stopped gracefully ===");
     }
     catch (Exception runEx)
     {
@@ -843,7 +1049,6 @@ try
         Console.WriteLine($"!!! Stack trace: {runEx.StackTrace}");
         throw;
     }
-    Console.WriteLine("=== BACKEND SHUTDOWN: Server stopped ===");
 }
 catch (Exception ex)
 {

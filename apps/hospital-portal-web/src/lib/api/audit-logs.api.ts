@@ -117,3 +117,28 @@ export const auditLogsApi = {
     return { data: response.data };
   }
 };
+
+export const activationAuditLogsApi = {
+  /**
+   * Get activation audit logs with filters
+   */
+  async getAll(filters?: any): Promise<{ data: any }> {
+    const api = getApi();
+    const params = new URLSearchParams();
+    
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.pageSize) params.append('pageSize', filters.pageSize.toString());
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    if (filters?.activationStep) params.append('activationStep', filters.activationStep);
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.suspiciousOnly !== undefined) params.append('suspiciousOnly', filters.suspiciousOnly.toString());
+
+    const queryString = params.toString();
+    const url = queryString ? `/activationauditlogs?${queryString}` : '/activationauditlogs';
+    
+    const response = await api.get(url);
+    return { data: response.data };
+  }
+};

@@ -55,14 +55,25 @@ public class AppointmentResponse
     public Guid Id { get; set; }
     public Guid PatientId { get; set; }
     public string PatientName { get; set; } = null!;
+    public string? PatientMrn { get; set; }
     public Guid DoctorId { get; set; }
     public string DoctorName { get; set; } = null!;
+    public Guid? DepartmentId { get; set; }
+    public string? DepartmentName { get; set; }
     public DateTime AppointmentDate { get; set; }
+    public string? StartTime { get; set; }
+    public string? EndTime { get; set; }
     public string AppointmentType { get; set; } = null!;
     public int DurationMinutes { get; set; }
+    public string? Priority { get; set; }
     public string Status { get; set; } = null!;
+    public string? ReasonForVisit { get; set; }
     public string? Notes { get; set; }
     public string? CancellationReason { get; set; }
+    public bool? IsRecurring { get; set; }
+    public string? RecurringPattern { get; set; }
+    public string? PatientPhone { get; set; }
+    public string? PatientEmail { get; set; }
     public bool ReminderSent { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

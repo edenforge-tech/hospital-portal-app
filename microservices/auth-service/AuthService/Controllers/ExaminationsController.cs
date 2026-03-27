@@ -2,6 +2,7 @@ using AuthService.Authorization;
 using AuthService.Models.Domain;
 using AuthService.Models.Domain.Dtos;
 using AuthService.Services;
+using AuthService.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,13 +14,16 @@ namespace AuthService.Controllers;
 public class ExaminationsController : ControllerBase
 {
     private readonly IExaminationService _examinationService;
+    private readonly IOptometryService _optometryService;
     private readonly ILogger<ExaminationsController> _logger;
 
     public ExaminationsController(
         IExaminationService examinationService,
+        IOptometryService optometryService,
         ILogger<ExaminationsController> logger)
     {
         _examinationService = examinationService;
+        _optometryService = optometryService;
         _logger = logger;
     }
 
@@ -132,6 +136,103 @@ public class ExaminationsController : ControllerBase
         if (!result) return NotFound();
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Get latest optometry examination for a patient (auto-import feature)
+    /// </summary>
+    [HttpGet("optometry/latest")]
+    [RequirePermission("examination.view")]
+    public async Task<ActionResult<object>> GetLatestOptometryData([FromQuery] Guid patientId)
+    {
+        var tenantId = User.FindFirst("TenantId")?.Value;
+        if (string.IsNullOrEmpty(tenantId)) return Unauthorized("Tenant ID not found");
+
+        if (patientId == Guid.Empty)
+        {
+            return BadRequest("Patient ID is required");
+        }
+
+        try
+        {
+            _logger.LogInformation("Fetching latest optometry data for patient {PatientId}", patientId);
+
+            var optometryData = await _optometryService.GetLatestOptometryDataAsync(patientId, Guid.Parse(tenantId));
+
+            if (optometryData == null)
+            {
+                _logger.LogInformation("No optometry examination found for patient {PatientId}", patientId);
+                return NotFound(new { message = "No optometry examination found for this patient" });
+            }
+
+            return Ok(optometryData);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving latest optometry data for patient {PatientId}", patientId);
+            return StatusCode(500, new { message = "Failed to retrieve optometry data", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Finalize examination with digital signature and optional follow-up appointment
+    /// </summary>
+    /// <param name="id">Examination ID</param>
+    /// <param name="request">Finalization request with PIN and optional follow-up details</param>
+    /// <returns>Finalization response with digital signature</returns>
+    [HttpPost("{id}/finalize")]
+    [RequirePermission("examination.update")]
+    public async Task<ActionResult<FinalizeExaminationResponse>> FinalizeExamination(
+        Guid id, 
+        [FromBody] FinalizeExaminationRequest request)
+    {
+        var tenantId = User.FindFirst("TenantId")?.Value;
+        if (string.IsNullOrEmpty(tenantId)) return Unauthorized("Tenant ID not found");
+
+        var userId = User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID not found");
+
+        try
+        {
+            _logger.LogInformation(
+                "Finalizing examination {ExaminationId} by doctor {DoctorId}", 
+                id, 
+                userId);
+
+            var (success, message, digitalSignature, followUpAppointmentId) = 
+                await _examinationService.FinalizeExaminationAsync(
+                    id,
+                    Guid.Parse(userId),
+                    Guid.Parse(tenantId),
+                    request.Pin,
+                    request.FollowUpDate,
+                    request.FollowUpReason);
+
+            if (!success)
+            {
+                _logger.LogWarning(
+                    "Failed to finalize examination {ExaminationId}: {Message}", 
+                    id, 
+                    message);
+                return BadRequest(new { message });
+            }
+
+            var response = new FinalizeExaminationResponse
+            {
+                Success = true,
+                Message = message,
+                DigitalSignature = digitalSignature!,
+                SignedAt = DateTime.UtcNow,
+                FollowUpAppointmentId = followUpAppointmentId
+            };
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error finalizing examination {ExaminationId}", id);
+            return StatusCode(500, new { message = "Failed to finalize examination", error = ex.Message });
+        }
     }
 
     private static ExaminationResponse MapToResponse(ClinicalExamination examination)

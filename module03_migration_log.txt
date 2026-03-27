@@ -1,0 +1,141 @@
+14.20.42 - 
+===============================================================
+14.20.42 -       MODULE 3: COUNSELOR MANAGEMENT - MIGRATIONS              
+14.20.42 - ===============================================================
+14.20.42 - Starting at 02/22/2026 14:20:42
+14.20.42 - 
+===============================================================
+14.20.42 -   EXECUTING MIGRATIONS (10 files)
+14.20.42 - ===============================================================
+14.20.42 - 
+-------------------------------------------------------------
+14.20.42 -   [1/10] module03_01_package_management.sql
+14.20.42 - -------------------------------------------------------------
+14.20.42 -   Reading SQL file... (19.13 KB)
+14.20.44 -   [OK] Executed successfully (2091ms)
+14.20.44 - 
+-------------------------------------------------------------
+14.20.44 -   [2/10] module03_02_counseling_workflow.sql
+14.20.44 - -------------------------------------------------------------
+14.20.44 -   Reading SQL file... (14.76 KB)
+14.20.46 -   [OK] Executed successfully (1733ms)
+14.20.46 - 
+-------------------------------------------------------------
+14.20.46 -   [3/10] module03_03_patient_type_workflows.sql
+14.20.46 - -------------------------------------------------------------
+14.20.46 -   Reading SQL file... (8.16 KB)
+14.20.47 -   [OK] Executed successfully (719ms)
+14.20.47 - 
+-------------------------------------------------------------
+14.20.47 -   [4/10] module03_04_preop_test_management.sql
+14.20.47 - -------------------------------------------------------------
+14.20.47 -   Reading SQL file... (15.83 KB)
+14.20.48 -   [OK] Executed successfully (1357ms)
+14.20.48 - 
+-------------------------------------------------------------
+14.20.48 -   [5/10] module03_05_ot_booking_system.sql
+14.20.48 - -------------------------------------------------------------
+14.20.48 -   Reading SQL file... (17.74 KB)
+14.20.50 -   [OK] Executed successfully (1598ms)
+14.20.50 - 
+-------------------------------------------------------------
+14.20.50 -   [6/10] module03_06_insurance_preauth_workflow.sql
+14.20.50 - -------------------------------------------------------------
+14.20.50 -   Reading SQL file... (16.47 KB)
+14.20.52 -   [OK] Executed successfully (1629ms)
+14.20.52 - 
+-------------------------------------------------------------
+14.20.52 -   [7/10] module03_07_payment_processing.sql
+14.20.52 - -------------------------------------------------------------
+14.20.52 -   Reading SQL file... (20.9 KB)
+14.20.54 -   [OK] Executed successfully (1990ms)
+14.20.54 - 
+-------------------------------------------------------------
+14.20.54 -   [8/10] module03_08_admission_management.sql
+14.20.54 - -------------------------------------------------------------
+14.20.54 -   Reading SQL file... (18.05 KB)
+14.20.55 -   [OK] Executed successfully (1811ms)
+14.20.55 - 
+-------------------------------------------------------------
+14.20.56 -   [9/10] module03_09_consent_management.sql
+14.20.56 - -------------------------------------------------------------
+14.20.56 -   Reading SQL file... (15.46 KB)
+14.20.57 -   [OK] Executed successfully (1191ms)
+14.20.57 - 
+-------------------------------------------------------------
+14.20.57 -   [10/10] module03_10_workflow_orchestration.sql
+14.20.57 - -------------------------------------------------------------
+14.20.57 -   Reading SQL file... (19.96 KB)
+14.20.59 -   [OK] Executed successfully (1676ms)
+14.20.59 - 
+
+14.20.59 - ===============================================================
+14.20.59 -   VERIFICATION
+14.20.59 - ===============================================================
+14.20.59 - 
+Checking created tables...
+14.20.59 -   [OK] admission_prerequisites       | 40 kB
+14.20.59 -   [OK] bed_reservations              | 64 kB
+14.20.59 -   [OK] clinical_note                 | 56 kB
+14.20.59 -   [OK] consent                       | 48 kB
+14.20.59 -   [OK] consent_form_templates        | 120 kB
+14.20.59 -   [OK] counseling_session_documents  | 40 kB
+14.20.59 -   [OK] counseling_session_notes      | 40 kB
+14.20.59 -   [OK] counseling_sessions           | 88 kB
+14.20.59 -   [OK] counseling_workflow_state     | 88 kB
+14.20.59 -   [OK] counselor_package_items       | 32 kB
+14.20.59 -   [OK] counselor_packages            | 56 kB
+14.20.59 -   [OK] day_care_scheduling           | 56 kB
+14.20.59 -   [OK] government_scheme_claims      | 64 kB
+14.20.59 -   [OK] icu_admission                 | 48 kB
+14.20.59 -   [OK] imaging_annotations           | 72 kB
+14.20.59 -   [OK] insurance_approval_workflow   | 40 kB
+14.20.59 -   [OK] insurance_claim               | 56 kB
+14.20.59 -   [OK] insurance_documents           | 40 kB
+14.20.59 -   [OK] insurance_pre_authorizations  | 80 kB
+14.20.59 -   [OK] insurance_provider            | 32 kB
+14.20.59 -   [OK] notification                  | 56 kB
+14.20.59 -   [OK] notification_logs             | 112 kB
+14.20.59 -   [OK] onboarding_workflow           | 64 kB
+14.21.00 -   [OK] opd_bill_payments             | 240 kB
+14.21.00 -   [OK] ot_booking_validations        | 48 kB
+14.21.00 -   [OK] ot_collision_logs             | 48 kB
+14.21.00 -   [OK] ot_equipment_availability     | 24 kB
+14.21.00 -   [OK] ot_schedules                  | 96 kB
+14.21.00 -   [OK] ot_theaters                   | 96 kB
+14.21.00 -   [OK] otp_activations               | 112 kB
+14.21.00 -   [OK] package_discount_approvals    | 64 kB
+14.21.00 -   [OK] patient_admissions            | 88 kB
+14.21.00 -   [OK] patient_consents              | 88 kB
+14.21.00 -   [OK] patient_insurance             | 56 kB
+14.21.00 -   [OK] patient_research_consent      | 56 kB
+14.21.00 -   [OK] payment                       | 48 kB
+14.21.00 -   [OK] payment_reconciliation_log    | 40 kB
+14.21.00 -   [OK] preop_fitness_clearances      | 72 kB
+14.21.00 -   [OK] preop_test_orders             | 80 kB
+14.21.00 -   [OK] preop_test_protocols          | 96 kB
+14.21.00 -   [OK] preop_test_results            | 32 kB
+14.21.00 -   [OK] remote_monitoring_device      | 48 kB
+14.21.00 -   [OK] remote_monitoring_reading     | 48 kB
+14.21.00 -   [OK] review_approval_workflow      | 40 kB
+14.21.00 -   [OK] surgery_package_items_catalog | 96 kB
+14.21.00 -   [OK] surgery_package_templates     | 96 kB
+14.21.00 -   [OK] tpa_communication_log         | 40 kB
+14.21.00 -   [OK] user_notification_preference  | 128 kB
+14.21.00 -   [OK] workflow_notifications        | 72 kB
+14.21.00 -   [OK] workflow_stage_transitions    | 48 kB
+14.21.00 - 
+Total tables created: 50
+14.21.01 -   [OK] Indexes created: 265 
+14.21.01 -   [OK] RLS policies: 42 
+14.21.01 - 
+
+14.21.01 - ===============================================================
+14.21.01 -   MIGRATION COMPLETED SUCCESSFULLY!
+14.21.01 - ===============================================================
+14.21.01 - 
+Summary:
+14.21.01 -   - Files executed: 10/10
+14.21.01 - 
+Log file saved: module03_migration_log.txt
+14.21.01 - Completed at 02/22/2026 14:21:01

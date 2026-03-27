@@ -27,7 +27,7 @@ namespace AuthService.Models.Identity
         
         // Custom fields
         public string UserType { get; set; } = "Staff"; // Staff, Patient, Admin
-        public string UserStatus { get; set; } = "PendingFirstLogin"; // Active, Inactive, Locked, PendingFirstLogin
+        public string UserStatus { get; set; } = "pending_activation"; // pending_invitation, pending_activation, active, locked, inactive, deleted
         public DateTime? InitialPasswordCreatedAt { get; set; }
         public DateTime? LastPasswordChangeAt { get; set; }
         public DateTime? PasswordExpiresAt { get; set; }
@@ -35,7 +35,7 @@ namespace AuthService.Models.Identity
         public bool MustChangePasswordOnLogin { get; set; } = true;
 
         // Activation and password reset fields (new)
-        public string? ActivationStatus { get; set; } = "Active"; // Pending, Active, Suspended, Locked
+        public string? ActivationStatus { get; set; } = "active"; // created, invitation_sent, email_verified, password_set, terms_accepted, mfa_enrolled, active, locked, inactive, deleted
         public string? OneTimePasswordHash { get; set; }
         public DateTime? OtpExpiresAt { get; set; }
         public bool MustResetPassword { get; set; } = false;

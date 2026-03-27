@@ -9,6 +9,7 @@ export interface User {
   lastName: string;
   userType: string;
   tenantId: string;
+  branchId?: string;
 }
 
 interface AuthState {
@@ -40,7 +41,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   mustChangePassword: false,
 
   setAuth: (token, refreshToken, user, roles, permissions, tenantId, mustChangePassword) => {
-    console.log('🔐 Auth Store - setAuth called with tenantId:', tenantId);
+    console.log('🔐 Auth Store - setAuth called:', {
+      tenantId: tenantId,
+      userEmail: user.email,
+      hasToken: !!token,
+      tokenPreview: token ? token.substring(0, 20) + '...' : null,
+      rolesCount: roles.length,
+      permissionsCount: permissions.length
+    });
+    
     set({
       token,
       refreshToken,
@@ -59,6 +68,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.setItem('roles', JSON.stringify(roles));
       localStorage.setItem('permissions', JSON.stringify(permissions));
       localStorage.setItem('tenant_id', tenantId);
+      console.log('✅ Auth persisted to localStorage');
     }
   },
 
@@ -120,6 +130,27 @@ if (typeof window !== 'undefined') {
   (window as any).useAuthStore = useAuthStore;
 }
 
+// Helper function to check if JWT token is expired
+function isTokenExpired(token: string): boolean {
+  try {
+    const decoded: any = jwtDecode(token);
+    if (!decoded || !decoded.exp) return true;
+    
+    // Check if token expired (with 30 second buffer)
+    const currentTime = Date.now() / 1000;
+    const isExpired = decoded.exp < currentTime + 30;
+    
+    if (isExpired) {
+      console.warn('⏰ Token expired at:', new Date(decoded.exp * 1000).toLocaleString());
+    }
+    
+    return isExpired;
+  } catch (e) {
+    console.error('Failed to decode token:', e);
+    return true; // Treat invalid tokens as expired
+  }
+}
+
 // Hydrate auth state from localStorage (call on client startup)
 export function hydrateAuthFromStorage() {
   if (typeof window === 'undefined') return;
@@ -132,12 +163,35 @@ export function hydrateAuthFromStorage() {
     const permissionsJson = localStorage.getItem('permissions');
     const tenantId = localStorage.getItem('tenant_id');
 
+    console.log('🔄 Hydrating auth from localStorage:', {
+      hasToken: !!token,
+      hasTenantId: !!tenantId,
+      hasUser: !!userJson,
+      tenantId: tenantId,
+      tokenPreview: token ? token.substring(0, 20) + '...' : null
+    });
+
     if (token && userJson) {
+      // Check if token is expired before restoring
+      if (isTokenExpired(token)) {
+        console.warn('❌ Token expired - clearing localStorage and requiring login');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('roles');
+        localStorage.removeItem('permissions');
+        localStorage.removeItem('tenant_id');
+        return;
+      }
+      
       const user = JSON.parse(userJson);
       const roles = rolesJson ? JSON.parse(rolesJson) : [];
       const permissions = permissionsJson ? JSON.parse(permissionsJson) : [];
 
-      useAuthStore.getState().setAuth(token, refreshToken || null, user, roles, permissions, tenantId || null, useAuthStore.getState().mustChangePassword);
+      console.log('✅ Restoring auth state for user:', user.email);
+      useAuthStore.getState().setAuth(token, refreshToken || '', user, roles, permissions, tenantId || '', false);
+    } else {
+      console.warn('⚠️ No token or user in localStorage - user needs to log in');
     }
   } catch (e) {
     // ignore malformed storage

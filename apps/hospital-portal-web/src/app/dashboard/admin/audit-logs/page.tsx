@@ -4,7 +4,10 @@ import { useAuthStore } from '@/lib/auth-store';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { auditLogsApi, activationAuditLogsApi } from '@/lib/api';
-import { Search, Download, Filter, Calendar, Shield, Activity } from 'lucide-react';
+import { Search, Download, Filter, Calendar, Shield, Activity, X, BarChart3, FileSpreadsheet, FileText } from 'lucide-react';
+import AuditLogDetailsModal from '@/components/AuditLogDetailsModal';
+import PhiAccessTracking from '@/components/PhiAccessTracking';
+import BreachDetectionAlerts from '@/components/BreachDetectionAlerts';
 
 interface AuditLog {
   id: string;
@@ -54,13 +57,15 @@ interface ActivationAuditLogResponse {
   pageSize: number;
 }
 
-type LogType = 'system' | 'activation';
+type LogType = 'system' | 'activation' | 'phi-access' | 'breach-detection';
 
 export default function AuditLogsPage() {
   const { user } = useAuthStore();
   const router = useRouter();
   
   const [logType, setLogType] = useState<LogType>('system');
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [activationLogs, setActivationLogs] = useState<ActivationAuditLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +88,56 @@ export default function AuditLogsPage() {
   
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'excel' | 'pdf'>('csv');
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  // Quick filter presets
+  const applyQuickFilter = (preset: 'today' | 'week' | 'month' | 'last30') => {
+    const now = new Date();
+    const end = now.toISOString().split('T')[0];
+    let start = '';
+
+    switch (preset) {
+      case 'today':
+        start = end;
+        break;
+      case 'week':
+        const weekAgo = new Date(now);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        start = weekAgo.toISOString().split('T')[0];
+        break;
+      case 'month':
+        const monthAgo = new Date(now);
+        monthAgo.setMonth(monthAgo.getMonth() - 1);
+        start = monthAgo.toISOString().split('T')[0];
+        break;
+      case 'last30':
+        const thirtyDaysAgo = new Date(now);
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        start = thirtyDaysAgo.toISOString().split('T')[0];
+        break;
+    }
+
+    setStartDate(start);
+    setEndDate(end);
+    setCurrentPage(1);
+  };
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setStartDate('');
+    setEndDate('');
+    setActionFilter('');
+    setEntityTypeFilter('');
+    setSeverityFilter('');
+    setActivationStepFilter('');
+    setStatusFilter('');
+    setSuspiciousOnly(false);
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters = searchTerm || startDate || endDate || actionFilter || 
+    entityTypeFilter || severityFilter || activationStepFilter || statusFilter || suspiciousOnly;
 
   // Debounce search
   useEffect(() => {
@@ -159,9 +214,10 @@ export default function AuditLogsPage() {
     }
   };
 
-  const handleExport = async () => {
+  const handleExport = async (format: 'csv' | 'excel' | 'pdf' = exportFormat) => {
     try {
-      const response = await auditLogsApi.export('csv', {
+      setShowExportMenu(false);
+      const response = await auditLogsApi.export(format, {
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         action: actionFilter || undefined,
@@ -172,13 +228,15 @@ export default function AuditLogsPage() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `audit-logs-${new Date().toISOString().split('T')[0]}.csv`);
+      const dateStr = new Date().toISOString().split('T')[0];
+      const extension = format === 'excel' ? 'xlsx' : format;
+      link.setAttribute('download', `audit-logs-${dateStr}.${extension}`);
       document.body.appendChild(link);
       link.click();
       link.remove();
     } catch (err: any) {
       console.error('Error exporting audit logs:', err);
-      alert('Failed to export audit logs');
+      alert(`Failed to export audit logs as ${format.toUpperCase()}`);
     }
   };
 
@@ -212,13 +270,51 @@ export default function AuditLogsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Audit Logs</h1>
           <p className="text-gray-600 mt-2">Track all system activities and user activation processes</p>
         </div>
-        <button
-          onClick={handleExport}
-          className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
-        >
-          <Download size={20} className="mr-2" />
-          Export CSV
-        </button>
+        <div className="flex gap-2">
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+            >
+              <X size={20} className="mr-2" />
+              Clear Filters
+            </button>
+          )}
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+            >
+              <Download size={20} className="mr-2" />
+              Export
+            </button>
+            {showExportMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                <button
+                  onClick={() => handleExport('csv')}
+                  className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 rounded-t-lg"
+                >
+                  <Download size={16} />
+                  Export as CSV
+                </button>
+                <button
+                  onClick={() => handleExport('excel')}
+                  className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <FileSpreadsheet size={16} />
+                  Export as Excel
+                </button>
+                <button
+                  onClick={() => handleExport('pdf')}
+                  className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 rounded-b-lg"
+                >
+                  <FileText size={16} />
+                  Export as PDF
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -256,7 +352,113 @@ export default function AuditLogsPage() {
               Activation Audit Logs
             </div>
           </button>
+          <button
+            onClick={() => { setLogType('phi-access'); setCurrentPage(1); }}
+            className={`py-4 px-1 border-b-2 font-medium text-sm transition ${
+              logType === 'phi-access'
+                ? 'border-purple-500 text-purple-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <div className="flex items-center">
+              <Shield size={18} className="mr-2" />
+              PHI Access Tracking
+            </div>
+          </button>
+          <button
+            onClick={() => { setLogType('breach-detection'); setCurrentPage(1); }}
+            className={`py-4 px-1 border-b-2 font-medium text-sm transition ${
+              logType === 'breach-detection'
+                ? 'border-red-500 text-red-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <div className="flex items-center">
+              <Shield size={18} className="mr-2" />
+              Breach Detection
+            </div>
+          </button>
         </nav>
+      </div>
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total Logs</p>
+              <p className="text-2xl font-bold text-gray-900">{totalCount.toLocaleString()}</p>
+            </div>
+            <BarChart3 className="text-indigo-600" size={32} />
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">High Severity</p>
+              <p className="text-2xl font-bold text-red-600">
+                {logType === 'system' 
+                  ? logs.filter((l: AuditLog) => l.severity === 'high').length
+                  : activationLogs.filter((l: ActivationAuditLog) => l.status === 'failed').length}
+              </p>
+            </div>
+            <Activity className="text-red-600" size={32} />
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Recent Activity</p>
+              <p className="text-2xl font-bold text-green-600">
+                {logType === 'system' ? logs.length : activationLogs.length}
+              </p>
+            </div>
+            <Shield className="text-green-600" size={32} />
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Filtered</p>
+              <p className="text-2xl font-bold text-blue-600">
+                {hasActiveFilters ? 'Yes' : 'No'}
+              </p>
+            </div>
+            <Filter className="text-blue-600" size={32} />
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Filters */}
+      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+        <div className="flex items-center gap-2">
+          <Calendar size={20} className="text-gray-600" />
+          <span className="text-sm font-medium text-gray-700 mr-2">Quick Filters:</span>
+          <button
+            onClick={() => applyQuickFilter('today')}
+            className="px-3 py-1 text-sm bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition"
+          >
+            Today
+          </button>
+          <button
+            onClick={() => applyQuickFilter('week')}
+            className="px-3 py-1 text-sm bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition"
+          >
+            This Week
+          </button>
+          <button
+            onClick={() => applyQuickFilter('month')}
+            className="px-3 py-1 text-sm bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition"
+          >
+            This Month
+          </button>
+          <button
+            onClick={() => applyQuickFilter('last30')}
+            className="px-3 py-1 text-sm bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition"
+          >
+            Last 30 Days
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -426,12 +628,18 @@ export default function AuditLogsPage() {
       </div>
 
       {/* Results Count */}
-      <div className="mb-4 text-sm text-gray-600">
-        Showing {(logType === 'system' ? logs.length : activationLogs.length) > 0 ? ((currentPage - 1) * pageSize + 1) : 0} - {Math.min(currentPage * pageSize, totalCount)} of {totalCount} logs
-      </div>
+      {logType !== 'phi-access' && logType !== 'breach-detection' && (
+        <div className="mb-4 text-sm text-gray-600">
+          Showing {(logType === 'system' ? logs.length : activationLogs.length) > 0 ? ((currentPage - 1) * pageSize + 1) : 0} - {Math.min(currentPage * pageSize, totalCount)} of {totalCount} logs
+        </div>
+      )}
 
-      {/* Tables */}
-      {logType === 'system' ? (
+      {/* Conditional Tab Content */}
+      {logType === 'phi-access' ? (
+        <PhiAccessTracking tenantId={user?.tenantId || ''} />
+      ) : logType === 'breach-detection' ? (
+        <BreachDetectionAlerts tenantId={user?.tenantId || ''} />
+      ) : logType === 'system' ? (
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -465,7 +673,11 @@ export default function AuditLogsPage() {
                   </tr>
                 ) : (
                   logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-gray-50">
+                    <tr 
+                      key={log.id} 
+                      onClick={() => { setSelectedLog(log); setModalOpen(true); }}
+                      className="hover:bg-gray-50 cursor-pointer"
+                    >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {new Date(log.timestamp).toLocaleString()}
                       </td>
@@ -616,6 +828,13 @@ export default function AuditLogsPage() {
             </button>
           </div>
         )}
+      
+      {/* Audit Log Details Modal */}
+      <AuditLogDetailsModal 
+        log={selectedLog} 
+        isOpen={modalOpen} 
+        onClose={() => { setModalOpen(false); setSelectedLog(null); }} 
+      />
     </div>
   );
 }

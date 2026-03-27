@@ -289,4 +289,59 @@ namespace AuthService.Models.Domain
         [ForeignKey("RejectedBy")]
         public virtual AppUser? Rejecter { get; set; }
     }
+
+    /// <summary>
+    /// Emergency Access Audit Log for HIPAA compliance
+    /// Tracks all actions performed during emergency access sessions
+    /// </summary>
+    [Table("emergency_access_audit_log")]
+    public class EmergencyAccessAuditLog
+    {
+        [Key]
+        [Column("id")]
+        public Guid Id { get; set; }
+
+        [Required]
+        [Column("emergency_access_id")]
+        public Guid EmergencyAccessId { get; set; }
+
+        [Required]
+        [Column("user_id")]
+        public Guid UserId { get; set; }
+
+        [Required]
+        [Column("action")]
+        [MaxLength(200)]
+        public string Action { get; set; } = string.Empty;
+
+        [Required]
+        [Column("resource_type")]
+        [MaxLength(100)]
+        public string ResourceType { get; set; } = string.Empty;
+
+        [Required]
+        [Column("resource_id")]
+        [MaxLength(100)]
+        public string ResourceId { get; set; } = string.Empty;
+
+        [Column("details")]
+        public string Details { get; set; } = string.Empty;
+
+        [Column("timestamp")]
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+
+        [Column("ip_address")]
+        [MaxLength(45)]
+        public string IpAddress { get; set; } = string.Empty;
+
+        [Column("user_agent")]
+        public string UserAgent { get; set; } = string.Empty;
+
+        // Navigation properties
+        [ForeignKey("EmergencyAccessId")]
+        public virtual EmergencyAccess? EmergencyAccess { get; set; }
+
+        [ForeignKey("UserId")]
+        public virtual AppUser? User { get; set; }
+    }
 }

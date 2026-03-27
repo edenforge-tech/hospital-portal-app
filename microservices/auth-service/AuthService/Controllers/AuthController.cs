@@ -55,7 +55,7 @@ namespace AuthService.Controllers
 
                 // Find tenant in database
                 var tenant = await _context.Tenants.FindAsync(tenantId);
-                if (tenant == null || tenant.Status != "Active")
+                if (tenant == null || !tenant.Status.Equals("active", StringComparison.OrdinalIgnoreCase))
                 {
                     return BadRequest(new { message = "Tenant not found or inactive" });
                 }
@@ -113,6 +113,7 @@ namespace AuthService.Controllers
                             firstName = mockUser.FirstName,
                             lastName = mockUser.LastName,
                             tenantId = mockUser.TenantId,
+                            branchId = dbUser.BranchId,
                             tenantName = tenant?.Name ?? "Apollo Hospitals",
                             mustChangePassword = false
                         },
@@ -200,6 +201,9 @@ namespace AuthService.Controllers
                 // Get user roles and permissions
                 var roles = await _userManager.GetRolesAsync(user);
                 var permissions = await _permissionService.GetUserPermissionsAsync(user.Id, tenantId);
+
+                // DEBUG: Log permissions being granted
+                Console.WriteLine($"🔐 LOGIN: User {user.Email} granted permissions: [{string.Join(", ", permissions)}]");
 
                 // Generate JWT token
                 var accessToken = _jwtService.GenerateToken(user, roles.ToList(), permissions);

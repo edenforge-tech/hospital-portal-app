@@ -124,6 +124,28 @@ export default function EmergencyAccessPage() {
     }
   };
 
+  const handleReview = async (accessId: string) => {
+    const notes = prompt('Enter post-access review notes:');
+    if (!notes) return;
+
+    const findings = prompt('Enter findings (optional):') || '';
+    const compliant = confirm('Was the access usage compliant?');
+
+    try {
+      setError(null);
+      setSuccess(null);
+      await emergencyAccessApi.review(accessId, {
+        notes,
+        findings: findings || undefined,
+        compliant
+      });
+      setSuccess('Post-access review submitted successfully');
+      await loadData();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to submit review');
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const colors = {
       pending: 'bg-yellow-100 text-yellow-800',
@@ -312,12 +334,20 @@ export default function EmergencyAccessPage() {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleRevoke(access.id)}
-                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-                >
-                  Revoke Access
-                </button>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => handleRevoke(access.id)}
+                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                  >
+                    Revoke Access
+                  </button>
+                  <button
+                    onClick={() => handleReview(access.id)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                  >
+                    📋 Submit Review
+                  </button>
+                </div>
               </div>
             ))}
           </div>

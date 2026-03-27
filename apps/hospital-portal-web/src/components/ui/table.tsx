@@ -1,25 +1,42 @@
 import * as React from 'react'
+import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const Table = React.forwardRef<
   HTMLTableElement,
-  React.HTMLAttributes<HTMLTableElement>
->(({ className, ...props }, ref) => (
+  React.HTMLAttributes<HTMLTableElement> & {
+    caption?: string
+  }
+>(({ className, caption, ...props }, ref) => (
   <div className="w-full overflow-auto">
     <table
       ref={ref}
       className={cn('w-full caption-bottom text-sm', className)}
+      role="table"
       {...props}
-    />
+    >
+      {caption && <caption className="sr-only">{caption}</caption>}
+      {props.children}
+    </table>
   </div>
 ))
 Table.displayName = 'Table'
 
 const TableHeader = React.forwardRef<
   HTMLTableSectionElement,
-  React.HTMLAttributes<HTMLTableSectionElement>
->(({ className, ...props }, ref) => (
-  <thead ref={ref} className={cn('[&_tr]:border-b', className)} {...props} />
+  React.HTMLAttributes<HTMLTableSectionElement> & {
+    sticky?: boolean
+  }
+>(({ className, sticky = false, ...props }, ref) => (
+  <thead
+    ref={ref}
+    className={cn(
+      '[&_tr]:border-b bg-gray-50',
+      sticky && 'sticky top-0 z-10',
+      className
+    )}
+    {...props}
+  />
 ))
 TableHeader.displayName = 'TableHeader'
 
@@ -41,7 +58,7 @@ const TableFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <tfoot
     ref={ref}
-    className={cn('bg-slate-900 font-medium text-slate-50 dark:bg-slate-50 dark:text-slate-900', className)}
+    className={cn('bg-gray-50 font-medium text-gray-900 border-t-2 border-gray-200', className)}
     {...props}
   />
 ))
@@ -49,12 +66,16 @@ TableFooter.displayName = 'TableFooter'
 
 const TableRow = React.forwardRef<
   HTMLTableRowElement,
-  React.HTMLAttributes<HTMLTableRowElement>
->(({ className, ...props }, ref) => (
+  React.HTMLAttributes<HTMLTableRowElement> & {
+    zebra?: boolean
+  }
+>(({ className, zebra = false, ...props }, ref) => (
   <tr
     ref={ref}
     className={cn(
-      'border-b transition-colors hover:bg-slate-100/50 data-[state=selected]:bg-slate-100 dark:hover:bg-slate-800/50 dark:data-[state=selected]:bg-slate-800',
+      'border-b border-gray-200 transition-colors hover:bg-primary-50',
+      'data-[state=selected]:bg-primary-100',
+      zebra && 'even:bg-gray-50',
       className
     )}
     {...props}
@@ -64,16 +85,38 @@ TableRow.displayName = 'TableRow'
 
 const TableHead = React.forwardRef<
   HTMLTableCellElement,
-  React.ThHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
+  React.ThHTMLAttributes<HTMLTableCellElement> & {
+    sortable?: boolean
+    sortDirection?: 'asc' | 'desc' | 'none'
+    onSort?: () => void
+  }
+>(({ className, sortable = false, sortDirection = 'none', onSort, children, ...props }, ref) => (
   <th
     ref={ref}
     className={cn(
-      'h-12 px-4 text-left align-middle font-medium text-slate-500 [&:has([role=checkbox])]:pr-0 dark:text-slate-400',
+      'h-12 px-4 text-left align-middle font-semibold text-primary-800 [&:has([role=checkbox])]:pr-0',
+      sortable && 'cursor-pointer select-none hover:bg-gray-100',
       className
     )}
+    aria-sort={sortable && sortDirection ? (sortDirection === 'none' ? undefined : sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
+    onClick={sortable ? onSort : undefined}
     {...props}
-  />
+  >
+    {sortable ? (
+      <div className="flex items-center gap-2">
+        {children}
+        {sortDirection === 'asc' ? (
+          <ArrowUp className="h-4 w-4 text-primary-600" />
+        ) : sortDirection === 'desc' ? (
+          <ArrowDown className="h-4 w-4 text-primary-600" />
+        ) : (
+          <ArrowUpDown className="h-4 w-4 text-gray-400" />
+        )}
+      </div>
+    ) : (
+      children
+    )}
+  </th>
 ))
 TableHead.displayName = 'TableHead'
 

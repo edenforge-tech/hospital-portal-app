@@ -1,0 +1,14 @@
+{
+  "sessionId": "22222222-2222-2222-2222-222222222222",
+  "patientId": "910c6329-1de6-4dd1-9c37-dc0d44b332eb",
+  "admissionType": "IPD",
+  "admissionDate": "2026-03-01",
+  "admissionTime": "10:00:00",
+  "surgeryType": "Vitrectomy",
+  "surgeryDate": "2026-03-02",
+  "eyeOperated": "OS",
+  "attendantName": "Sanjay Patel",
+  "attendantPhone": "9876543222",
+  "attendantRelation": "Son",
+  "admissionDepositPaid": 60000
+}

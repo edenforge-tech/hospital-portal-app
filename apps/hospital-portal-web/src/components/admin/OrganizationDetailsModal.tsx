@@ -162,7 +162,7 @@ export default function OrganizationDetailsModal({ organization, onClose, onEdit
                           Level {organization.hierarchyLevel}
                         </span>
                       </div>
-                    )}>
+                    )}
                     {organization.description && (
                       <div className="pt-2">
                         <p className="text-sm font-medium text-gray-600 mb-2">Description</p>

@@ -1,0 +1,14 @@
+{
+  "sessionId": "11111111-1111-1111-1111-111111111111",
+  "patientId": "5a4ca192-8060-4672-b212-cc1e7e8cc081",
+  "insuranceType": "Private",
+  "insuranceProvider": "Star Health Insurance",
+  "tpaName": "Medi Assist",
+  "policyNumber": "STAR2024001",
+  "policyHolderName": "Rajesh Kumar",
+  "surgeryType": "Cataract",
+  "requestedAmount": 45000,
+  "diagnosisCode": "H25.9",
+  "procedureCode": "66984",
+  "eyeOperated": "OD"
+}

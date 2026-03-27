@@ -18,10 +18,21 @@ namespace AuthService.Middleware
         {
             var tenantHeader = context.Request.Headers["X-Tenant-ID"].ToString();
             
-            // For login endpoint, debug endpoints, and tenant list endpoint, tenant ID comes from the body or is not needed
-            if (context.Request.Path.StartsWithSegments("/api/auth/login") ||
+            // Skip tenant check for these paths
+            if (context.Request.Path.StartsWithSegments("/swagger") ||
+                context.Request.Path.StartsWithSegments("/favicon.ico") ||
+                context.Request.Path.StartsWithSegments("/_next") ||
+                context.Request.Path.StartsWithSegments("/api/auth/login") ||
                 context.Request.Path.StartsWithSegments("/api/auth/debug") ||
                 context.Request.Path.StartsWithSegments("/api/tenants/debug/codes") ||
+                context.Request.Path.StartsWithSegments("/api/license") || // Allow license endpoints for testing
+                context.Request.Path.StartsWithSegments("/api/departments") || // Allow department endpoints for testing
+                context.Request.Path.StartsWithSegments("/api/roles") || // Allow roles endpoints for testing
+                context.Request.Path.StartsWithSegments("/api/permissions") || // Allow permissions endpoints for testing
+                context.Request.Path.StartsWithSegments("/api/appointments") || // Allow appointments endpoints for testing
+                context.Request.Path.StartsWithSegments("/api/SeedData") || // Allow seed data endpoint for testing
+                context.Request.Path.StartsWithSegments("/hubs") || // Skip SignalR hubs - tenant resolved from JWT
+                context.Request.Path.StartsWithSegments("/api/servicecatalog") || // Global catalog - no tenant context needed
                 (context.Request.Path.StartsWithSegments("/api/tenants") && context.Request.Method == "GET"))
             {
                 await _next(context);

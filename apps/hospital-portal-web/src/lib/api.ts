@@ -37,9 +37,49 @@ export const initializeApi = () => {
 
   // Add response interceptor for error handling
   axiosInstance.interceptors.response.use(
-    (response) => response,
+    (response) => {
+      console.log('✅ API Response Success:', {
+        url: response.config.url,
+        status: response.status,
+        hasData: !!response.data,
+      });
+      return response;
+    },
     (error) => {
+      console.error('❌ API Response Error:', {
+        url: error.config?.url,
+        status: error.response?.status,
+        message: error.message,
+        data: error.response?.data,
+        fullError: error.response,
+      });
+      
+      // Log backend validation errors in detail
+      if (error.response?.data) {
+        console.error('🔍 Backend Error Details:', JSON.stringify(error.response.data, null, 2));
+      }
+      
       if (error.response?.status === 401) {
+        const url = error.config?.url || '';
+        
+        // Don't auto-logout for specific endpoints - let component handle it
+        const skipLogoutUrls = ['/patients', '/users', '/departments', '/appointments/stats'];
+        const shouldSkipLogout = skipLogoutUrls.some(path => url.includes(path));
+        
+        if (shouldSkipLogout) {
+          console.warn('⚠️ 401 UNAUTHORIZED - Session expired, please log in again');
+          return Promise.reject(error);
+        }
+        
+        // For other endpoints, log out
+        console.error('🔴 401 UNAUTHORIZED - LOGGING OUT:', {
+          url: url,
+          method: error.config?.method,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data
+        });
+        alert(`Session expired. Please log in again.`);
         useAuthStore.getState().logout();
         window.location.href = '/auth/login';
       } else if (error.response?.status === 403) {
@@ -77,6 +117,55 @@ export const examinationApi = {
   delete: (id: string) => getApi().delete(`/examinations/${id}`)
 };
 
+export const visitsApi = {
+  getAll: () => getApi().get('/visits'),
+  getById: (id: string) => getApi().get(`/visits/${id}`),
+  getByPatient: (patientId: string, page?: number, pageSize?: number) => 
+    getApi().get(`/visits/by-patient/${patientId}`, { params: { page, pageSize } }),
+  getByAppointment: (appointmentId: string) => getApi().get(`/visits/by-appointment/${appointmentId}`),
+  getQueue: (branchId: string, station?: string, assignedTo?: string) => 
+    getApi().get(`/visits/queue/${branchId}`, { params: { station, assignedTo } }),
+  checkIn: (data: any) => getApi().post('/visits/check-in', data),
+  sendTo: (data: any) => getApi().post('/visits/send-to', data),
+  complete: (visitId: string, data: any) => getApi().post(`/visits/${visitId}/complete`, data)
+};
+
+export const appointmentsApi = {
+  getAll: (params?: any) => getApi().get('/appointments', { params }),
+  getById: (id: string) => getApi().get(`/appointments/${id}`),
+  getByPatient: (patientId: string) => getApi().get(`/appointments/patient/${patientId}`),
+  getTodayByPatient: (patientId: string) => getApi().get(`/appointments/patient/${patientId}/today`),
+  getStats: () => getApi().get('/appointments/stats'),
+  create: (data: any) => getApi().post('/appointments', data),
+  update: (id: string, data: any) => getApi().put(`/appointments/${id}`, data),
+  cancel: (id: string, reason?: string) => getApi().post(`/appointments/${id}/cancel`, { reason }),
+  reschedule: (id: string, data: any) => getApi().post(`/appointments/${id}/reschedule`, data),
+  delete: (id: string) => getApi().delete(`/appointments/${id}`)
+};
+
+export const prescriptionsApi = {
+  getAll: () => getApi().get('/prescriptions'),
+  getById: (id: string) => getApi().get(`/prescriptions/${id}`),
+  getByPatient: (patientId: string, status?: string) => 
+    getApi().get(`/prescriptions/patient/${patientId}`, { params: { status } }),
+  create: (data: any) => getApi().post('/prescriptions', data),
+  update: (id: string, data: any) => getApi().put(`/prescriptions/${id}`, data),
+  delete: (id: string) => getApi().delete(`/prescriptions/${id}`),
+  markDispensed: (id: string, data: any) => getApi().post(`/prescriptions/${id}/dispense`, data)
+};
+
+export const opdBillsApi = {
+  getAll: (params?: any) => getApi().get('/opdbills', { params }),
+  getById: (id: string) => getApi().get(`/opdbills/${id}`),
+  getByPatient: (patientId: string, page?: number, pageSize?: number) => 
+    getApi().get('/opdbills', { params: { patientId, page, pageSize } }),
+  getByAppointment: (appointmentId: string) => getApi().get(`/opdbills/by-appointment/${appointmentId}`),
+  create: (data: any) => getApi().post('/opdbills', data),
+  update: (id: string, data: any) => getApi().put(`/opdbills/${id}`, data),
+  addPayment: (billId: string, data: any) => getApi().post(`/opdbills/${billId}/payment`, data),
+  cancel: (id: string, reason?: string) => getApi().post(`/opdbills/${id}/cancel`, { reason })
+};
+
 export const authApi = {
   login: (email: string, password: string, tenantId: string) =>
     getApi().post('/auth/login', { email, password, tenantId }),
@@ -110,6 +199,27 @@ export const rolesApi = {
     getApi().delete(`/roles/${roleId}/permissions`, { data: { permissionIds } }),
   cloneRole: (roleId: string, newRoleName: string, newRoleDescription?: string) =>
     getApi().post(`/roles/${roleId}/clone`, { name: newRoleName, description: newRoleDescription }),
+  
+  // Role Hierarchy APIs
+  getHierarchy: () => getApi().get('/roles/hierarchy'),
+  updateHierarchy: (roleId: string, data: any) => getApi().put(`/roles/${roleId}/hierarchy`, data),
+  getInheritancePreview: (roleId: string) => getApi().get(`/roles/${roleId}/inheritance-preview`),
+  refreshInheritance: (roleId: string) => getApi().post(`/roles/${roleId}/refresh-inheritance`),
+  validateHierarchy: (roleId: string, parentRoleId?: string) => 
+    getApi().post('/roles/validate-hierarchy', { roleId, parentRoleId }),
+    
+  // Role Template APIs
+  getTemplates: (category?: string) => getApi().get(`/roles/templates${category ? `?category=${category}` : ''}`),
+  createFromTemplate: (templateId: string, data: any) => 
+    getApi().post(`/roles/from-template/${templateId}`, data),
+    
+  // User Role History APIs
+  getUserRoleHistory: (userId: string) => getApi().get(`/roles/history/user/${userId}`),
+  getAllRoleHistory: (filters?: any) => getApi().get('/roles/history', { params: filters }),
+  
+  // Bulk Role Operations
+  bulkUpdateHierarchy: (operations: any[]) => getApi().post('/roles/bulk/hierarchy', { operations }),
+  bulkRefreshInheritance: (roleIds: string[]) => getApi().post('/roles/bulk/refresh-inheritance', { roleIds }),
 };
 
 export const permissionsApi = {
@@ -159,5 +269,62 @@ export const settingsApi = {
   reset: (category: string) => getApi().post(`/settings/${category}/reset`),
 };
 
+export const licensesApi = {
+  getAll: (params?: any) => getApi().get('/license', { params }),
+  getById: (id: string) => getApi().get(`/license/${id}`),
+  getByEmployee: (employeeId: string) => getApi().get(`/license/employee/${employeeId}`),
+  getExpiring: (days: number = 90) => getApi().get(`/license/expiring`, { params: { days } }),
+  getStatistics: () => getApi().get('/license/statistics'),
+  create: (data: any) => getApi().post('/license', data),
+  update: (id: string, data: any) => getApi().put(`/license/${id}`, data),
+  verify: (id: string, data: { approved: boolean; verificationNotes?: string }) => 
+    getApi().post(`/license/${id}/verify`, data),
+  renew: (id: string, data: { newExpiryDate: string }) => 
+    getApi().post(`/license/${id}/renew`, data),
+  delete: (id: string) => getApi().delete(`/license/${id}`),
+  sendRenewalReminders: () => getApi().post('/license/send-renewal-reminders'),
+  fixTenantIds: () => getApi().post('/license/fix-tenant-ids'),
+};
+
+export const employeesApi = {
+  getAll: (params?: any) => getApi().get('/employee', { params }),
+  getById: (id: string) => getApi().get(`/employee/${id}`),
+  getByUserId: (userId: string) => getApi().get(`/employee/user/${userId}`),
+  getEmploymentTypes: () => getApi().get('/employee/employment-types'),
+  create: (data: any) => getApi().post('/employee', data),
+  update: (id: string, data: any) => getApi().put(`/employee/${id}`, data),
+  delete: (id: string) => getApi().delete(`/employee/${id}`),
+};
+
+export const bulkOperationsApi = {
+  getUserTemplate: () => getApi().get('/bulkoperations/template/users', { responseType: 'blob' }),
+  getEmployeeTemplate: () => getApi().get('/bulkoperations/template/employees', { responseType: 'blob' }),
+  importUsers: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return getApi().post('/bulkoperations/import/users', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  importEmployees: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return getApi().post('/bulkoperations/import/employees', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  exportUsers: () => getApi().get('/bulkoperations/export/users', { responseType: 'blob' }),
+  exportEmployees: () => getApi().get('/bulkoperations/export/employees', { responseType: 'blob' }),
+  assignRoles: (userIds: string[], roleIds: string[]) => 
+    getApi().post('/bulkoperations/assign-roles', { userIds, roleIds }),
+  updateStatus: (targetIds: string[], status: string) => 
+    getApi().post('/bulkoperations/update-status', { targetIds, status }),
+  activate: (targetIds: string[]) => getApi().post('/bulkoperations/activate', { targetIds }),
+  deactivate: (targetIds: string[]) => getApi().post('/bulkoperations/deactivate', { targetIds }),
+  bulkDelete: (targetIds: string[]) => getApi().post('/bulkoperations/delete', { targetIds }),
+};
+
 export { userDepartmentAccessApi } from './api/user-department-access.api';
-export { auditLogsApi } from './api/audit-logs.api';
+export { auditLogsApi, activationAuditLogsApi } from './api/audit-logs.api';
+export { insuranceApi } from './api/insurance.api';
+

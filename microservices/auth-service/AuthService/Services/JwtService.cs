@@ -29,7 +29,8 @@ namespace AuthService.Services
                 new Claim("user_id", user.Id.ToString()), // Add "user_id" claim as fallback
                 new Claim(ClaimTypes.Name, user.UserName),
                 new Claim(ClaimTypes.Email, user.Email),
-                new Claim("tenant_id", user.TenantId.ToString())
+                new Claim("TenantId", user.TenantId.ToString()), // Changed from "tenant_id" to "TenantId" to match controller expectations
+                new Claim("tenant_id", user.TenantId.ToString()) // Keep old claim for backward compatibility
             };
 
             // Add roles

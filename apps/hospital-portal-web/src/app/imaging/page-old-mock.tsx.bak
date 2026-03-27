@@ -1,0 +1,401 @@
+// Imaging Module - Integration of DICOM Viewer, OCT Analysis & Real-time Updates
+// Complete example showcasing Phase 7 advanced features
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
+import {
+  Activity,
+  Calendar,
+  Download,
+  FileText,
+  X,
+  Upload,
+  Grid3x3,
+  GitCompare,
+  Printer,
+  Plus,
+} from 'lucide-react';
+
+// Dynamic imports for CornerstoneJS components (client-side only, no SSR)
+const SimpleDICOMViewer = dynamic(() => import('@/components/imaging/SimpleDICOMViewer'), { ssr: false });
+const OCTLayerSegmentation = dynamic(() => import('@/components/imaging/OCTLayerSegmentation'), { ssr: false });
+const OCTProgressionDashboard = dynamic(() => import('@/components/imaging/OCTProgressionDashboard'), { ssr: false });
+const ImageUploadDialog = dynamic(() => import('@/components/imaging/ImageUploadDialog'), { ssr: false });
+const ImageGallery = dynamic(() => import('@/components/imaging/ImageGallery'), { ssr: false });
+const ExportDialog = dynamic(() => import('@/components/imaging/ExportDialog'), { ssr: false });
+const ComparisonViewer = dynamic(() => import('@/components/imaging/ComparisonViewer'), { ssr: false });
+
+import { useQueueConnection } from '@/hooks/useQueueConnection';
+import { useAuthStore } from '@/lib/auth-store';
+import toast from 'react-hot-toast';
+
+type ViewMode = 'viewer' | 'segmentation' | 'progression' | 'gallery' | 'comparison';
+
+interface ImagingStudy {
+  id: string;
+  patientId: string;
+  patientName: string;
+  studyDate: Date;
+  modality: 'OCT' | 'Fundus' | 'Angiography' | 'CT' | 'MRI' | 'X-Ray';
+  eye?: 'OD' | 'OS';
+  description: string;
+  imageUrl: string;
+  status: 'pending' | 'analyzed' | 'reported';
+}
+
+export default function ImagingModulePage() {
+  const params = useParams();
+  const { tenantId } = useAuthStore();
+  const [viewMode, setViewMode] = useState<ViewMode>('viewer');
+  const [currentStudy, setCurrentStudy] = useState<ImagingStudy | null>(null);
+  const [recentStudies, setRecentStudies] = useState<ImagingStudy[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [comparisonStudyId, setComparisonStudyId] = useState<string | null>(null);
+
+  // SignalR real-time connection for imaging updates
+  const { isConnected } = useQueueConnection({
+    onQueueUpdate: (update) => {
+      console.log('Queue update received:', update);
+      toast('Queue updated', { icon: '🔄' });
+    },
+    onPatientCalled: (notification) => {
+      toast(
+        `Patient ${notification.patientName} called to ${notification.queueType}`,
+        { icon: '📢', duration: 5000 }
+      );
+    },
+  });
+
+  // Fetch imaging studies
+  const fetchImagingStudies = async () => {
+    setIsLoading(true);
+    
+    try {
+      // Simulate API call (in production: await api.get('/imaging/studies'))
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Mock data for demonstration with generated demo images
+      const mockStudies: ImagingStudy[] = [
+        {
+          id: '1',
+          patientId: 'P001',
+          patientName: 'John Smith',
+          studyDate: new Date(),
+          modality: 'OCT',
+          eye: 'OD',
+          description: 'Macular OCT - Glaucoma Follow-up',
+          imageUrl: '', // Will use generated demo image
+          status: 'pending',
+        },
+        {
+          id: '2',
+          patientId: 'P001',
+          patientName: 'John Smith',
+          studyDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000), // 3 months ago
+          modality: 'OCT',
+          eye: 'OD',
+          description: 'Macular OCT - Baseline',
+          imageUrl: '', // Will use generated demo image
+          status: 'analyzed',
+        },
+        {
+          id: '3',
+          patientId: 'P002',
+          patientName: 'Sarah Johnson',
+          studyDate: new Date(),
+          modality: 'Fundus',
+          eye: 'OS',
+          description: 'Color Fundus Photography - Diabetic Retinopathy Screening',
+          imageUrl: '', // Will use generated demo image
+          status: 'pending',
+        },
+      ];
+
+      setRecentStudies(mockStudies);
+      
+      // Set first study as current
+      if (mockStudies.length > 0) {
+        setCurrentStudy(mockStudies[0]);
+      }
+
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Failed to fetch imaging studies:', error);
+      toast.error('Failed to load imaging studies');
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch studies on mount
+  useEffect(() => {
+    fetchImagingStudies();
+  }, []);
+
+  // Handle save OCT analysis
+  const handleSaveOCTAnalysis = (analysis: any) => {
+    console.log('Saving OCT analysis:', analysis);
+    
+    // In production: await api.post('/oct/analysis', analysis)
+    
+    // Update study status
+    if (currentStudy) {
+      setCurrentStudy({ ...currentStudy, status: 'analyzed' });
+      
+      // Update in list
+      setRecentStudies((studies) =>
+        studies.map((s) =>
+          s.id === currentStudy.id ? { ...s, status: 'analyzed' } : s
+        )
+      );
+    }
+
+    toast.success('OCT analysis saved successfully');
+  };
+
+  // Handle export progression report
+  const handleExportReport = () => {
+    toast.promise(
+      new Promise((resolve) => setTimeout(resolve, 2000)),
+      {
+        loading: 'Generating progression report...',
+        success: 'Report downloaded successfully',
+        error: 'Failed to generate report',
+      }
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      {/* Header with SignalR Connection Status */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <span className="text-4xl">📷</span>
+              Imaging Module
+            </h1>
+            <p className="text-gray-600 mt-1">
+              DICOM Viewer, OCT Analysis & Real-time Notifications
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Activity
+              className={`w-5 h-5 ${
+                isConnected ? 'text-green-600 animate-pulse' : 'text-gray-400'
+              }`}
+            />
+            <span className="text-sm text-gray-600">
+              {isConnected ? 'Real-time Connected' : 'Disconnected'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Sidebar - Recent Studies */}
+        <div className="lg:col-span-1">
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Studies</h2>
+            
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="h-16 bg-gray-200 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {recentStudies.map((study) => (
+                  <button
+                    key={study.id}
+                    onClick={() => setCurrentStudy(study)}
+                    className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
+                      currentStudy?.id === study.id
+                        ? 'border-indigo-600 bg-indigo-50'
+                        : 'border-gray-200 hover:border-gray-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-semibold text-gray-900">
+                        {study.patientName}
+                      </span>
+                      {study.eye && (
+                        <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                          {study.eye}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-600 mb-1">{study.modality}</div>
+                    <div className="text-xs text-gray-500">{study.description}</div>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-xs text-gray-500">
+                        {study.studyDate.toLocaleDateString()}
+                      </span>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded ${
+                          study.status === 'analyzed'
+                            ? 'bg-green-100 text-green-800'
+                            : study.status === 'reported'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}
+                      >
+                        {study.status}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="lg:col-span-3 space-y-6">
+          {/* View Mode Selector */}
+          {currentStudy && (
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setViewMode('viewer')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                    viewMode === 'viewer'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <FileText className="w-4 h-4" />
+                  DICOM Viewer
+                </button>
+                
+                {currentStudy.modality === 'OCT' && (
+                  <>
+                    <span className="text-gray-400">›</span>
+                    <button
+                      onClick={() => setViewMode('segmentation')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                        viewMode === 'segmentation'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      <span className="text-sm">👁</span>
+                      Layer Segmentation
+                    </button>
+                    <span className="text-gray-400">›</span>
+                    <button
+                      onClick={() => setViewMode('progression')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                        viewMode === 'progression'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Activity className="w-4 h-4" />
+                      Progression Analysis
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Content Based on View Mode */}
+          {currentStudy && (
+            <>
+              {viewMode === 'viewer' && (
+                <SimpleDICOMViewer
+                  imageId={currentStudy.id}
+                  imageUrl={currentStudy.imageUrl}
+                  patientName={currentStudy.patientName}
+                  studyDescription={currentStudy.description}
+                  showTools={true}
+                  enableAnnotations={true}
+                  className="w-full h-full"
+                />
+              )}
+
+              {viewMode === 'segmentation' && currentStudy.modality === 'OCT' && (
+                <OCTLayerSegmentation
+                  scanId={currentStudy.id}
+                  patientId={currentStudy.patientId}
+                  patientName={currentStudy.patientName}
+                  eye={currentStudy.eye || 'OD'}
+                  imageUrl={currentStudy.imageUrl}
+                  onSave={handleSaveOCTAnalysis}
+                />
+              )}
+
+              {viewMode === 'progression' && currentStudy.modality === 'OCT' && (
+                <OCTProgressionDashboard
+                  patientId={currentStudy.patientId}
+                  patientName={currentStudy.patientName}
+                  eye={currentStudy.eye || 'OD'}
+                  dateOfBirth={new Date(1975, 5, 15)} // Mock DOB
+                  onExportReport={handleExportReport}
+                />
+              )}
+            </>
+          )}
+
+          {/* No Study Selected */}
+          {!currentStudy && !isLoading && (
+            <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+              <Activity className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                No Study Selected
+              </h3>
+              <p className="text-gray-500">
+                Select a study from the sidebar to view imaging details
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Feature Showcase Banner */}
+      <div className="mt-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg p-6 text-white">
+        <h2 className="text-2xl font-bold mb-2">Phase 7 Features Integrated</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+          <div className="bg-white/10 rounded-lg p-4 backdrop-blur">
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="w-5 h-5" />
+              <h3 className="font-semibold">DICOM Viewer</h3>
+            </div>
+            <p className="text-sm text-indigo-100">
+              Full-featured medical image viewer with 8 tools: Window/Level, Pan, Zoom, Length,
+              Angle, ROI measurements, rotation, and color inversion
+            </p>
+          </div>
+          <div className="bg-white/10 rounded-lg p-4 backdrop-blur">
+            <div className="flex items-center gap-2 mb-2">
+              <Activity className="w-5 h-5" />
+              <h3 className="font-semibold">OCT Segmentation</h3>
+            </div>
+            <p className="text-sm text-indigo-100">
+              AI-powered automated layer segmentation with RNFL/GCL thickness analysis,
+              glaucoma risk scoring, and ETDRS grid mapping
+            </p>
+          </div>
+          <div className="bg-white/10 rounded-lg p-4 backdrop-blur">
+            <div className="flex items-center gap-2 mb-2">
+              <Activity className="w-5 h-5" />
+              <h3 className="font-semibold">Real-time Updates</h3>
+            </div>
+            <p className="text-sm text-indigo-100">
+              SignalR integration for live queue notifications, patient status changes,
+              and multi-station coordination with automatic reconnection
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
