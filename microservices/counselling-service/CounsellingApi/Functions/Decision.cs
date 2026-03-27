@@ -1,0 +1,75 @@
+using System.Net;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
+using CounsellingApi.Models;
+using CounsellingApi.Services;
+
+namespace CounsellingApi.Functions;
+
+public class Decision
+{
+    private readonly CounsellingService _service;
+
+    public Decision(CounsellingService service)
+    {
+        _service = service;
+    }
+
+    [Function("Decision")]
+    public async Task<HttpResponseData> Run(
+        [HttpTrigger(AuthorizationLevel.Function, "post", Route = "counselling/{id}/decision")]
+        HttpRequestData req,
+        string id)
+    {
+        try
+        {
+            if (!Guid.TryParse(id, out var guid))
+                return await BadRequest(req, "id must be a valid GUID.");
+
+            var body = await req.ReadFromJsonAsync<DecisionRequest>()
+                ?? throw new ArgumentException("Request body is required.");
+
+            if (string.IsNullOrWhiteSpace(body.Decision))
+                return await BadRequest(req, "Decision field is required (Interested | NotInterested | NeedsTime).");
+
+            await _service.Decision(guid, body.Decision, body.PerformedBy,
+                body.FollowUpDate, body.FollowUpReason);
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new { message = "Decision recorded.", decision = body.Decision });
+            return response;
+        }
+        catch (KeyNotFoundException ex)
+        {
+            var r = req.CreateResponse(HttpStatusCode.NotFound);
+            await r.WriteAsJsonAsync(new { error = ex.Message });
+            return r;
+        }
+        catch (InvalidOperationException ex)
+        {
+            return await BadRequest(req, ex.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            return await BadRequest(req, ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return await InternalError(req, ex.Message);
+        }
+    }
+
+    private static async Task<HttpResponseData> BadRequest(HttpRequestData req, string message)
+    {
+        var r = req.CreateResponse(HttpStatusCode.BadRequest);
+        await r.WriteAsJsonAsync(new { error = message });
+        return r;
+    }
+
+    private static async Task<HttpResponseData> InternalError(HttpRequestData req, string message)
+    {
+        var r = req.CreateResponse(HttpStatusCode.InternalServerError);
+        await r.WriteAsJsonAsync(new { error = message });
+        return r;
+    }
+}

@@ -23,11 +23,13 @@ public class UserService : IUserService
 {
     private readonly AppDbContext _context;
     private readonly UserManager<AppUser> _userManager;
+    private readonly INotificationService _notificationService;
 
-    public UserService(AppDbContext context, UserManager<AppUser> userManager)
+    public UserService(AppDbContext context, UserManager<AppUser> userManager, INotificationService notificationService)
     {
         _context = context;
         _userManager = userManager;
+        _notificationService = notificationService;
     }
 
     public async Task<UserProfileDto?> GetProfileAsync(Guid userId, Guid tenantId)
@@ -112,7 +114,7 @@ public class UserService : IUserService
         if (user == null)
             return false;
 
-        user.UserStatus = "Suspended";
+        user.UserStatus = "inactive";
         user.UpdatedAt = DateTime.UtcNow;
         user.UpdatedBy = actionBy;
 
@@ -134,6 +136,21 @@ public class UserService : IUserService
             };
             _context.AuditLogs.Add(auditLog);
             await _context.SaveChangesAsync();
+            
+            // Phase 3: Notify tenant of user deactivation
+            try
+            {
+                await _notificationService.NotifyUserDeactivatedAsync(
+                    tenantId, 
+                    userId, 
+                    user.UserName ?? user.Email ?? "User", 
+                    reason
+                );
+            }
+            catch (Exception)
+            {
+                // Log error but don't fail the operation
+            }
         }
 
         return result.Succeeded;
@@ -147,7 +164,7 @@ public class UserService : IUserService
         if (user == null)
             return false;
 
-        user.UserStatus = "Active";
+        user.UserStatus = "active";
         user.UpdatedAt = DateTime.UtcNow;
         user.UpdatedBy = actionBy;
 

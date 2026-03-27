@@ -19,6 +19,7 @@ interface AppointmentCalendarProps {
 const statusColors: Record<string, string> = {
   scheduled: '#3B82F6', // blue
   confirmed: '#10B981', // green
+  checked_in: '#8B5CF6', // purple - patient checked in
   'in-progress': '#F59E0B', // yellow
   completed: '#6B7280', // gray
   cancelled: '#EF4444', // red
@@ -38,7 +39,7 @@ export default function AppointmentCalendar({
   // Transform appointments to FullCalendar events
   const events = appointments.map(apt => ({
     id: apt.id,
-    title: `${apt.patientName} - ${apt.doctorName}`,
+    title: `${apt.status === 'checked_in' ? '✓ ' : ''}${apt.patientName} - ${apt.doctorName}`,
     start: `${apt.appointmentDate}T${apt.startTime}`,
     end: apt.endTime ? `${apt.appointmentDate}T${apt.endTime}` : undefined,
     backgroundColor: statusColors[apt.status] || '#3B82F6',
@@ -127,6 +128,10 @@ export default function AppointmentCalendar({
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded" style={{ backgroundColor: statusColors.confirmed }}></div>
             <span>Confirmed</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: statusColors.checked_in }}></div>
+            <span>Checked In</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded" style={{ backgroundColor: statusColors['in-progress'] }}></div>

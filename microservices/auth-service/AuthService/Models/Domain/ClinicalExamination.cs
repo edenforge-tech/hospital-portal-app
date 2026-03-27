@@ -43,6 +43,19 @@ public class ClinicalExamination
     [Column("examining_doctor_id")]
     public required Guid ExaminingDoctorId { get; set; }
 
+    [Column("examination_type")]
+    [StringLength(100)]
+    public string? ExaminationType { get; set; }
+
+    [Column("is_signed")]
+    public bool IsSigned { get; set; } = false;
+
+    [Column("signed_by_user_id")]
+    public Guid? SignedByUserId { get; set; }
+
+    [Column("signed_at")]
+    public DateTime? SignedAt { get; set; }
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

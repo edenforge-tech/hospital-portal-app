@@ -6,11 +6,16 @@ import { toast } from 'sonner';
 interface NotificationHookOptions {
   onAppointmentUpdate?: (appointmentId: string, status: string) => void;
   onAppointmentReminder?: (appointmentId: string, details: string) => void;
+  // P6-1/P6-3
+  onDeptCoordResponse?: (scheduleId: string) => void;
+  onSurgeryConfirmed?: (scheduleId: string) => void;
 }
 
 export function useNotifications(options?: NotificationHookOptions) {
   const { data: session } = useSession();
   const [isConnected, setIsConnected] = useState(false);
+  // P6-2: bell badge counter
+  const [unreadCount, setUnreadCount] = useState(0);
   const connectionRef = useRef<HubConnection | null>(null);
 
   useEffect(() => {
@@ -63,6 +68,28 @@ export function useNotifications(options?: NotificationHookOptions) {
           });
         });
 
+        // P6-1: dept coordination response
+        connection.on('DeptCoordResponse', (patientName: string, dept: string, scheduleId: string) => {
+          setUnreadCount((n) => n + 1);
+          toast.success(`${dept} responded for ${patientName}`, {
+            action: {
+              label: 'View',
+              onClick: () => options?.onDeptCoordResponse?.(scheduleId),
+            },
+          });
+        });
+
+        // P6-3: surgery confirmed notification
+        connection.on('SurgeryConfirmed', (patientName: string, scheduleId: string) => {
+          setUnreadCount((n) => n + 1);
+          toast.success(`Surgery confirmed: ${patientName}`, {
+            action: {
+              label: 'View',
+              onClick: () => options?.onSurgeryConfirmed?.(scheduleId),
+            },
+          });
+        });
+
         await connection.start();
         connectionRef.current = connection;
         setIsConnected(true);
@@ -81,5 +108,9 @@ export function useNotifications(options?: NotificationHookOptions) {
     };
   }, [session?.user]);
 
-  return { isConnected };
+  return {
+    isConnected,
+    unreadCount,
+    clearUnread: () => setUnreadCount(0),
+  };
 }

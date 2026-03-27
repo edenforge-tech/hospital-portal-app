@@ -667,8 +667,8 @@ export default function UserDepartmentAccessModal({
       
       {/* Edit Permissions Modal */}
       {editingDepartment && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-2 sm:p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
             {/* Header */}
             <div className="bg-gradient-to-r from-blue-600 to-teal-600 px-6 py-4">
               <div className="flex items-center justify-between">

@@ -23,6 +23,12 @@ public class Appointment
     [Column("appointment_date")]
     public required DateTime AppointmentDate { get; set; }
 
+    [Column("start_time")]
+    public TimeSpan? StartTime { get; set; }
+
+    [Column("end_time")]
+    public TimeSpan? EndTime { get; set; }
+
     [Column("appointment_type")]
     [StringLength(50)]
     public required string AppointmentType { get; set; }
@@ -30,9 +36,37 @@ public class Appointment
     [Column("duration_minutes")]
     public required int DurationMinutes { get; set; }
 
+    [Column("priority")]
+    [StringLength(20)]
+    public string Priority { get; set; } = "normal"; // low, normal, high, urgent
+
     [Column("status")]
     [StringLength(20)]
     public required string Status { get; set; } // Scheduled, Confirmed, Cancelled, Completed
+
+    [Column("is_recurring")]
+    public bool IsRecurring { get; set; } = false;
+
+    [Column("recurring_pattern")]
+    [StringLength(50)]
+    public string? RecurringPattern { get; set; }
+
+    [Column("parent_appointment_id")]
+    public Guid? ParentAppointmentId { get; set; }
+
+    [Column("patient_phone")]
+    [StringLength(20)]
+    public string? PatientPhone { get; set; }
+
+    [Column("patient_email")]
+    [StringLength(255)]
+    public string? PatientEmail { get; set; }
+
+    [Column("reason_for_visit")]
+    public string? ReasonForVisit { get; set; }
+
+    [Column("department_id")]
+    public Guid? DepartmentId { get; set; }
 
     [Column("notes")]
     public string? Notes { get; set; }
@@ -55,4 +89,9 @@ public class Appointment
     // Navigation properties
     public virtual Patient? Patient { get; set; }
     public virtual AppUser? Doctor { get; set; }
+    public virtual Department? Department { get; set; }
+    public virtual Appointment? ParentAppointment { get; set; }
+    public virtual ICollection<Appointment>? ChildAppointments { get; set; }
+    public virtual ICollection<AppointmentReminder>? Reminders { get; set; }
+    public virtual ICollection<AppointmentConflict>? Conflicts { get; set; }
 }

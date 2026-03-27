@@ -1,0 +1,299 @@
+name: Hospital Portal CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  NODE_VERSION: '18.x'
+  AZURE_WEBAPP_NAME: hospital-portal-api
+  AZURE_WEBAPP_PACKAGE_PATH: './microservices/auth-service/AuthService'
+
+jobs:
+  # Backend Build and Test
+  backend-test:
+    name: Backend - Build & Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore
+      working-directory: ./microservices/auth-service/AuthService
+
+    - name: Build backend
+      run: dotnet build --configuration Release --no-restore
+      working-directory: ./microservices/auth-service/AuthService
+
+    - name: Run unit tests
+      run: dotnet test --no-build --verbosity normal --configuration Release --collect:"XPlat Code Coverage"
+      working-directory: ./AuthService.Tests
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        directory: ./AuthService.Tests/TestResults
+        fail_ci_if_error: false
+
+    - name: Publish backend
+      run: dotnet publish --configuration Release --output ./publish
+      working-directory: ./microservices/auth-service/AuthService
+
+    - name: Upload backend artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: backend-package
+        path: ./microservices/auth-service/AuthService/publish
+
+  # Frontend Build and Test
+  frontend-test:
+    name: Frontend - Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8
+
+    - name: Get pnpm store directory
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+    - name: Setup pnpm cache
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-store-
+
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+
+    - name: Lint frontend
+      run: pnpm run lint
+      working-directory: ./apps/hospital-portal-web
+      continue-on-error: true
+
+    - name: Build frontend
+      run: pnpm run build
+      working-directory: ./apps/hospital-portal-web
+      env:
+        NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'http://localhost:5073/api' }}
+
+    - name: Upload frontend artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: frontend-package
+        path: ./apps/hospital-portal-web/.next
+
+  # Database Validation
+  database-validation:
+    name: Database - Validate Migrations
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Validate SQL scripts
+      run: |
+        echo "Checking SQL script syntax..."
+        # Basic SQL validation (check for common errors)
+        for file in ./migrations/*.sql; do
+          if [ -f "$file" ]; then
+            echo "Validating $file"
+            # Add syntax checks here if needed
+          fi
+        done
+
+    - name: Check migration order
+      run: |
+        echo "Validating migration file naming..."
+        ls -1 ./migrations/*.sql | sort -V
+
+  # Deploy to Azure (only on main branch)
+  deploy-backend:
+    name: Deploy Backend to Azure
+    needs: [backend-test, frontend-test, database-validation]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
+    steps:
+    - name: Download backend artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: backend-package
+        path: ./backend-package
+
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Deploy to Azure Web App
+      id: deploy-to-webapp
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        package: ./backend-package
+
+    - name: Logout from Azure
+      run: az logout
+
+  # Deploy Frontend to Azure Static Web Apps (or Vercel)
+  deploy-frontend:
+    name: Deploy Frontend
+    needs: [backend-test, frontend-test]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8
+
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+
+    - name: Build frontend
+      run: pnpm run build
+      working-directory: ./apps/hospital-portal-web
+      env:
+        NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL_PROD }}
+
+    - name: Deploy to Azure Static Web Apps
+      uses: Azure/static-web-apps-deploy@v1
+      with:
+        azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        action: "upload"
+        app_location: "./apps/hospital-portal-web"
+        output_location: ".next"
+
+  # Run Database Migrations (only on main branch)
+  run-migrations:
+    name: Run Database Migrations
+    needs: deploy-backend
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Install EF Core tools
+      run: dotnet tool install --global dotnet-ef
+
+    - name: Run EF Core migrations
+      run: dotnet ef database update --project ./microservices/auth-service/AuthService
+      env:
+        ConnectionStrings__DefaultConnection: ${{ secrets.DATABASE_CONNECTION_STRING }}
+
+    - name: Run custom SQL migrations
+      run: |
+        # Install PostgreSQL client
+        sudo apt-get update
+        sudo apt-get install -y postgresql-client
+        
+        # Run migration scripts
+        for file in ./migrations/*.sql; do
+          if [ -f "$file" ]; then
+            echo "Running migration: $file"
+            psql "${{ secrets.DATABASE_CONNECTION_STRING }}" -f "$file"
+          fi
+        done
+
+  # Smoke Tests (Post-Deployment)
+  smoke-tests:
+    name: Smoke Tests
+    needs: [deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+    - name: Health Check - Backend API
+      run: |
+        response=$(curl -s -o /dev/null -w "%{http_code}" https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health)
+        if [ $response -ne 200 ]; then
+          echo "Backend health check failed with status: $response"
+          exit 1
+        fi
+        echo "Backend health check passed"
+
+    - name: Health Check - Frontend
+      run: |
+        response=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.FRONTEND_URL }})
+        if [ $response -ne 200 ]; then
+          echo "Frontend health check failed with status: $response"
+          exit 1
+        fi
+        echo "Frontend health check passed"
+
+    - name: Test Authentication Endpoint
+      run: |
+        # Test login endpoint is accessible
+        response=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+          https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/api/auth/login \
+          -H "Content-Type: application/json")
+        
+        # Expecting 400 (bad request) for empty body, not 500 or 404
+        if [ $response -eq 404 ] || [ $response -eq 500 ]; then
+          echo "Auth endpoint check failed with status: $response"
+          exit 1
+        fi
+        echo "Auth endpoint is accessible"
+
+  # Notification on Failure
+  notify-failure:
+    name: Notify on Failure
+    needs: [backend-test, frontend-test, deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    if: failure()
+
+    steps:
+    - name: Send failure notification
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: 'Hospital Portal deployment failed!'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+      if: always()

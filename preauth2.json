@@ -1,0 +1,14 @@
+{
+  "sessionId": "22222222-2222-2222-2222-222222222222",
+  "patientId": "910c6329-1de6-4dd1-9c37-dc0d44b332eb",
+  "insuranceType": "Corporate",
+  "insuranceProvider": "HDFC Ergo Health",
+  "tpaName": "Paramount Health",
+  "policyNumber": "HDFC2024002",
+  "policyHolderName": "Priya Sharma",
+  "surgeryType": "LASIK",
+  "requestedAmount": 80000,
+  "diagnosisCode": "H52.1",
+  "procedureCode": "92145",
+  "eyeOperated": "OU"
+}

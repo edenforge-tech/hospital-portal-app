@@ -1,0 +1,15 @@
+{
+  "sessionId": "11111111-1111-1111-1111-111111111111",
+  "patientId": "5a4ca192-8060-4672-b212-cc1e7e8cc081",
+  "admissionType": "DayCare",
+  "admissionDate": "2026-02-28",
+  "admissionTime": "08:00:00",
+  "surgeryType": "Cataract Surgery - Phacoemulsification",
+  "surgeryDate": "2026-02-28",
+  "eyeOperated": "OD",
+  "scheduledDischargeTime": "16:00:00",
+  "attendantName": "Sunita Kumar",
+  "attendantPhone": "9876543211",
+  "attendantRelation": "Wife",
+  "admissionDepositPaid": 25000
+}

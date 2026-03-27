@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Force Logout - Hospital Portal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 500px;
+        }
+        h1 { color: #333; margin-bottom: 20px; }
+        p { color: #666; margin: 15px 0; line-height: 1.6; }
+        .success { color: #10b981; font-weight: bold; font-size: 18px; }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background 0.3s;
+        }
+        button:hover { background: #5568d3; }
+        .code {
+            background: #f3f4f6;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-family: monospace;
+            color: #d97706;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Session Cleared</h1>
+        <p class="success">✓ Old JWT token removed</p>
+        <p class="success">✓ Auth state cleared</p>
+        <p class="success">✓ Cache purged</p>
+        
+        <p style="margin-top: 30px;">
+            Your browser storage has been completely cleared.<br>
+            The old token (without <span class="code">patient.view</span> permission) is gone.
+        </p>
+        
+        <p>
+            <strong>Next:</strong> Log in again to get a fresh JWT token with all 21+ permissions.
+        </p>
+        
+        <button onclick="window.location.href='http://localhost:3000/auth/login'">
+            Go to Login Page
+        </button>
+    </div>
+
+    <script>
+        // Clear everything
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // Clear all cookies
+        document.cookie.split(";").forEach(function(c) { 
+            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+        });
+        
+        console.log('✓ All storage cleared - ready for fresh login');
+    </script>
+</body>
+</html>

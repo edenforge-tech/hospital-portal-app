@@ -1,0 +1,96 @@
+     table_name      |       column_name        |        data_type         
+---------------------+--------------------------+--------------------------
+ anesthesia_types    | id                       | uuid
+ anesthesia_types    | tenant_id                | uuid
+ anesthesia_types    | anesthesia_name          | character varying
+ anesthesia_types    | anesthesia_code          | character varying
+ anesthesia_types    | anesthesia_category      | character varying
+ anesthesia_types    | description              | text
+ anesthesia_types    | typical_duration_minutes | integer
+ anesthesia_types    | recovery_time_minutes    | integer
+ anesthesia_types    | additional_cost          | numeric
+ anesthesia_types    | contraindications        | text
+ anesthesia_types    | special_requirements     | text
+ anesthesia_types    | is_active                | boolean
+ anesthesia_types    | display_order            | integer
+ anesthesia_types    | created_at               | timestamp with time zone
+ anesthesia_types    | updated_at               | timestamp with time zone
+ anesthesia_types    | created_by_user_id       | uuid
+ anesthesia_types    | updated_by_user_id       | uuid
+ anesthesia_types    | deleted_at               | timestamp with time zone
+ government_schemes  | id                       | uuid
+ government_schemes  | tenant_id                | uuid
+ government_schemes  | scheme_name              | character varying
+ government_schemes  | scheme_code              | character varying
+ government_schemes  | scheme_type              | character varying
+ government_schemes  | implementing_authority   | character varying
+ government_schemes  | scheme_description       | text
+ government_schemes  | eligibility_criteria     | text
+ government_schemes  | coverage_details         | text
+ government_schemes  | max_coverage_amount      | numeric
+ government_schemes  | requires_beneficiary_id  | boolean
+ government_schemes  | beneficiary_id_type      | character varying
+ government_schemes  | claim_submission_url     | character varying
+ government_schemes  | helpline_number          | character varying
+ government_schemes  | is_active                | boolean
+ government_schemes  | effective_from           | date
+ government_schemes  | effective_until          | date
+ government_schemes  | display_order            | integer
+ government_schemes  | created_at               | timestamp with time zone
+ government_schemes  | updated_at               | timestamp with time zone
+ government_schemes  | created_by_user_id       | uuid
+ government_schemes  | updated_by_user_id       | uuid
+ government_schemes  | deleted_at               | timestamp with time zone
+ insurance_providers | id                       | uuid
+ insurance_providers | tenant_id                | uuid
+ insurance_providers | provider_name            | character varying
+ insurance_providers | provider_code            | character varying
+ insurance_providers | provider_type            | character varying
+ insurance_providers | contact_number           | character varying
+ insurance_providers | contact_email            | character varying
+ insurance_providers | website_url              | character varying
+ insurance_providers | is_active                | boolean
+ insurance_providers | display_order            | integer
+ insurance_providers | created_at               | timestamp with time zone
+ insurance_providers | updated_at               | timestamp with time zone
+ insurance_providers | created_by_user_id       | uuid
+ insurance_providers | updated_by_user_id       | uuid
+ insurance_providers | deleted_at               | timestamp with time zone
+ surgery_types       | id                       | uuid
+ surgery_types       | tenant_id                | uuid
+ surgery_types       | surgery_name             | character varying
+ surgery_types       | surgery_code             | character varying
+ surgery_types       | surgery_category         | character varying
+ surgery_types       | procedure_type           | character varying
+ surgery_types       | typical_duration_minutes | integer
+ surgery_types       | requires_admission       | boolean
+ surgery_types       | typical_admission_type   | character varying
+ surgery_types       | estimated_cost_min       | numeric
+ surgery_types       | estimated_cost_max       | numeric
+ surgery_types       | description              | text
+ surgery_types       | risks                    | text
+ surgery_types       | prerequisites            | text
+ surgery_types       | is_active                | boolean
+ surgery_types       | display_order            | integer
+ surgery_types       | created_at               | timestamp with time zone
+ surgery_types       | updated_at               | timestamp with time zone
+ surgery_types       | created_by_user_id       | uuid
+ surgery_types       | updated_by_user_id       | uuid
+ surgery_types       | deleted_at               | timestamp with time zone
+ tpa_providers       | id                       | uuid
+ tpa_providers       | tenant_id                | uuid
+ tpa_providers       | tpa_name                 | character varying
+ tpa_providers       | tpa_code                 | character varying
+ tpa_providers       | contact_number           | character varying
+ tpa_providers       | contact_email            | character varying
+ tpa_providers       | website_url              | character varying
+ tpa_providers       | helpline_number          | character varying
+ tpa_providers       | is_active                | boolean
+ tpa_providers       | display_order            | integer
+ tpa_providers       | created_at               | timestamp with time zone
+ tpa_providers       | updated_at               | timestamp with time zone
+ tpa_providers       | created_by_user_id       | uuid
+ tpa_providers       | updated_by_user_id       | uuid
+ tpa_providers       | deleted_at               | timestamp with time zone
+(92 rows)
+

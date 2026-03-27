@@ -15,16 +15,6 @@
     "type-check": "turbo run type-check"
   },
   "devDependencies": {
-    "@types/node": "^24.9.1",
-    "@types/react": "^19.2.2",
     "turbo": "^1.10.0"
-  },
-  "dependencies": {
-    "@tanstack/react-query": "^5.90.5",
-    "axios": "^1.12.2",
-    "jwt-decode": "^4.0.0",
-    "next-auth": "^4.24.11",
-    "sonner": "^2.0.7",
-    "zustand": "^5.0.8"
   }
 }

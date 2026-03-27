@@ -1,12 +1,28 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { deviceManagementApi, Device } from '@/lib/api/device-management.api';
-import { Smartphone, Monitor, Tablet, Shield, ShieldCheck, ShieldAlert, Clock, MapPin, Chrome } from 'lucide-react';
+import { 
+  Smartphone, 
+  Monitor, 
+  Tablet, 
+  Shield, 
+  ShieldCheck, 
+  ShieldAlert, 
+  Clock, 
+  MapPin, 
+  Chrome,
+  BarChart3,
+  AlertTriangle,
+  CheckCircle,
+  Settings
+} from 'lucide-react';
 
 export default function DevicesPage() {
   const { user } = useAuthStore();
+  const router = useRouter();
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -125,10 +141,114 @@ export default function DevicesPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">My Devices</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Device Management</h1>
         <p className="mt-2 text-sm text-gray-600">
-          Manage devices that have access to your account
+          Manage devices that have access to your account and monitor security
         </p>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="mb-8 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <button
+          onClick={() => router.push('/dashboard/admin/devices/analytics')}
+          className="flex items-center p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+        >
+          <BarChart3 className="h-6 w-6 text-blue-600 mr-3" />
+          <div className="text-left">
+            <h3 className="font-medium text-blue-900">Analytics</h3>
+            <p className="text-sm text-blue-700">View device insights</p>
+          </div>
+        </button>
+        
+        <button
+          onClick={() => router.push('/dashboard/admin/devices/approval')}
+          className="flex items-center p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+        >
+          <CheckCircle className="h-6 w-6 text-green-600 mr-3" />
+          <div className="text-left">
+            <h3 className="font-medium text-green-900">Device Approval</h3>
+            <p className="text-sm text-green-700">Approve pending devices</p>
+          </div>
+        </button>
+        
+        <button
+          onClick={() => router.push('/dashboard/admin/devices/security')}
+          className="flex items-center p-4 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+        >
+          <AlertTriangle className="h-6 w-6 text-red-600 mr-3" />
+          <div className="text-left">
+            <h3 className="font-medium text-red-900">Security Monitor</h3>
+            <p className="text-sm text-red-700">Monitor threats</p>
+          </div>
+        </button>
+        
+        <button
+          onClick={() => router.push('/dashboard/admin/devices/settings')}
+          className="flex items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <Settings className="h-6 w-6 text-gray-600 mr-3" />
+          <div className="text-left">
+            <h3 className="font-medium text-gray-900">Settings</h3>
+            <p className="text-sm text-gray-700">Device policies</p>
+          </div>
+        </button>
+      </div>
+
+      {/* Device Statistics */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center">
+            <div className="p-2 bg-blue-100 rounded">
+              <Monitor className="h-5 w-5 text-blue-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Total Devices</p>
+              <p className="text-xl font-bold text-gray-900">{devices.length}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center">
+            <div className="p-2 bg-green-100 rounded">
+              <Shield className="h-5 w-5 text-green-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Trusted</p>
+              <p className="text-xl font-bold text-gray-900">
+                {devices.filter(d => d.trustLevel === 'Trusted' || d.trustLevel === 'Verified').length}
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center">
+            <div className="p-2 bg-yellow-100 rounded">
+              <ShieldAlert className="h-5 w-5 text-yellow-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Pending</p>
+              <p className="text-xl font-bold text-gray-900">
+                {devices.filter(d => d.trustLevel === 'Untrusted' && !d.isBlocked).length}
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center">
+            <div className="p-2 bg-red-100 rounded">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Blocked</p>
+              <p className="text-xl font-bold text-gray-900">
+                {devices.filter(d => d.isBlocked).length}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {error && (

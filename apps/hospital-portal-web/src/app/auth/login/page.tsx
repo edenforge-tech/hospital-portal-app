@@ -34,11 +34,22 @@ export default function LoginPage() {
   const [temporaryToken, setTemporaryToken] = useState('');
   const [mfaUserId, setMfaUserId] = useState('');
 
+  // Clear any old auth state on mount
+  useEffect(() => {
+    // Clear localStorage to ensure fresh login
+    if (typeof window !== 'undefined') {
+      console.log('🧹 Login page: Clearing old auth state');
+      localStorage.clear();
+      // Also clear the auth store
+      useAuthStore.getState().logout();
+    }
+  }, []);
+
   // Fetch tenants on component mount
   useEffect(() => {
     const fetchTenants = async () => {
       try {
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5072/api';
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5073/api';
         console.log('Fetching tenants from:', API_BASE_URL);
         
         // Try database first, fallback to mock data
@@ -261,7 +272,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+    <main id="main-content" className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-indigo-600">Eye Hospital</h1>
@@ -462,6 +473,6 @@ export default function LoginPage() {
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }

@@ -25,6 +25,7 @@ namespace AuthService.Controllers
         private readonly AppDbContext _context;
         private readonly IUserService _userService;
         private readonly INotificationClient _notificationClient;
+        private readonly INotificationService _notificationService;
         private readonly IActivationAuditService _activationAuditService;
         private readonly ILogger<UsersController> _logger;
 
@@ -34,6 +35,7 @@ namespace AuthService.Controllers
             AppDbContext context,
             IUserService userService,
             INotificationClient notificationClient,
+            INotificationService notificationService,
             IActivationAuditService activationAuditService,
             ILogger<UsersController> logger)
         {
@@ -42,6 +44,7 @@ namespace AuthService.Controllers
             _context = context;
             _userService = userService;
             _notificationClient = notificationClient;
+            _notificationService = notificationService;
             _activationAuditService = activationAuditService;
             _logger = logger;
         }
@@ -90,7 +93,7 @@ namespace AuthService.Controllers
             // Then fetch related data separately to avoid client evaluation
             var userIds = users.Select(u => u.Id).ToList();
             
-            var userRoles = await _context.UserRoles
+            var userRoles = await _context.UserRoles.Cast<AppUserRole>()
                 .Where(ur => userIds.Contains(ur.UserId))
                 .Join(_context.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => new { ur.UserId, RoleId = r.Id, RoleName = r.Name, BranchId = (Guid?)ur.BranchId })
                 .ToListAsync();
@@ -101,7 +104,7 @@ namespace AuthService.Controllers
                     ud.UserId, 
                     DepartmentId = d.Id, 
                     DepartmentName = d.DepartmentName, 
-                    ud.IsPrimary 
+                    ud.AccessType
                 })
                 .ToListAsync();
 
@@ -127,15 +130,15 @@ namespace AuthService.Controllers
                 dateOfBirth = u.DateOfBirth?.ToString("yyyy-MM-dd"),
                 gender = u.Gender,
                 branchId = u.BranchId,
-                departmentId = userDepartments.FirstOrDefault(ud => ud.UserId == u.Id && ud.IsPrimary)?.DepartmentId,
+                departmentId = userDepartments.FirstOrDefault(ud => ud.UserId == u.Id && ud.AccessType == "Primary")?.DepartmentId,
                 roleId = userRoles.FirstOrDefault(ur => ur.UserId == u.Id)?.RoleId,
                 roles = userRoles.Where(ur => ur.UserId == u.Id).Select(ur => ur.RoleName).ToList(),
                 departments = userDepartments.Where(ud => ud.UserId == u.Id).Select(ud => new {
                     departmentId = ud.DepartmentId,
                     departmentName = ud.DepartmentName,
-                    isPrimary = ud.IsPrimary
+                    isPrimary = ud.AccessType == "Primary"
                 }).ToList(),
-                primaryDepartment = userDepartments.FirstOrDefault(ud => ud.UserId == u.Id && ud.IsPrimary)?.DepartmentName,
+                primaryDepartment = userDepartments.FirstOrDefault(ud => ud.UserId == u.Id && ud.AccessType == "Primary")?.DepartmentName,
                 branch = u.BranchId.HasValue && branches.ContainsKey(u.BranchId.Value) ? branches[u.BranchId.Value] : null
             }).ToList();
 
@@ -234,7 +237,7 @@ namespace AuthService.Controllers
                 LastName = req.LastName,
                 TenantId = tenantId,
                 UserType = req.UserType ?? "Staff",
-                UserStatus = "Active",
+                UserStatus = "active",
                 EmailConfirmed = true,
                 EmployeeId = employeeId,
                 Designation = req.Designation,
@@ -342,6 +345,16 @@ namespace AuthService.Controllers
                     await _context.SaveChangesAsync();
                     Console.WriteLine($"✓ Department assigned: UserId={user.Id}, DepartmentId={deptId}, DepartmentName={department.DepartmentName}");
                 }
+            }
+
+            // Phase 3: Notify tenant of new user creation
+            try
+            {
+                await _notificationService.NotifyNewUserCreatedAsync(tenantId, user.Id, user.UserName ?? user.Email ?? "New User");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send new user notification for user {UserId}", user.Id);
             }
 
             return CreatedAtAction(nameof(GetById), new { id = user.Id }, new { id = user.Id, employeeId = employeeId });
@@ -526,7 +539,7 @@ namespace AuthService.Controllers
             var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == id && u.TenantId == tenantId);
             if (user == null) return NotFound();
 
-            user.UserStatus = "Inactive";
+            user.UserStatus = "inactive";
             await _userManager.UpdateAsync(user);
 
             return Ok(new { message = "User deactivated" });
@@ -693,8 +706,8 @@ namespace AuthService.Controllers
             var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == id && u.TenantId == tenantId);
             if (user == null) return NotFound(new { message = "User not found" });
 
-            user.ActivationStatus = "Active";
-            user.UserStatus = "Active";
+            user.ActivationStatus = "active";
+            user.UserStatus = "active";
             user.EmailVerified = true;
             
             await _userManager.UpdateAsync(user);
@@ -1037,7 +1050,7 @@ namespace AuthService.Controllers
             user.LastPasswordChangeAt = DateTime.UtcNow;
             user.LastPasswordChange = DateTime.UtcNow;
             user.MustChangePasswordOnLogin = false; // Reset flag after successful password set
-            user.UserStatus = "Active"; // Activate user after password set
+            user.UserStatus = "active"; // Activate user after password set
             
             await _userManager.UpdateAsync(user);
 
@@ -1503,6 +1516,305 @@ namespace AuthService.Controllers
                 );
 
                 return StatusCode(500, new { success = false, message = "An error occurred saving professional information" });
+            }
+        }
+        
+        /// <summary>
+        /// Get anesthetists for OT scheduling
+        /// </summary>
+        [HttpGet("anesthetists")]
+        [RequirePermission("user.view")]
+        public async Task<IActionResult> GetAnesthetists()
+        {
+            if (!TryGetTenantId(out var tenantId)) return BadRequest(new { message = "TenantId missing" });
+            try
+            {
+                // Primary: users with role containing ANESTHET
+                var anesthetists = await (
+                    from ur in _context.UserRoles.Cast<AppUserRole>()
+                    join u in _userManager.Users on ur.UserId equals u.Id
+                    join r in _context.Roles on ur.RoleId equals r.Id
+                    where u.TenantId == tenantId
+                          && u.DeletedAt == null
+                          && ur.IsActive
+                          && r.NormalizedName != null && r.NormalizedName.Contains("ANESTHET")
+                    select new
+                    {
+                        id = u.Id,
+                        name = (u.FirstName ?? "") + " " + (u.LastName ?? ""),
+                        specialization = u.Specialization ?? "",
+                        jobTitle = r.Name,
+                    }
+                ).Distinct().ToListAsync();
+
+                // Fallback: UserType field
+                if (!anesthetists.Any())
+                {
+                    anesthetists = await _userManager.Users
+                        .Where(u => u.TenantId == tenantId
+                                    && u.DeletedAt == null
+                                    && (u.UserType == "Anesthesiologist" || u.UserType == "Anesthetist"))
+                        .Select(u => new
+                        {
+                            id = u.Id,
+                            name = (u.FirstName ?? "") + " " + (u.LastName ?? ""),
+                            specialization = u.Specialization ?? "",
+                            jobTitle = u.UserType,
+                        })
+                        .ToListAsync();
+                }
+
+                return Ok(anesthetists);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching anesthetists for tenant {TenantId}", tenantId);
+                return StatusCode(500, "Error fetching anesthetists");
+            }
+        }
+
+        /// <summary>
+        /// Get surgeons for OT scheduling
+        /// </summary>
+        [HttpGet("surgeons")]
+        [RequirePermission("user.view")]
+        public async Task<IActionResult> GetSurgeons()
+        {
+            if (!TryGetTenantId(out var tenantId)) return BadRequest(new { message = "TenantId missing" });
+
+            try
+            {
+                // PRIMARY: Query by ASP.NET Identity role membership (app_user_roles → app_roles)
+                // Doctors/surgeons are identified by their role NormalizedName, NOT by employee job title
+                var surgeons = await (
+                    from ur in _context.UserRoles
+                    join u in _userManager.Users on ur.UserId equals u.Id
+                    join r in _context.Roles on ur.RoleId equals r.Id
+                    where u.TenantId == tenantId
+                          && u.DeletedAt == null
+                          && ur.IsActive
+                          && (r.NormalizedName!.Contains("DOCTOR")
+                              || r.NormalizedName!.Contains("SURGEON")
+                              || r.NormalizedName!.Contains("OPHTHAL"))
+                    select new
+                    {
+                        id = u.Id,
+                        name = (u.FirstName ?? "") + " " + (u.LastName ?? ""),
+                        specialization = u.Specialization ?? "Ophthalmology",
+                        jobTitle = r.Name,
+                        email = u.Email,
+                        phone = u.PhoneNumber
+                    }
+                ).Distinct().ToListAsync();
+
+                // Fallback: UserType field for legacy users not assigned via roles
+                if (!surgeons.Any())
+                {
+                    surgeons = await _userManager.Users
+                        .Where(u => u.TenantId == tenantId
+                                    && u.DeletedAt == null
+                                    && (u.UserType == "Doctor" || u.UserType == "Surgeon" || u.UserType == "Ophthalmologist"))
+                        .Select(u => new
+                        {
+                            id = u.Id,
+                            name = (u.FirstName ?? "") + " " + (u.LastName ?? ""),
+                            specialization = u.Specialization ?? "Ophthalmology",
+                            jobTitle = u.UserType,
+                            email = u.Email,
+                            phone = u.PhoneNumber
+                        })
+                        .ToListAsync();
+                }
+
+                return Ok(surgeons);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching surgeons for tenant {TenantId}", tenantId);
+                return StatusCode(500, "Error fetching surgeons");
+            }
+        }
+
+        /// <summary>
+        /// Get doctor availability status
+        /// </summary>
+        [HttpGet("doctors/availability")]
+        [RequirePermission("user.view")]
+        public async Task<IActionResult> GetDoctorAvailability([FromQuery] string? search)
+        {
+            if (!TryGetTenantId(out var tenantId)) return BadRequest(new { message = "TenantId missing" });
+
+            try
+            {
+                var query = from e in _context.Employees
+                            join u in _userManager.Users on e.UserId equals u.Id
+                            join d in _context.Departments on e.DepartmentId equals d.Id into deptJoin
+                            from dept in deptJoin.DefaultIfEmpty()
+                            where e.TenantId == tenantId &&
+                                  e.JobTitle != null && e.JobTitle.Contains("Doctor") &&
+                                  e.EmploymentStatus == "Active"
+                            select new
+                            {
+                                e,
+                                u,
+                                dept
+                            };
+
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    query = query.Where(x =>
+                        ((x.u.FirstName ?? "") + " " + (x.u.LastName ?? "")).Contains(search) ||
+                        (x.dept != null && x.dept.Name.Contains(search)));
+                }
+
+                var doctors = await query
+                    .Select(x => new
+                    {
+                        id = x.u.Id,
+                        name = (x.u.FirstName ?? "") + " " + (x.u.LastName ?? ""),
+                        specialization = x.dept != null ? x.dept.Name : "General Medicine",
+                        department = x.dept != null ? x.dept.Name : "",
+                        available = true, // TODO: Check actual availability from appointments
+                        nextAvailableSlot = DateTime.UtcNow.AddHours(1).ToString("o"),
+                        roomNumber = "R-" + (x.u.Id.GetHashCode() % 100 + 1).ToString("D3"),
+                        currentPatientCount = 0 // TODO: Get from queue
+                    })
+                    .ToListAsync();
+
+                return Ok(doctors);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching doctor availability for tenant {TenantId}", tenantId);
+                return StatusCode(500, "Error fetching doctor availability");
+            }
+        }
+
+        /// <summary>
+        /// Search for doctors by name or license number with autocomplete support
+        /// </summary>
+        /// <param name="searchTerm">Search term for doctor name or license number</param>
+        /// <param name="specialty">Optional specialty filter</param>
+        /// <param name="branchId">Optional branch filter</param>
+        /// <param name="limit">Maximum number of results (default: 20, max: 50)</param>
+        /// <returns>List of matching doctors with basic information</returns>
+        [HttpGet("doctors/search")]
+        [RequirePermission("user.view")]
+        public async Task<IActionResult> SearchDoctors(
+            [FromQuery] string? searchTerm,
+            [FromQuery] string? specialty,
+            [FromQuery] Guid? branchId,
+            [FromQuery] int limit = 20)
+        {
+            if (!TryGetTenantId(out var tenantId))
+            {
+                return BadRequest(new { message = "TenantId missing" });
+            }
+
+            try
+            {
+                // Validate limit parameter
+                if (limit < 1 || limit > 50)
+                {
+                    return BadRequest(new { message = "Limit must be between 1 and 50" });
+                }
+
+                // Start with base query - get distinct user IDs with Doctor role first
+                var doctorUserIdsQuery = from u in _context.Users
+                            join ur in _context.UserRoles.Cast<AppUserRole>() on u.Id equals ur.UserId
+                            join r in _context.Roles on ur.RoleId equals r.Id
+                            where u.TenantId == tenantId
+                                  && u.DeletedAt == null
+                                  && u.UserStatus == "active"
+                                  && r.Name != null && r.Name.Contains("Doctor")
+                            select u.Id;
+
+                // Apply filters to user query                
+                var userQuery = _context.Users.Where(u => doctorUserIdsQuery.Contains(u.Id));
+
+                // Apply search term filter (name or license number)
+                if (!string.IsNullOrWhiteSpace(searchTerm))
+                {
+                    var searchLower = searchTerm.ToLower();
+                    userQuery = userQuery.Where(u =>
+                        (u.FirstName != null && u.FirstName.ToLower().Contains(searchLower)) ||
+                        (u.LastName != null && u.LastName.ToLower().Contains(searchLower)) ||
+                        (u.LicenseNumber != null && u.LicenseNumber.ToLower().Contains(searchLower))
+                    );
+                }
+
+                // Apply specialty filter
+                if (!string.IsNullOrWhiteSpace(specialty))
+                {
+                    var specialtyLower = specialty.ToLower();
+                    userQuery = userQuery.Where(u =>
+                        u.Specialization != null && u.Specialization.ToLower().Contains(specialtyLower)
+                    );
+                }
+
+                // Apply branch filter
+                if (branchId.HasValue)
+                {
+                    var branchUserIds = _context.UserRoles.Cast<AppUserRole>()
+                        .Where(ur => ur.BranchId == branchId.Value)
+                        .Select(ur => ur.UserId);
+                    userQuery = userQuery.Where(u => branchUserIds.Contains(u.Id));
+                }
+
+                // Get doctors with limit
+                var doctors = await userQuery
+                    .Take(limit)
+                    .ToListAsync();
+
+                // Fetch primary departments for these doctors in a separate query to avoid DbContext disposal issues
+                var doctorIds = doctors.Select(d => d.Id).ToList();
+                var userDepartments = await _context.UserDepartments
+                    .AsNoTracking()
+                    .Where(ud => doctorIds.Contains(ud.UserId) && ud.AccessType == "Primary" && ud.DeletedAt == null)
+                    .Join(_context.Departments, 
+                        ud => ud.DepartmentId, 
+                        d => d.Id, 
+                        (ud, d) => new { UserId = ud.UserId, DepartmentId = d.Id, DepartmentName = d.DepartmentName })
+                    .ToListAsync();
+
+                // Project to response DTO
+                var results = doctors.Select(d =>
+                {
+                    var primaryDept = userDepartments.FirstOrDefault(ud => ud.UserId == d.Id);
+                    return new
+                    {
+                        id = d.Id,
+                        fullName = $"{d.FirstName ?? ""} {d.LastName ?? ""}".Trim(),
+                        firstName = d.FirstName,
+                        lastName = d.LastName,
+                        specialization = d.Specialization ?? "General Medicine",
+                        department = primaryDept?.DepartmentName ?? "Not Assigned",
+                        departmentId = primaryDept?.DepartmentId,
+                        qualification = d.Qualifications,
+                        licenseNumber = d.LicenseNumber,
+                        email = d.Email,
+                        phoneNumber = d.PhoneNumber
+                    };
+                }).ToList();
+
+                _logger.LogInformation(
+                    "Doctor search completed for tenant {TenantId}: searchTerm={SearchTerm}, specialty={Specialty}, branchId={BranchId}, results={ResultCount}",
+                    tenantId, searchTerm ?? "N/A", specialty ?? "N/A", branchId?.ToString() ?? "N/A", results.Count);
+
+                return Ok(new
+                {
+                    data = results,
+                    count = results.Count,
+                    searchTerm = searchTerm,
+                    specialty = specialty,
+                    branchId = branchId,
+                    limit = limit
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error searching for doctors in tenant {TenantId}", tenantId);
+                return StatusCode(500, new { message = "Error searching for doctors", error = ex.Message });
             }
         }
     }

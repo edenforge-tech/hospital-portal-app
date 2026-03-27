@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { rolesApi, getApi } from '@/lib/api';
 import PermissionAssignmentModal from '@/components/admin/PermissionAssignmentModal';
+import ParentRoleSelector from '@/components/admin/ParentRoleSelector';
 import { EditButton, PermissionsButton, CloneButton, DeleteButton, PrimaryButton, SecondaryButton } from '@/components/ui/ActionButtons';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { UserCountBadge } from '@/components/ui/UserCountBadge';
@@ -17,6 +18,8 @@ interface Role {
   userCount?: number;
   users?: Array<{ id: string; firstName: string; lastName: string; email: string }>;
   permissions?: string[];
+  parentRoleId?: string | null;
+  hierarchyLevel?: number;
 }
 
 type SortField = 'name' | 'description' | 'userCount' | 'status';
@@ -30,8 +33,8 @@ export default function RolesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-  const [formData, setFormData] = useState({ name: '', description: '' });
-  const [formErrors, setFormErrors] = useState<{ name?: string; description?: string }>({});
+  const [formData, setFormData] = useState({ name: '', description: '', parentRoleId: null as string | null });
+  const [formErrors, setFormErrors] = useState<{ name?: string; description?: string; parentRoleId?: string }>({});
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [expandedRole, setExpandedRole] = useState<string | null>(null);
@@ -104,20 +107,22 @@ export default function RolesPage() {
         // Update existing role
         await getApi().put(`/roles/${selectedRole.id}`, {
           name: formData.name.trim(),
-          description: formData.description.trim()
+          description: formData.description.trim(),
+          parentRoleId: formData.parentRoleId
         });
         setSuccess('Role updated successfully');
       } else {
         // Create new role
         await getApi().post('/roles', {
           name: formData.name.trim(),
-          description: formData.description.trim()
+          description: formData.description.trim(),
+          parentRoleId: formData.parentRoleId
         });
         setSuccess('Role created successfully');
       }
       
       setShowCreateModal(false);
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', description: '', parentRoleId: null });
       setFormErrors({});
       setSelectedRole(null);
       await loadRoles();
@@ -131,7 +136,11 @@ export default function RolesPage() {
 
   const handleEdit = (role: Role) => {
     setSelectedRole(role);
-    setFormData({ name: role.name, description: role.description || '' });
+    setFormData({ 
+      name: role.name, 
+      description: role.description || '',
+      parentRoleId: role.parentRoleId || null
+    });
     setFormErrors({});
     setError('');
     setShowCreateModal(true);
@@ -217,8 +226,8 @@ export default function RolesPage() {
       
       switch (sortField) {
         case 'name':
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
+          aValue = (a.name || '').toLowerCase();
+          bValue = (b.name || '').toLowerCase();
           break;
         case 'description':
           aValue = (a.description || '').toLowerCase();
@@ -271,15 +280,23 @@ export default function RolesPage() {
             <h1 className="text-3xl font-bold text-gray-900">Role Management</h1>
             <p className="text-gray-600 mt-2">Manage roles and permissions</p>
           </div>
-          <PrimaryButton
-            onClick={() => {
-              setSelectedRole(null);
-              setFormData({ name: '', description: '' });
-              setShowCreateModal(true);
-            }}
-          >
-            + Create Role
-          </PrimaryButton>
+          <div className="flex gap-3">
+            <button
+              onClick={() => router.push('/dashboard/admin/roles/management')}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            >
+              🏗️ Role Hierarchy
+            </button>
+            <PrimaryButton
+              onClick={() => {
+                setSelectedRole(null);
+                setFormData({ name: '', description: '', parentRoleId: null });
+                setShowCreateModal(true);
+              }}
+            >
+              + Create Role
+            </PrimaryButton>
+          </div>
         </div>
 
         {/* Success/Error Messages */}
@@ -414,7 +431,7 @@ export default function RolesPage() {
                   <>
                     <tr key={role.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-medium text-gray-900">{role.name}</div>
+                        <div className="font-medium text-gray-900">{role.name || role.description || 'Unnamed Role'}</div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-600">{role.description || '-'}</div>
@@ -536,6 +553,18 @@ export default function RolesPage() {
                 </p>
               </div>
 
+              {/* Parent Role Selector */}
+              <ParentRoleSelector
+                value={formData.parentRoleId}
+                onChange={(parentRoleId) => {
+                  setFormData({ ...formData, parentRoleId });
+                  setFormErrors({ ...formErrors, parentRoleId: undefined });
+                }}
+                currentRoleId={selectedRole?.id}
+                disabled={isSubmitting}
+                error={formErrors.parentRoleId}
+              />
+
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-800 px-3 py-2 rounded text-sm">
                   {error}
@@ -549,7 +578,7 @@ export default function RolesPage() {
                 onClick={() => {
                   setShowCreateModal(false);
                   setSelectedRole(null);
-                  setFormData({ name: '', description: '' });
+                  setFormData({ name: '', description: '', parentRoleId: null });
                   setFormErrors({});
                   setError('');
                 }}
@@ -609,7 +638,6 @@ export default function RolesPage() {
                   disabled={isSubmitting}
                   loading={isSubmitting}
                   className="bg-red-600 hover:bg-red-700 focus:ring-red-500"
-                >
                 >
                   Delete Role
                 </PrimaryButton>

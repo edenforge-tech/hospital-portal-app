@@ -4,6 +4,11 @@ import { useAuthStore } from '@/lib/auth-store';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getApi, settingsApi } from '@/lib/api';
+import TestSmtpModal from '@/components/TestSmtpModal';
+import TestWebhookModal from '@/components/TestWebhookModal';
+import SettingsHistoryModal from '@/components/SettingsHistoryModal';
+import ImpactPreviewModal from '@/components/ImpactPreviewModal';
+import { Download, Upload, History, FlaskConical } from 'lucide-react';
 
 type TabType = 'general' | 'email' | 'security' | 'hipaa' | 'backup' | 'integrations';
 
@@ -64,6 +69,13 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
+  // Modal states for testing tools
+  const [smtpModalOpen, setSmtpModalOpen] = useState(false);
+  const [webhookModalOpen, setWebhookModalOpen] = useState(false);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [impactModalOpen, setImpactModalOpen] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState<Record<string, any>>({});
   const [settings, setSettings] = useState<SettingsData>({
     general: {
       systemName: 'Hospital Portal',
@@ -146,6 +158,17 @@ export default function SettingsPage() {
 
   const saveSettings = async () => {
     try {
+      // Store pending changes and show impact preview modal
+      setPendingChanges(settings[activeTab]);
+      setImpactModalOpen(true);
+    } catch (err: any) {
+      console.error('Error preparing settings save:', err);
+      setError('Failed to prepare settings save');
+    }
+  };
+
+  const confirmSaveSettings = async () => {
+    try {
       setSaving(true);
       setError('');
       setSuccess('');
@@ -155,12 +178,82 @@ export default function SettingsPage() {
 
       setSuccess(`${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} settings saved successfully`);
       setTimeout(() => setSuccess(''), 3000);
+      setImpactModalOpen(false);
     } catch (err: any) {
       console.error('Error saving settings:', err);
       setError(err.response?.data?.message || 'Failed to save settings to database');
     } finally {
       setSaving(false);
     }
+  };
+
+  const exportSettings = async () => {
+    try {
+      const api = getApi();
+      const response = await api.get('/settings/export');
+      const data = response.data;
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `hospital-portal-settings-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      setSuccess('Settings exported successfully');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      console.error('Error exporting settings:', err);
+      setError('Failed to export settings');
+    }
+  };
+
+  const importSettings = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const content = e.target?.result as string;
+          const importedSettings = JSON.parse(content);
+          
+          // Validate structure
+          const requiredKeys = ['general', 'email', 'security', 'hipaa', 'backup', 'integrations'];
+          const hasAllKeys = requiredKeys.every(key => importedSettings[key]);
+          
+          if (!hasAllKeys) {
+            setError('Invalid settings file format');
+            return;
+          }
+
+          const api = getApi();
+          await api.post('/settings/import', importedSettings);
+          
+          // Reload settings after import
+          await loadSettings();
+          
+          setSuccess('Settings imported successfully');
+          setTimeout(() => setSuccess(''), 3000);
+        } catch (parseErr: any) {
+          console.error('Error parsing imported settings:', parseErr);
+          setError('Invalid JSON file or import failed');
+        }
+      };
+      reader.readAsText(file);
+    } catch (err: any) {
+      console.error('Error importing settings:', err);
+      setError('Failed to import settings');
+    }
+  };
+
+  const handleHistoryRefresh = async () => {
+    setHistoryModalOpen(false);
+    await loadSettings();
+    setSuccess('Settings refreshed after rollback');
+    setTimeout(() => setSuccess(''), 3000);
   };
 
   const updateSetting = (category: keyof SettingsData, field: string, value: any) => {
@@ -197,9 +290,43 @@ export default function SettingsPage() {
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">System Settings</h1>
-          <p className="text-gray-600 mt-2">Configure system-wide settings and preferences</p>
+        <div className="mb-8 flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">System Settings</h1>
+            <p className="text-gray-600 mt-2">Configure system-wide settings and preferences</p>
+          </div>
+          
+          {/* Toolbar - Export/Import/History */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setHistoryModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              title="View settings change history"
+            >
+              <History className="h-4 w-4" />
+              <span>History</span>
+            </button>
+            
+            <button
+              onClick={exportSettings}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors"
+              title="Export all settings to JSON file"
+            >
+              <Download className="h-4 w-4" />
+              <span>Export</span>
+            </button>
+            
+            <label className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors cursor-pointer">
+              <Upload className="h-4 w-4" />
+              <span>Import</span>
+              <input
+                type="file"
+                accept=".json"
+                onChange={importSettings}
+                className="hidden"
+              />
+            </label>
+          </div>
         </div>
 
         {/* Success/Error Messages */}
@@ -384,6 +511,17 @@ export default function SettingsPage() {
                   <label htmlFor="enableTLS" className="ml-2 text-sm font-medium text-gray-700">
                     Enable TLS
                   </label>
+                </div>
+                
+                {/* SMTP Test Button */}
+                <div className="md:col-span-2">
+                  <button
+                    onClick={() => setSmtpModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                  >
+                    <FlaskConical className="h-4 w-4" />
+                    <span>Test SMTP Configuration</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -701,6 +839,19 @@ export default function SettingsPage() {
                     </label>
                   </div>
                 </div>
+                
+                {/* Webhook Test Button */}
+                {settings.integrations.webhookUrl && (
+                  <div className="md:col-span-2">
+                    <button
+                      onClick={() => setWebhookModalOpen(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+                    >
+                      <FlaskConical className="h-4 w-4" />
+                      <span>Test Webhook</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -716,6 +867,33 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
+        
+        {/* Testing Modals */}
+        <TestSmtpModal
+          isOpen={smtpModalOpen}
+          onClose={() => setSmtpModalOpen(false)}
+          smtpSettings={settings.email}
+        />
+        
+        <TestWebhookModal
+          isOpen={webhookModalOpen}
+          onClose={() => setWebhookModalOpen(false)}
+          webhookUrl={settings.integrations.webhookUrl}
+        />
+        
+        <SettingsHistoryModal
+          isOpen={historyModalOpen}
+          onClose={() => setHistoryModalOpen(false)}
+          onRollback={handleHistoryRefresh}
+        />
+        
+        <ImpactPreviewModal
+          isOpen={impactModalOpen}
+          onClose={() => setImpactModalOpen(false)}
+          onConfirm={confirmSaveSettings}
+          changes={pendingChanges}
+          category={activeTab}
+        />
       </div>
     </div>
   );

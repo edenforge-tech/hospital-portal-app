@@ -1,6 +1,11 @@
 using AuthService.Models.Identity;
 using AuthService.Models.Domain;
 using AuthService.Models;
+using AuthService.Models.Onboarding;
+using AuthService.Models.Search;
+using AuthService.Models.PerformanceReview;
+using AuthService.Models.Training;
+using AuthService.Models.Counselor;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -52,24 +57,57 @@ namespace AuthService.Context
         public DbSet<UserActivationLog> UserActivationLogs { get; set; }
         public DbSet<Permission> Permissions { get; set; }
         public DbSet<RolePermission> RolePermissions { get; set; }
+        public DbSet<RoleTemplate> RoleTemplates { get; set; }
+        public DbSet<RoleHierarchy> RoleHierarchies { get; set; }
+        public DbSet<UserRoleHistory> UserRoleHistories { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<SystemAlert> SystemAlerts { get; set; }
         public DbSet<FailedLoginAttempt> FailedLoginAttempts { get; set; }
         public DbSet<ActivationAuditLog> ActivationAuditLogs { get; set; }
         public DbSet<UserAttribute> UserAttributes { get; set; }
         public DbSet<Patient> Patients { get; set; }
+        public DbSet<PatientVitalSigns> PatientVitalSigns { get; set; }
         public DbSet<ClinicalExamination> ClinicalExaminations { get; set; }
+        public DbSet<ExaminationDraft> ExaminationDrafts { get; set; }
+        public DbSet<DiagnosisCode> DiagnosisCodes { get; set; }
+        public DbSet<PatientDiagnosis> PatientDiagnoses { get; set; }
+        public DbSet<OphthalMedication> OphthalMedications { get; set; }
         public DbSet<Appointment> Appointments { get; set; }
+        public DbSet<DoctorAvailability> DoctorAvailabilities { get; set; }
+        public DbSet<AppointmentConflict> AppointmentConflicts { get; set; }
+        public DbSet<AppointmentReminder> AppointmentReminders { get; set; }
+        public DbSet<AppointmentStatistics> AppointmentStatisticsRecords { get; set; }
         public DbSet<PatientDocumentUpload> PatientDocumentUploads { get; set; }
         public DbSet<DocumentAccessAudit> DocumentAccessAudits { get; set; }
         public DbSet<AdminConfiguration> AdminConfigurations { get; set; }
         public DbSet<SystemSetting> SystemSettings { get; set; }
+        
+        // Module 4: Front Office/OPD Management - Emergency Override Logging
+        public DbSet<EmergencyOverrideLog> EmergencyOverrideLogs { get; set; }
+        
+        // Onboarding & Progressive Access (Phase 2)
+        public DbSet<OnboardingWorkflow> OnboardingWorkflows { get; set; }
+        public DbSet<OnboardingChecklistItem> OnboardingChecklistItems { get; set; }
+        public DbSet<AccessLevelConfiguration> AccessLevelConfigurations { get; set; }
+        
+        // Advanced Search (Phase 2)
+        public DbSet<SavedSearch> SavedSearches { get; set; }
+        
+        // Performance Reviews (Phase 2)
+        public DbSet<PerformanceReview> PerformanceReviews { get; set; }
+        
+        // Training & Compliance (Phase 2)
+        public DbSet<TrainingCourse> TrainingCourses { get; set; }
+        public DbSet<TrainingAssignment> TrainingAssignments { get; set; }
+        public DbSet<UserCredential> UserCredentials { get; set; }
         
         // Device & Session Management (Tasks 7-12 Backend Implementation)
         public DbSet<Device> Devices { get; set; }
         public DbSet<UserSession> UserSessions { get; set; }
         public DbSet<AccessPolicy> AccessPolicies { get; set; }
         public DbSet<EmergencyAccess> EmergencyAccesses { get; set; }
+        // TODO: Add EmergencyAccessAuditLogs when service is fixed
+        // public DbSet<EmergencyAccessAuditLog> EmergencyAccessAuditLogs { get; set; }
         
         // Department Access Approval & Audit (Phase 1 Critical Features - Dec 9, 2025)
         public DbSet<DepartmentAccessRequest> DepartmentAccessRequests { get; set; }
@@ -79,6 +117,170 @@ namespace AuthService.Context
         public DbSet<AuthService.Models.Department.DepartmentAccessRule> DepartmentAccessRules { get; set; }
         public DbSet<AuthService.Models.Department.SupervisedUser> SupervisedUsers { get; set; }
         public DbSet<AuthService.Models.Department.SupervisorAssignment> SupervisorAssignments { get; set; }
+        
+        // Employment Management (Phase 1 - HR Features)
+        public DbSet<Employee> Employees { get; set; }
+        public DbSet<EmploymentTypeLookup> EmploymentTypes { get; set; }
+        public DbSet<EmploymentCategoryLookup> EmploymentCategories { get; set; }
+        public DbSet<EmploymentContract> EmploymentContracts { get; set; }
+        public DbSet<ProfessionalLicense> ProfessionalLicenses { get; set; }
+        public DbSet<ProbationTracking> ProbationTrackings { get; set; }
+        
+        // Bulk Operations (Phase 1 - Admin Features)
+        public DbSet<AuthService.Models.BulkOperations.BulkOperationJob> BulkOperationJobs { get; set; }
+        
+        // Phase 2: Branch Capacity Tracking (Migration 08)
+        public DbSet<AuthService.Models.Branch.BedInventory> BedInventories { get; set; }
+        public DbSet<AuthService.Models.Branch.BranchCapacityHistory> BranchCapacityHistories { get; set; }
+        public DbSet<AuthService.Models.Branch.PatientTransferRequest> PatientTransferRequests { get; set; }
+        
+        // Phase 2: Diagnostic & Imaging Services
+        public DbSet<BiometryRecord> BiometryRecords { get; set; }
+        public DbSet<IOLInventoryItem> IOLInventoryItems { get; set; }
+        public DbSet<IOLStockAdjustment> IOLStockAdjustments { get; set; }
+        public DbSet<RetinopathyScreening> RetinopathyScreenings { get; set; }
+        public DbSet<OctImagingScan> OctImagingScans { get; set; }
+        public DbSet<ImagingOrder> ImagingOrders { get; set; }
+        public DbSet<ImagingImage> ImagingImages { get; set; }
+        public DbSet<ImagingAnnotation> ImagingAnnotations { get; set; }
+        public DbSet<ImagingComparison> ImagingComparisons { get; set; }
+        public DbSet<AIProgressionAnalysis> AIProgressionAnalyses { get; set; } // Phase 8: AI Analysis
+        public DbSet<ElectrophysiologyTest> ElectrophysiologyTests { get; set; }
+        
+        // Phase 2: Follow-up Management System
+        public DbSet<FollowUpAppointment> FollowUpAppointments { get; set; }
+        public DbSet<PostOpCareSchedule> PostOpCareSchedules { get; set; }
+        public DbSet<PostOpVisit> PostOpVisits { get; set; }
+        public DbSet<PostOpMedication> PostOpMedications { get; set; }
+        public DbSet<TreatmentAdherence> TreatmentAdherences { get; set; }
+        public DbSet<MedicationAdherence> MedicationAdherences { get; set; }
+        public DbSet<PatientReminder> PatientReminders { get; set; }
+        
+        // Phase 3: Prescription Management System
+        public DbSet<AuthService.Models.Prescription.Prescription> Prescriptions { get; set; }
+        public DbSet<AuthService.Models.Prescription.PrescriptionMedication> PrescriptionMedications { get; set; }
+        public DbSet<AuthService.Models.Prescription.DrugInteraction> DrugInteractions { get; set; }
+        public DbSet<AuthService.Models.Prescription.MedicationMaster> MedicationMaster { get; set; }
+
+        // OPD Visit & Billing System (Phase 1 OPD Workflow)
+        public DbSet<Visit> Visits { get; set; }
+        public DbSet<OpdBill> OpdBills { get; set; }
+        public DbSet<OpdBillPayment> OpdBillPayments { get; set; }
+        public DbSet<BillingRule> BillingRules { get; set; }
+        public DbSet<TokenSequence> TokenSequences { get; set; }
+        public DbSet<Refund> Refunds { get; set; }
+        
+        // Day 4: Itemized Billing (Feb 6, 2026)
+        public DbSet<OpdBillItem> OpdBillItems { get; set; }
+        
+        // Module 4: Front Office/OPD Management (Feb 3, 2026)
+        public DbSet<QueueItem> QueueItems { get; set; }
+        public DbSet<VisitorLog> VisitorLogs { get; set; }
+        public DbSet<SurgeryRequest> SurgeryRequests { get; set; }
+
+        // Module 30: Patient Directory Hub (Feb 9, 2026)
+        public DbSet<PatientAllergy> PatientAllergies { get; set; }
+        public DbSet<PatientConsent> PatientConsents { get; set; }
+        public DbSet<PatientCommunication> PatientCommunications { get; set; }
+        public DbSet<LabReport> LabReports { get; set; }
+        public DbSet<PatientInsurance> PatientInsurances { get; set; }
+        public DbSet<PatientNote> PatientNotes { get; set; }
+        public DbSet<OpticalOrder> OpticalOrders { get; set; }
+
+        // Module 3: Counseling & Surgery Package Management (Feb 15, 2026)
+        public DbSet<SurgeryPackageTemplate> SurgeryPackageTemplates { get; set; }
+        public DbSet<SurgeryPackageItemCatalog> SurgeryPackageItemCatalogs { get; set; }
+        public DbSet<CounselorPackage> CounselorPackages { get; set; }
+        public DbSet<CounselorPackageItem> CounselorPackageItems { get; set; }
+        public DbSet<PackageDiscountApproval> PackageDiscountApprovals { get; set; }
+
+        // Module 3.2: Counseling Workflow (Feb 23, 2026)
+        public DbSet<CounselingSession> CounselingSession { get; set; }
+        public DbSet<CounselorQueueItem> CounselorQueue { get; set; }
+        public DbSet<CounselingSessionNote> CounselingSessionNotes { get; set; }
+        public DbSet<CounselingSessionDocument> CounselingSessionDocuments { get; set; }
+        public DbSet<CounselingSessionAuditLog> CounselingSessionAuditLog { get; set; }
+        // Phase B: Communication Log + Callbacks + Templates (Migrations 69-71)
+        public DbSet<CounselorCommunicationLog> CounselorCommunicationLogs { get; set; }
+        public DbSet<CounselorCallbackRequest> CounselorCallbackRequests { get; set; }
+        public DbSet<CommunicationMessageTemplate> CommunicationMessageTemplates { get; set; }
+        public DbSet<DeptCoordinationRequest> DeptCoordinationRequests { get; set; }
+        // Phase A: Pre-Admission Checklist + Insurance Pre-Auth (Migration 66-67)
+        public DbSet<PreAdmissionChecklistTemplate> PreAdmissionChecklistTemplates { get; set; }
+        public DbSet<PreAdmissionChecklistItem> PreAdmissionChecklistItems { get; set; }
+        public DbSet<OtAdmissionChecklistCompletion> OtAdmissionChecklistCompletions { get; set; }
+        public DbSet<InsurancePreauthRequest> InsurancePreauthRequests { get; set; }
+        public DbSet<PatientUploadLink> PatientUploadLinks { get; set; }
+        public DbSet<FilterPreset> FilterPresets { get; set; } // Phase 4.2: Advanced Filters
+        public DbSet<LabTestCatalog> LabTestCatalog { get; set; } // Lab test catalog with pricing
+        public DbSet<PatientMedicalHistory> PatientMedicalHistory { get; set; } // Shared medical history (multi-source)
+        public DbSet<CounselorLabOrderItem> CounselorLabOrderItems { get; set; } // Individual lab orders from counselor
+        
+        // Module 3.12: Audio Transcription & Translation (Feb 24, 2026)
+        public DbSet<SessionRecording> SessionRecordings { get; set; }
+        public DbSet<SessionTranscript> SessionTranscripts { get; set; }
+        public DbSet<TranscriptEdit> TranscriptEdits { get; set; }
+
+        // Module 3.3: Patient Type Workflows (Feb 23, 2026)
+        public DbSet<PatientTypeConfiguration> PatientTypeConfigurations { get; set; }
+        public DbSet<PatientTypeDocumentChecklist> PatientTypeDocumentChecklist { get; set; }
+
+        // Module 3.4: Pre-Op Test Management (Feb 23, 2026)
+        public DbSet<PreOpTestProtocol> PreOpTestProtocols { get; set; }
+        public DbSet<PreOpTestOrder> PreOpTestOrders { get; set; }
+        public DbSet<PreOpTestResult> PreOpTestResults { get; set; }
+        public DbSet<PreOpFitnessClearance> PreOpFitnessClearances { get; set; }
+
+        // Module 3.5: OT Booking System (Feb 23, 2026)
+        public DbSet<OTTheater> OTTheaters { get; set; }
+        public DbSet<OTSchedule> OTSchedules { get; set; }
+        public DbSet<OTBookingValidation> OTBookingValidations { get; set; }
+        public DbSet<OTEquipmentAvailability> OTEquipmentAvailability { get; set; }
+        public DbSet<OTCollisionLog> OTCollisionLogs { get; set; }
+
+        // Module 3.5a: OT Finalize Schedule (Mar 26, 2026) — state machine for counsellor → OT finalization
+        public DbSet<OtFinalizeSchedule> OtFinalizeSchedules { get; set; }
+        public DbSet<OtFinalizeAuditLog> OtFinalizeAuditLogs { get; set; }
+
+        // Module 3.6: Insurance Pre-Auth Workflow (Feb 23, 2026)
+        public DbSet<InsurancePreAuthorization> InsurancePreAuthorizations { get; set; }
+        public DbSet<InsuranceApprovalWorkflow> InsuranceApprovalWorkflows { get; set; }
+        public DbSet<InsuranceDocument> InsuranceDocuments { get; set; }
+        public DbSet<TPACommunicationLog> TPACommunicationLogs { get; set; }
+
+        // Module 3.7: Payment Processing (Feb 23, 2026)
+        public DbSet<PaymentTransaction> PaymentTransactions { get; set; }
+        public DbSet<PaymentLink> PaymentLinks { get; set; }
+        public DbSet<GovernmentSchemeClaim> GovernmentSchemeClaims { get; set; }
+
+        // Module 3.8: Admission Management (Feb 23, 2026)
+        public DbSet<PatientAdmission> PatientAdmissions { get; set; }
+        public DbSet<BedReservation> BedReservations { get; set; }
+
+        // Module 3.9: Consent Management (Feb 23, 2026)
+        public DbSet<ConsentFormTemplate> ConsentFormTemplates { get; set; }
+        public DbSet<CounselingConsent> CounselingConsents { get; set; }
+
+        // Module 3.10: Workflow Orchestration (Feb 23, 2026)
+        public DbSet<CounselingWorkflowState> CounselingWorkflowStates { get; set; }
+        public DbSet<WorkflowStageTransition> WorkflowStageTransitions { get; set; }
+
+        // Module 3.11: Master Data for Counseling (Feb 23, 2026)
+        public DbSet<InsuranceProvider> InsuranceProviders { get; set; }
+        public DbSet<TpaProvider> TpaProviders { get; set; }
+        public DbSet<AnesthesiaType> AnesthesiaTypes { get; set; }
+        public DbSet<GovernmentScheme> GovernmentSchemes { get; set; }
+        
+        // Service Catalog V2 (Global — no tenant_id)
+        public DbSet<ServiceCategory> ServiceCategories { get; set; }
+        public DbSet<CatalogService> CatalogServices { get; set; }
+        public DbSet<ServiceVariant> ServiceVariants { get; set; }
+        public DbSet<IolMaster> IolMasters { get; set; }
+        public DbSet<VariantIolMapping> VariantIolMappings { get; set; }
+        public DbSet<VariantPrice> VariantPrices { get; set; }
+        public DbSet<IolPrice> IolPrices { get; set; }
+        public DbSet<BranchPricingOverride> BranchPricingOverrides { get; set; }
+        public DbSet<ConsultationCharge> ConsultationCharges { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -171,6 +373,8 @@ namespace AuthService.Context
                 entity.Property(e => e.Id).HasColumnName("id");
                 entity.Property(e => e.TenantId).HasColumnName("tenant_id");
                 entity.Property(e => e.Name).HasColumnName("name");
+                entity.Property(e => e.ParentRoleId).HasColumnName("parent_role_id");
+                entity.Property(e => e.RoleLevel).HasColumnName("hierarchy_level");
             });
 
             builder.Entity<AppUserRole>(entity =>
@@ -764,6 +968,99 @@ namespace AuthService.Context
             {
                 entity.ToTable("patient");
                 entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+                entity.Property(e => e.MedicalRecordNumber).HasColumnName("medical_record_number");
+
+                // Extended Demographics mappings (Phase 6)
+                entity.Property(e => e.Title).HasColumnName("title");
+                entity.Property(e => e.FirstName).HasColumnName("first_name");
+                entity.Property(e => e.MiddleName).HasColumnName("middle_name");
+                entity.Property(e => e.LastName).HasColumnName("last_name");
+                entity.Property(e => e.DateOfBirth).HasColumnName("date_of_birth");
+                entity.Property(e => e.Nationality).HasColumnName("nationality");
+                entity.Property(e => e.Occupation).HasColumnName("occupation");
+                entity.Property(e => e.MaritalStatus).HasColumnName("marital_status");
+                entity.Property(e => e.Religion).HasColumnName("religion");
+                entity.Property(e => e.LanguagePreference).HasColumnName("language_preference");
+
+                entity.Property(e => e.Gender).HasColumnName("gender");
+                entity.Property(e => e.ContactNumber).HasColumnName("contact_number");
+                entity.Property(e => e.Email).HasColumnName("email");
+                entity.Property(e => e.Address).HasColumnName("address");
+                
+                // Structured Address mappings (Phase 5)
+                entity.Property(e => e.AddressLine1).HasColumnName("address_line_1");
+                entity.Property(e => e.AddressLine2).HasColumnName("address_line_2");
+                entity.Property(e => e.Country).HasColumnName("country");
+                entity.Property(e => e.District).HasColumnName("district");
+                entity.Property(e => e.Landmark).HasColumnName("landmark");
+                entity.Property(e => e.PinCode).HasColumnName("pin_code");
+                
+                entity.Property(e => e.BloodGroup).HasColumnName("blood_group");
+                entity.Property(e => e.Allergies).HasColumnName("allergies");
+                
+                // Enhanced Medical History mappings (Phase 4)
+                entity.Property(e => e.ChronicConditions).HasColumnName("chronic_conditions");
+                entity.Property(e => e.CurrentMedications).HasColumnName("current_medications");
+                entity.Property(e => e.PastSurgeries).HasColumnName("past_surgeries");
+                entity.Property(e => e.FamilyMedicalHistory).HasColumnName("family_medical_history");
+                entity.Property(e => e.KnownAllergiesDetails).HasColumnName("known_allergies_details");
+                entity.Property(e => e.ImmunizationRecords).HasColumnName("immunization_records");
+                entity.Property(e => e.DisabilityStatus).HasColumnName("disability_status");
+                entity.Property(e => e.SpecialNeeds).HasColumnName("special_needs");
+                
+                // Additional Medical/Lifestyle mappings (Phase 8)
+                entity.Property(e => e.ExerciseHabits).HasColumnName("exercise_habits");
+                entity.Property(e => e.DietType).HasColumnName("diet_type");
+                entity.Property(e => e.SmokingStatus).HasColumnName("smoking_status");
+                entity.Property(e => e.AlcoholUse).HasColumnName("alcohol_use");
+                entity.Property(e => e.LifestyleNotes).HasColumnName("lifestyle_notes");
+                
+                // Patient Photo mappings (Phase 7)
+                entity.Property(e => e.PhotoUrl).HasColumnName("photo_url");
+                entity.Property(e => e.PhotoThumbnailUrl).HasColumnName("photo_thumbnail_url");
+                entity.Property(e => e.PhotoUploadedAt).HasColumnName("photo_uploaded_at");
+                
+                // Emergency Contact mappings
+                entity.Property(e => e.EmergencyContactName).HasColumnName("emergency_contact_name");
+                entity.Property(e => e.EmergencyContactPhone).HasColumnName("emergency_contact_phone");
+                entity.Property(e => e.EmergencyContactRelationship).HasColumnName("emergency_contact_relationship");
+                entity.Property(e => e.EmergencyContactEmail).HasColumnName("emergency_contact_email");
+                entity.Property(e => e.EmergencyContactAddress).HasColumnName("emergency_contact_address");
+                
+                // Insurance mappings
+                entity.Property(e => e.InsuranceProvider).HasColumnName("insurance_provider");
+                entity.Property(e => e.InsurancePolicyNumber).HasColumnName("insurance_policy_number");
+                entity.Property(e => e.InsuranceGroupNumber).HasColumnName("insurance_group_number");
+                entity.Property(e => e.InsuranceValidFrom).HasColumnName("insurance_valid_from");
+                entity.Property(e => e.InsuranceValidTo).HasColumnName("insurance_valid_to");
+                entity.Property(e => e.InsuranceStatus).HasColumnName("insurance_status");
+                
+                // Identity Documents mappings
+                entity.Property(e => e.HealthId).HasColumnName("health_id");
+                entity.Property(e => e.AadhaarNumber).HasColumnName("aadhaar_number");
+                entity.Property(e => e.NationalId).HasColumnName("national_id");
+                entity.Property(e => e.PassportNumber).HasColumnName("passport_number");
+                entity.Property(e => e.DrivingLicense).HasColumnName("driving_license");
+                entity.Property(e => e.IdProofType).HasColumnName("id_proof_type");
+                
+                // Guardian Information mappings
+                entity.Property(e => e.GuardianName).HasColumnName("guardian_name");
+                entity.Property(e => e.GuardianRelationship).HasColumnName("guardian_relationship");
+                entity.Property(e => e.GuardianPhone).HasColumnName("guardian_phone");
+                entity.Property(e => e.GuardianEmail).HasColumnName("guardian_email");
+                entity.Property(e => e.GuardianAddress).HasColumnName("guardian_address");
+                entity.Property(e => e.GuardianIdProof).HasColumnName("guardian_id_proof");
+                
+                // Audit mappings
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                entity.Property(e => e.Status).HasColumnName("status");
+                entity.Property(e => e.DeceasedDate).HasColumnName("deceased_date");
+                
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
             });
 
             builder.Entity<ClinicalExamination>(entity =>
@@ -776,6 +1073,101 @@ namespace AuthService.Context
             {
                 entity.ToTable("appointment");
                 entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                
+                // Configure navigation properties for new tables
+                entity.HasMany(e => e.Conflicts)
+                    .WithOne(c => c.Appointment)
+                    .HasForeignKey(c => c.AppointmentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                
+                entity.HasMany(e => e.Reminders)
+                    .WithOne(r => r.Appointment)
+                    .HasForeignKey(r => r.AppointmentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Appointment Enhancement Tables
+            builder.Entity<DoctorAvailability>(entity =>
+            {
+                entity.ToTable("doctor_availability");
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+                entity.Property(e => e.DoctorId).HasColumnName("doctor_id");
+                entity.Property(e => e.DayOfWeek).HasColumnName("day_of_week");
+                entity.Property(e => e.SpecificDate).HasColumnName("specific_date");
+                entity.Property(e => e.StartTime).HasColumnName("start_time");
+                entity.Property(e => e.EndTime).HasColumnName("end_time");
+                entity.Property(e => e.AvailabilityType).HasColumnName("availability_type");
+                entity.Property(e => e.Reason).HasColumnName("reason");
+                entity.Property(e => e.IsRecurring).HasColumnName("is_recurring");
+                entity.Property(e => e.IsActive).HasColumnName("is_active");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+            });
+
+            builder.Entity<AppointmentConflict>(entity =>
+            {
+                entity.ToTable("appointment_conflicts");
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+                entity.Property(e => e.AppointmentId).HasColumnName("appointment_id");
+                entity.Property(e => e.ConflictType).HasColumnName("conflict_type");
+                entity.Property(e => e.ConflictingAppointmentId).HasColumnName("conflicting_appointment_id");
+                entity.Property(e => e.ConflictMessage).HasColumnName("conflict_message");
+                entity.Property(e => e.Severity).HasColumnName("severity");
+                entity.Property(e => e.DetectedAt).HasColumnName("detected_at");
+                entity.Property(e => e.ResolvedAt).HasColumnName("resolved_at");
+                entity.Property(e => e.ResolutionNotes).HasColumnName("resolution_notes");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.Status).HasColumnName("status");
+                
+                // Configure ConflictingAppointment navigation (Appointment is configured from Appointment side)
+                entity.HasOne(e => e.ConflictingAppointment)
+                    .WithMany()
+                    .HasForeignKey(e => e.ConflictingAppointmentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            builder.Entity<AppointmentReminder>(entity =>
+            {
+                entity.ToTable("appointment_reminders");
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+                entity.Property(e => e.AppointmentId).HasColumnName("appointment_id");
+                entity.Property(e => e.ReminderType).HasColumnName("reminder_type");
+                entity.Property(e => e.ScheduledTime).HasColumnName("scheduled_time");
+                entity.Property(e => e.SentAt).HasColumnName("sent_at");
+                entity.Property(e => e.DeliveryStatus).HasColumnName("delivery_status");
+                entity.Property(e => e.ErrorMessage).HasColumnName("error_message");
+                entity.Property(e => e.RetryCount).HasColumnName("retry_count");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.Status).HasColumnName("status");
+                // Navigation configured from Appointment side
+            });
+
+            builder.Entity<AppointmentStatistics>(entity =>
+            {
+                entity.ToTable("appointment_statistics");
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+                entity.Property(e => e.DateRangeStart).HasColumnName("date_range_start");
+                entity.Property(e => e.DateRangeEnd).HasColumnName("date_range_end");
+                entity.Property(e => e.DoctorId).HasColumnName("doctor_id");
+                entity.Property(e => e.DepartmentId).HasColumnName("department_id");
+                entity.Property(e => e.TotalAppointments).HasColumnName("total_appointments");
+                entity.Property(e => e.CompletedAppointments).HasColumnName("completed_appointments");
+                entity.Property(e => e.CancelledAppointments).HasColumnName("cancelled_appointments");
+                entity.Property(e => e.NoShowAppointments).HasColumnName("no_show_appointments");
+                entity.Property(e => e.AverageDurationMinutes).HasColumnName("average_duration_minutes");
+                entity.Property(e => e.MostBookedTimeSlot).HasColumnName("most_booked_time_slot");
+                entity.Property(e => e.UtilizationRate).HasColumnName("utilization_rate");
+                entity.Property(e => e.CalculatedAt).HasColumnName("calculated_at");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             });
 
             builder.Entity<PatientDocumentUpload>(entity =>
@@ -959,6 +1351,233 @@ namespace AuthService.Context
                 entity.HasIndex(e => e.BranchId);
             });
 
+            // ============================================================================
+            // EMPLOYMENT MANAGEMENT TABLES (Phase 1 - HR Features)
+            // ============================================================================
+            builder.Entity<EmploymentTypeLookup>(entity =>
+            {
+                entity.ToTable("employment_type_lookup");
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TypeCode).HasColumnName("type_code");
+                entity.Property(e => e.TypeName).HasColumnName("type_name");
+                entity.Property(e => e.Description).HasColumnName("description");
+                entity.Property(e => e.IsActive).HasColumnName("is_active");
+                entity.Property(e => e.DisplayOrder).HasColumnName("display_order");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+            });
+
+            builder.Entity<EmploymentCategoryLookup>(entity =>
+            {
+                entity.ToTable("employment_category_lookup");
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.CategoryCode).HasColumnName("category_code");
+                entity.Property(e => e.CategoryName).HasColumnName("category_name");
+                entity.Property(e => e.Description).HasColumnName("description");
+                entity.Property(e => e.IsActive).HasColumnName("is_active");
+                entity.Property(e => e.DisplayOrder).HasColumnName("display_order");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+            });
+
+            builder.Entity<Employee>(entity =>
+            {
+                entity.ToTable("employee");
+                
+                // Core Fields (EXIST in database)
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+                entity.Property(e => e.UserId).HasColumnName("user_id");
+                entity.Property(e => e.EmployeeNumber).HasColumnName("employee_number");
+                entity.Property(e => e.HireDate).HasColumnName("hire_date");
+                entity.Property(e => e.JobTitle).HasColumnName("job_title");
+                entity.Property(e => e.DepartmentId).HasColumnName("department_id");
+                entity.Property(e => e.ManagerId).HasColumnName("manager_id");
+                
+                // Note: DB has employment_type as text column, not employment_type_id FK
+                // Ignoring EmploymentTypeId since it doesn't exist in DB
+                entity.Ignore(e => e.EmploymentTypeId);
+                entity.Ignore(e => e.EmploymentType);
+                
+                // Emergency Contact (EXIST in database)
+                entity.Property(e => e.EmergencyContactName).HasColumnName("emergency_contact_name");
+                entity.Property(e => e.EmergencyContactRelationship).HasColumnName("emergency_contact_relationship");
+                entity.Property(e => e.EmergencyContactPhone).HasColumnName("emergency_contact_phone");
+                
+                // Compensation & Benefits (EXIST in database)
+                entity.Property(e => e.SalaryGrade).HasColumnName("salary_grade");
+                entity.Property(e => e.BaseSalary).HasColumnName("base_salary");
+                entity.Property(e => e.BenefitsPackage).HasColumnName("benefits_package"); // JSONB
+                
+                // Work Schedule (EXIST in database)
+                entity.Property(e => e.WorkSchedule).HasColumnName("work_schedule"); // JSONB
+                
+                // Audit Fields (EXIST in database)
+                entity.Property(e => e.Status).HasColumnName("status");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                
+                // IGNORE - These columns do NOT exist in current database
+                entity.Ignore(e => e.BranchId);
+                entity.Ignore(e => e.Branch);
+                entity.Ignore(e => e.EmploymentStatus);
+                entity.Ignore(e => e.ProbationEndDate);
+                entity.Ignore(e => e.ConfirmationDate);
+                entity.Ignore(e => e.ContractEndDate);
+                entity.Ignore(e => e.ResignationDate);
+                entity.Ignore(e => e.TerminationDate);
+                entity.Ignore(e => e.LastWorkingDate);
+                entity.Ignore(e => e.EmergencyContactEmail);
+                entity.Ignore(e => e.EmergencyContactAddress);
+                entity.Ignore(e => e.Currency);
+                entity.Ignore(e => e.PayrollFrequency);
+                entity.Ignore(e => e.BankAccountNumber);
+                entity.Ignore(e => e.BankName);
+                entity.Ignore(e => e.BankBranch);
+                entity.Ignore(e => e.TaxId);
+                entity.Ignore(e => e.WeeklyHours);
+                entity.Ignore(e => e.ShiftPattern);
+                entity.Ignore(e => e.MaritalStatus);
+                entity.Ignore(e => e.DependentsCount);
+                entity.Ignore(e => e.BloodGroup);
+                entity.Ignore(e => e.Allergies);
+                entity.Ignore(e => e.MedicalConditions);
+                entity.Ignore(e => e.DeletedByUserId);
+                
+                // Navigation Properties
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
+                entity.HasOne(e => e.Department).WithMany().HasForeignKey(e => e.DepartmentId);
+                
+                // Indexes
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.EmployeeNumber);
+            });
+
+            builder.Entity<EmploymentContract>(entity =>
+            {
+                entity.ToTable("employment_contract");
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+                entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+                entity.Property(e => e.ContractType).HasColumnName("contract_type");
+                entity.Property(e => e.StartDate).HasColumnName("start_date");
+                entity.Property(e => e.EndDate).HasColumnName("end_date");
+                entity.Property(e => e.ContractTerms).HasColumnName("contract_terms");
+                entity.Property(e => e.DocumentUrl).HasColumnName("document_url");
+                entity.Property(e => e.AutoRenewal).HasColumnName("auto_renewal");
+                entity.Property(e => e.RenewalNoticeDays).HasColumnName("renewal_notice_days");
+                entity.Property(e => e.RenewalStatus).HasColumnName("renewal_status");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                entity.Property(e => e.DeletedByUserId).HasColumnName("deleted_by_user_id");
+                entity.Property(e => e.Status).HasColumnName("status");
+                
+                entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+                entity.HasIndex(e => e.TenantId);
+            });
+
+            builder.Entity<ProfessionalLicense>(entity =>
+            {
+                entity.ToTable("professional_license");
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+                entity.Property(e => e.UserId).HasColumnName("user_id");
+                entity.Property(e => e.LicenseType).HasColumnName("license_type");
+                entity.Property(e => e.LicenseCategory).HasColumnName("license_category");
+                entity.Property(e => e.LicenseNumber).HasColumnName("license_number");
+                entity.Property(e => e.IssuingAuthority).HasColumnName("issuing_authority");
+                entity.Property(e => e.IssuingCountry).HasColumnName("issuing_country");
+                entity.Property(e => e.IssuingState).HasColumnName("issuing_state");
+                entity.Property(e => e.IssueDate).HasColumnName("issue_date");
+                entity.Property(e => e.ExpiryDate).HasColumnName("expiry_date");
+                entity.Ignore(e => e.RenewalDate); // Column doesn't exist in DB
+                entity.Ignore(e => e.RenewalReminderDays); // Column doesn't exist in DB
+                entity.Ignore(e => e.LastReminderSentAt); // Column doesn't exist in DB
+                entity.Ignore(e => e.RenewalStatus); // Column doesn't exist in DB
+                entity.Property(e => e.VerificationStatus).HasColumnName("verification_status");
+                entity.Property(e => e.VerifiedAt).HasColumnName("verified_at");
+                entity.Property(e => e.VerifiedByUserId).HasColumnName("verified_by_user_id");
+                entity.Property(e => e.VerificationNotes).HasColumnName("verification_notes");
+                entity.Property(e => e.DocumentUrl).HasColumnName("document_url");
+                entity.Property(e => e.RenewalDocumentUrl).HasColumnName("renewal_document_url");
+                entity.Property(e => e.ScopeOfPractice).HasColumnName("scope_of_practice");
+                entity.Property(e => e.Restrictions).HasColumnName("restrictions");
+                entity.Property(e => e.Specializations).HasColumnName("specializations");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                entity.Ignore(e => e.DeletedByUserId); // Database column doesn't exist
+                entity.Property(e => e.Status).HasColumnName("status");
+                
+                entity.Ignore(e => e.DaysUntilExpiry); // Computed property
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
+                entity.HasOne(e => e.VerifiedByUser).WithMany().HasForeignKey(e => e.VerifiedByUserId);
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.ExpiryDate);
+                entity.HasIndex(e => e.VerificationStatus);
+            });
+
+            builder.Entity<ProbationTracking>(entity =>
+            {
+                entity.ToTable("probation_tracking");
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+                entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+                entity.Property(e => e.ProbationStartDate).HasColumnName("probation_start_date");
+                entity.Property(e => e.ProbationEndDate).HasColumnName("probation_end_date");
+                entity.Property(e => e.ProbationStatus).HasColumnName("probation_status");
+                entity.Property(e => e.ConfirmationDate).HasColumnName("confirmation_date");
+                entity.Property(e => e.ReviewedByUserId).HasColumnName("reviewed_by_user_id");
+                entity.Property(e => e.ReviewNotes).HasColumnName("review_notes");
+                entity.Property(e => e.ExtensionDays).HasColumnName("extension_days");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                entity.Property(e => e.DeletedByUserId).HasColumnName("deleted_by_user_id");
+                entity.Property(e => e.Status).HasColumnName("status");
+                
+                entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+                entity.HasOne(e => e.ReviewedBy).WithMany().HasForeignKey(e => e.ReviewedByUserId);
+                entity.HasIndex(e => e.TenantId);
+            });
+
+            builder.Entity<AuthService.Models.BulkOperations.BulkOperationJob>(entity =>
+            {
+                entity.ToTable("bulk_operation_job");
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+                entity.Property(e => e.OperationType).HasColumnName("operation_type");
+                entity.Property(e => e.EntityType).HasColumnName("entity_type");
+                entity.Property(e => e.TotalItems).HasColumnName("total_records");
+                entity.Property(e => e.ProcessedItems).HasColumnName("processed_records");
+                entity.Property(e => e.SuccessCount).HasColumnName("successful_records");
+                entity.Property(e => e.FailureCount).HasColumnName("failed_records");
+                entity.Property(e => e.Status).HasColumnName("status");
+                entity.Property(e => e.StartedAt).HasColumnName("started_at");
+                entity.Property(e => e.CompletedAt).HasColumnName("completed_at");
+                entity.Property(e => e.ResultFilePath).HasColumnName("output_file_url");
+                entity.Property(e => e.CreatedBy).HasColumnName("created_by_user_id");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.OperationType);
+                entity.HasIndex(e => e.CreatedAt);
+            });
+
+            // ============================================================================
+            // ROW-LEVEL SECURITY FILTERS (TEMPORARILY DISABLED FOR TESTING)
+            // ============================================================================
             // Enable Row-Level Security filters
             // TEMPORARILY DISABLED FOR TESTING
             // builder.Entity<AppUser>().HasQueryFilter(u => u.TenantId == GetCurrentTenantId());
@@ -1127,6 +1746,966 @@ namespace AuthService.Context
                 entity.HasIndex(e => new { e.UserId, e.Status });
                 entity.HasIndex(e => new { e.StartTime, e.EndTime });
                 entity.HasIndex(e => new { e.TenantId, e.Status });
+            });
+
+            // Role Template Configuration
+            builder.Entity<RoleTemplate>(entity =>
+            {
+                entity.ToTable("role_template");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(100).IsRequired();
+                entity.Property(e => e.Description).HasColumnName("description").HasMaxLength(500);
+                entity.Property(e => e.RoleType).HasColumnName("role_type").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.TemplateCategory).HasColumnName("template_category").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Priority).HasColumnName("priority").HasDefaultValue(0);
+                entity.Property(e => e.Configuration).HasColumnName("configuration").HasColumnType("jsonb").HasDefaultValue("{}");
+                entity.Property(e => e.Metadata).HasColumnName("metadata").HasColumnType("jsonb").HasDefaultValue("{}");
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.Property(e => e.IsSystemTemplate).HasColumnName("is_system_template").HasDefaultValue(false);
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(50).HasDefaultValue("active");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                entity.Property(e => e.DeletedBy).HasColumnName("deleted_by");
+                
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.RoleType);
+                entity.HasIndex(e => e.TemplateCategory);
+                entity.HasIndex(e => new { e.TenantId, e.Name });
+                entity.HasIndex(e => new { e.TenantId, e.IsActive });
+            });
+
+            // Role Hierarchy Configuration
+            builder.Entity<RoleHierarchy>(entity =>
+            {
+                entity.ToTable("role_hierarchy");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.ParentRoleId).HasColumnName("parent_role_id").IsRequired();
+                entity.Property(e => e.ChildRoleId).HasColumnName("child_role_id").IsRequired();
+                entity.Property(e => e.Level).HasColumnName("level").HasDefaultValue(1);
+                entity.Property(e => e.Path).HasColumnName("path").HasMaxLength(500);
+                entity.Property(e => e.InheritanceType).HasColumnName("inheritance_type").HasMaxLength(50).HasDefaultValue("inherit_all");
+                entity.Property(e => e.InheritanceConfig).HasColumnName("inheritance_config").HasColumnType("jsonb").HasDefaultValue("{}");
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(50).HasDefaultValue("active");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                entity.Property(e => e.DeletedBy).HasColumnName("deleted_by");
+                
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.ParentRoleId);
+                entity.HasIndex(e => e.ChildRoleId);
+                entity.HasIndex(e => new { e.TenantId, e.ParentRoleId });
+                entity.HasIndex(e => new { e.TenantId, e.ChildRoleId });
+                entity.HasIndex(e => new { e.ParentRoleId, e.ChildRoleId });
+                
+                // Configure foreign key relationships
+                entity.HasOne(e => e.ParentRole)
+                    .WithMany()
+                    .HasForeignKey(e => e.ParentRoleId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                    
+                entity.HasOne(e => e.ChildRole)
+                    .WithMany()
+                    .HasForeignKey(e => e.ChildRoleId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // User Role History Configuration
+            builder.Entity<UserRoleHistory>(entity =>
+            {
+                entity.ToTable("user_role_history");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
+                entity.Property(e => e.RoleId).HasColumnName("role_id").IsRequired();
+                entity.Property(e => e.Action).HasColumnName("action").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Reason).HasColumnName("reason").HasMaxLength(500);
+                entity.Property(e => e.ActionTimestamp).HasColumnName("action_timestamp");
+                entity.Property(e => e.EffectiveFrom).HasColumnName("effective_from");
+                entity.Property(e => e.EffectiveUntil).HasColumnName("effective_until");
+                entity.Property(e => e.AssignedByUserId).HasColumnName("assigned_by_user_id").IsRequired();
+                entity.Property(e => e.BranchId).HasColumnName("branch_id");
+                entity.Property(e => e.Metadata).HasColumnName("metadata").HasColumnType("jsonb").HasDefaultValue("{}");
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(50).HasDefaultValue("active");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.UserId);
+                entity.HasIndex(e => e.RoleId);
+                entity.HasIndex(e => new { e.TenantId, e.UserId });
+                entity.HasIndex(e => new { e.TenantId, e.RoleId });
+                entity.HasIndex(e => new { e.UserId, e.RoleId });
+                entity.HasIndex(e => e.ActionTimestamp);
+            });
+            
+            // =============================================
+            // Phase 3: Prescription Management Configuration
+            // =============================================
+            
+            builder.Entity<AuthService.Models.Prescription.Prescription>(entity =>
+            {
+                entity.ToTable("prescription");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.PatientId).HasColumnName("patient_id").IsRequired();
+                entity.Property(e => e.DoctorId).HasColumnName("doctor_id").IsRequired();
+                entity.Property(e => e.PrescriptionDate).HasColumnName("prescription_date").IsRequired();
+                entity.Property(e => e.Diagnosis).HasColumnName("diagnosis").IsRequired();
+                entity.Property(e => e.Instructions).HasColumnName("instructions");
+                entity.Property(e => e.DurationDays).HasColumnName("duration_days");
+                entity.Property(e => e.FollowUpDate).HasColumnName("follow_up_date");
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(50).IsRequired().HasDefaultValue("active");
+                entity.Property(e => e.PharmacyId).HasColumnName("pharmacy_id");
+                entity.Property(e => e.DispensedDate).HasColumnName("dispensed_date");
+                entity.Property(e => e.DispensedByUserId).HasColumnName("dispensed_by_user_id");
+                entity.Property(e => e.Notes).HasColumnName("notes");
+                entity.Property(e => e.IsPrinted).HasColumnName("is_printed").HasDefaultValue(false);
+                entity.Property(e => e.PrintedAt).HasColumnName("printed_at");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                
+                // Navigation properties
+                entity.HasOne(e => e.Patient)
+                    .WithMany()
+                    .HasForeignKey(e => e.PatientId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                    
+                entity.HasOne(e => e.Doctor)
+                    .WithMany()
+                    .HasForeignKey(e => e.DoctorId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                    
+                entity.HasOne(e => e.DispensedByUser)
+                    .WithMany()
+                    .HasForeignKey(e => e.DispensedByUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                    
+                entity.HasMany(e => e.Medications)
+                    .WithOne(m => m.Prescription)
+                    .HasForeignKey(m => m.PrescriptionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.PatientId);
+                entity.HasIndex(e => e.DoctorId);
+                entity.HasIndex(e => e.PrescriptionDate);
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.DeletedAt);
+            });
+            
+            builder.Entity<AuthService.Models.Prescription.PrescriptionMedication>(entity =>
+            {
+                entity.ToTable("prescription_medication");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.PrescriptionId).HasColumnName("prescription_id").IsRequired();
+                entity.Property(e => e.MedicationName).HasColumnName("medication_name").HasMaxLength(200).IsRequired();
+                entity.Property(e => e.GenericName).HasColumnName("generic_name").HasMaxLength(200);
+                entity.Property(e => e.Dosage).HasColumnName("dosage").HasMaxLength(100).IsRequired();
+                entity.Property(e => e.Form).HasColumnName("form").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Route).HasColumnName("route").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Frequency).HasColumnName("frequency").HasMaxLength(100).IsRequired();
+                entity.Property(e => e.DurationDays).HasColumnName("duration_days").IsRequired();
+                entity.Property(e => e.Quantity).HasColumnName("quantity").IsRequired();
+                entity.Property(e => e.Instructions).HasColumnName("instructions");
+                entity.Property(e => e.StartDate).HasColumnName("start_date").IsRequired();
+                entity.Property(e => e.EndDate).HasColumnName("end_date");
+                entity.Property(e => e.RefillsAllowed).HasColumnName("refills_allowed").HasDefaultValue(0);
+                entity.Property(e => e.RefillsRemaining).HasColumnName("refills_remaining").HasDefaultValue(0);
+                entity.Property(e => e.IsCritical).HasColumnName("is_critical").HasDefaultValue(false);
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.PrescriptionId);
+                entity.HasIndex(e => e.MedicationName);
+                entity.HasIndex(e => new { e.StartDate, e.EndDate });
+            });
+            
+            builder.Entity<AuthService.Models.Prescription.DrugInteraction>(entity =>
+            {
+                entity.ToTable("drug_interaction");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.Drug1Name).HasColumnName("drug1_name").HasMaxLength(200).IsRequired();
+                entity.Property(e => e.Drug2Name).HasColumnName("drug2_name").HasMaxLength(200).IsRequired();
+                entity.Property(e => e.InteractionType).HasColumnName("interaction_type").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Severity).HasColumnName("severity").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Description).HasColumnName("description").IsRequired();
+                entity.Property(e => e.ClinicalEffects).HasColumnName("clinical_effects");
+                entity.Property(e => e.Mechanism).HasColumnName("mechanism");
+                entity.Property(e => e.Management).HasColumnName("management");
+                entity.Property(e => e.ReferenceSources).HasColumnName("reference_sources");
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                
+                entity.HasIndex(e => e.Drug1Name);
+                entity.HasIndex(e => e.Drug2Name);
+                entity.HasIndex(e => e.InteractionType);
+                entity.HasIndex(e => e.Severity);
+            });
+            
+            builder.Entity<AuthService.Models.Prescription.MedicationMaster>(entity =>
+            {
+                entity.ToTable("medication_master");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+                entity.Property(e => e.GenericName).HasColumnName("generic_name").HasMaxLength(200);
+                entity.Property(e => e.BrandNames).HasColumnName("brand_names");
+                entity.Property(e => e.Category).HasColumnName("category").HasMaxLength(100).IsRequired();
+                entity.Property(e => e.Form).HasColumnName("form").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.StandardDosages).HasColumnName("standard_dosages");
+                entity.Property(e => e.Route).HasColumnName("route").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Contraindications).HasColumnName("contraindications");
+                entity.Property(e => e.SideEffects).HasColumnName("side_effects");
+                entity.Property(e => e.PregnancyCategory).HasColumnName("pregnancy_category").HasMaxLength(10);
+                entity.Property(e => e.RequiresPrescription).HasColumnName("requires_prescription").HasDefaultValue(true);
+                entity.Property(e => e.IsControlledSubstance).HasColumnName("is_controlled_substance").HasDefaultValue(false);
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                
+                entity.HasIndex(e => e.Name);
+                entity.HasIndex(e => e.GenericName);
+                entity.HasIndex(e => e.Category);
+                entity.HasIndex(e => e.IsActive);
+            });
+
+            // ============ OPD Visit & Billing Entities ============
+            
+            builder.Entity<Visit>(entity =>
+            {
+                entity.ToTable("visits");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.PatientId).HasColumnName("patient_id").IsRequired();
+                entity.Property(e => e.AppointmentId).HasColumnName("appointment_id").IsRequired();
+                entity.Property(e => e.OpdBillId).HasColumnName("opd_bill_id");
+                entity.Property(e => e.BranchId).HasColumnName("branch_id").IsRequired();
+                entity.Property(e => e.ConsultantId).HasColumnName("consultant_id");
+                entity.Property(e => e.DepartmentId).HasColumnName("department_id");
+                entity.Property(e => e.VisitType).HasColumnName("visit_type").HasMaxLength(30).IsRequired();
+                entity.Property(e => e.VisitCategory).HasColumnName("visit_category").HasMaxLength(30).IsRequired();
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(30).IsRequired();
+                entity.Property(e => e.TokenNumber).HasColumnName("token_number").HasMaxLength(20).IsRequired();
+                entity.Property(e => e.TokenSequence).HasColumnName("token_sequence");
+                entity.Property(e => e.CheckedInAt).HasColumnName("checked_in_at");
+                entity.Property(e => e.CheckedInBy).HasColumnName("checked_in_by");
+                entity.Property(e => e.CurrentStation).HasColumnName("current_station").HasMaxLength(50);
+                entity.Property(e => e.AssignedTo).HasColumnName("assigned_to");
+                entity.Property(e => e.AssignedAt).HasColumnName("assigned_at");
+                entity.Property(e => e.CompletedAt).HasColumnName("completed_at");
+                entity.Property(e => e.CompletedBy).HasColumnName("completed_by");
+                entity.Property(e => e.Outcome).HasColumnName("outcome").HasMaxLength(50);
+                entity.Property(e => e.OutcomeNotes).HasColumnName("outcome_notes");
+                entity.Property(e => e.IsEmergency).HasColumnName("is_emergency").HasDefaultValue(false);
+                entity.Property(e => e.EmergencyAuthorizedBy).HasColumnName("emergency_authorized_by");
+                entity.Property(e => e.EmergencyReason).HasColumnName("emergency_reason");
+                entity.Property(e => e.WalkoutReason).HasColumnName("walkout_reason").HasMaxLength(100);
+                entity.Property(e => e.WalkoutAt).HasColumnName("walkout_at");
+                entity.Property(e => e.OverrideReason).HasColumnName("override_reason").HasMaxLength(100);
+                entity.Property(e => e.Notes).HasColumnName("notes");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id").IsRequired();
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.PatientId);
+                entity.HasIndex(e => e.AppointmentId);
+                entity.HasIndex(e => e.BranchId);
+                entity.HasIndex(e => e.TokenNumber);
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => new { e.BranchId, e.TokenSequence, e.CreatedAt });
+            });
+
+            builder.Entity<OpdBill>(entity =>
+            {
+                entity.ToTable("opd_bills");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.PatientId).HasColumnName("patient_id").IsRequired();
+                entity.Property(e => e.AppointmentId).HasColumnName("appointment_id").IsRequired();
+                entity.Property(e => e.BranchId).HasColumnName("branch_id").IsRequired();
+                entity.Property(e => e.BillingRuleId).HasColumnName("billing_rule_id");
+                entity.Property(e => e.BillNumber).HasColumnName("bill_number").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.BillDate).HasColumnName("bill_date").IsRequired();
+                entity.Property(e => e.ConsultationFee).HasColumnName("consultation_fee").HasPrecision(10, 2);
+                entity.Property(e => e.RegistrationFee).HasColumnName("registration_fee").HasPrecision(10, 2);
+                entity.Property(e => e.AdditionalCharges).HasColumnName("additional_charges").HasPrecision(10, 2);
+                entity.Property(e => e.GrossAmount).HasColumnName("gross_amount").HasPrecision(10, 2);
+                entity.Property(e => e.DiscountPercentage).HasColumnName("discount_percentage").HasPrecision(5, 2);
+                entity.Property(e => e.DiscountAmount).HasColumnName("discount_amount").HasPrecision(10, 2);
+                entity.Property(e => e.TaxAmount).HasColumnName("tax_amount").HasPrecision(10, 2);
+                entity.Property(e => e.NetAmount).HasColumnName("net_amount").HasPrecision(10, 2);
+                entity.Property(e => e.AmountPaid).HasColumnName("amount_paid").HasPrecision(10, 2);
+                entity.Property(e => e.BalanceDue).HasColumnName("balance_due").HasPrecision(10, 2);
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(30).IsRequired();
+                entity.Property(e => e.IsFreeVisit).HasColumnName("is_free_visit").HasDefaultValue(false);
+                entity.Property(e => e.FreeVisitReason).HasColumnName("free_visit_reason").HasMaxLength(200);
+                entity.Property(e => e.IsCredit).HasColumnName("is_credit").HasDefaultValue(false);
+                entity.Property(e => e.CreditApprovedBy).HasColumnName("credit_approved_by");
+                entity.Property(e => e.CreditApprovedAt).HasColumnName("credit_approved_at");
+                entity.Property(e => e.CreditNotes).HasColumnName("credit_notes");
+                entity.Property(e => e.IsInsurance).HasColumnName("is_insurance").HasDefaultValue(false);
+                entity.Property(e => e.InsuranceProvider).HasColumnName("insurance_provider").HasMaxLength(200);
+                entity.Property(e => e.InsurancePolicyNumber).HasColumnName("insurance_policy_number").HasMaxLength(100);
+                entity.Property(e => e.InsuranceClaimAmount).HasColumnName("insurance_claim_amount").HasPrecision(10, 2);
+                entity.Property(e => e.BillItems).HasColumnName("bill_items").HasColumnType("jsonb");
+                entity.Property(e => e.IsFinalized).HasColumnName("is_finalized").HasDefaultValue(false);
+                entity.Property(e => e.FinalizedAt).HasColumnName("finalized_at");
+                entity.Property(e => e.FinalizedByUserId).HasColumnName("finalized_by_user_id");
+                // Day 5: Bill Locking (Feb 7, 2026)
+                entity.Property(e => e.IsLocked).HasColumnName("is_locked").HasDefaultValue(false);
+                entity.Property(e => e.LockedAt).HasColumnName("locked_at");
+                entity.Property(e => e.LockedByUserId).HasColumnName("locked_by_user_id");
+                entity.Property(e => e.UnlockReason).HasColumnName("unlock_reason");
+                entity.Property(e => e.UnlockedAt).HasColumnName("unlocked_at");
+                entity.Property(e => e.UnlockedByUserId).HasColumnName("unlocked_by_user_id");
+                entity.Property(e => e.RefundStatus).HasColumnName("refund_status").HasMaxLength(20).HasDefaultValue("none");
+                entity.Property(e => e.RefundAmount).HasColumnName("refund_amount").HasPrecision(10, 2);
+                entity.Property(e => e.RefundReason).HasColumnName("refund_reason").HasMaxLength(200);
+                entity.Property(e => e.Notes).HasColumnName("notes");
+                entity.Property(e => e.GeneratedBy).HasColumnName("generated_by").IsRequired();
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id").IsRequired();
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.BillNumber).IsUnique();
+                entity.HasIndex(e => e.PatientId);
+                entity.HasIndex(e => e.AppointmentId);
+                entity.HasIndex(e => e.Status);
+                // Day 5: Bill Locking indexes
+                entity.HasIndex(e => e.IsLocked);
+            });
+
+            builder.Entity<OpdBillPayment>(entity =>
+            {
+                entity.ToTable("opd_bill_payments");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.OpdBillId).HasColumnName("opd_bill_id").IsRequired();
+                entity.Property(e => e.PaymentReference).HasColumnName("payment_reference").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.PaymentMode).HasColumnName("payment_mode").HasMaxLength(30).IsRequired();
+                entity.Property(e => e.Amount).HasColumnName("amount").HasPrecision(10, 2);
+                entity.Property(e => e.PaymentDate).HasColumnName("payment_date");
+                entity.Property(e => e.CardType).HasColumnName("card_type").HasMaxLength(30);
+                entity.Property(e => e.CardLastFour).HasColumnName("card_last_four").HasMaxLength(4);
+                entity.Property(e => e.CardNetwork).HasColumnName("card_network").HasMaxLength(30);
+                entity.Property(e => e.UpiId).HasColumnName("upi_id").HasMaxLength(100);
+                entity.Property(e => e.UpiTransactionId).HasColumnName("upi_transaction_id").HasMaxLength(100);
+                entity.Property(e => e.BankName).HasColumnName("bank_name").HasMaxLength(100);
+                entity.Property(e => e.ChequeNumber).HasColumnName("cheque_number").HasMaxLength(50);
+                entity.Property(e => e.InsuranceClaimId).HasColumnName("insurance_claim_id").HasMaxLength(100);
+                entity.Property(e => e.InsuranceResponse).HasColumnName("insurance_response");
+                entity.Property(e => e.ReceivedBy).HasColumnName("received_by");
+                entity.Property(e => e.ReceiptNumber).HasColumnName("receipt_number").HasMaxLength(50);
+                
+                entity.HasIndex(e => e.OpdBillId);
+                entity.HasIndex(e => e.PaymentReference).IsUnique();
+            });
+
+            builder.Entity<Refund>(entity =>
+            {
+                entity.ToTable("refunds");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.BillId).HasColumnName("bill_id").IsRequired();
+                entity.Property(e => e.PatientId).HasColumnName("patient_id").IsRequired();
+                entity.Property(e => e.VisitId).HasColumnName("visit_id");
+                entity.Property(e => e.RefundAmount).HasColumnName("refund_amount").HasPrecision(10, 2);
+                entity.Property(e => e.RefundReason).HasColumnName("refund_reason").HasMaxLength(200);
+                entity.Property(e => e.RefundMode).HasColumnName("refund_mode").HasMaxLength(50);
+                entity.Property(e => e.RequestedByUserId).HasColumnName("requested_by_user_id");
+                entity.Property(e => e.RequestedAt).HasColumnName("requested_at");
+                entity.Property(e => e.AuthorizedByUserId).HasColumnName("authorized_by_user_id");
+                entity.Property(e => e.AuthorizedAt).HasColumnName("authorized_at");
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20).HasDefaultValue("pending");
+                entity.Property(e => e.Notes).HasColumnName("notes");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                
+                entity.HasIndex(e => e.BillId);
+                entity.HasIndex(e => e.PatientId);
+                entity.HasIndex(e => e.VisitId);
+                entity.HasIndex(e => e.TenantId);
+            });
+
+            builder.Entity<BillingRule>(entity =>
+            {
+                entity.ToTable("billing_rules");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.BranchId).HasColumnName("branch_id");
+                entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(100).IsRequired();
+                entity.Property(e => e.VisitType).HasColumnName("visit_type").HasMaxLength(30).IsRequired();
+                entity.Property(e => e.FreeDays).HasColumnName("free_days");
+                entity.Property(e => e.FreeVisits).HasColumnName("free_visits");
+                entity.Property(e => e.Condition).HasColumnName("condition").HasMaxLength(30);
+                entity.Property(e => e.DefaultFee).HasColumnName("default_fee").HasPrecision(10, 2);
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.Property(e => e.Priority).HasColumnName("priority");
+                entity.Property(e => e.Description).HasColumnName("description").HasMaxLength(500);
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id").IsRequired();
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.VisitType);
+                entity.HasIndex(e => e.IsActive);
+            });
+
+            builder.Entity<TokenSequence>(entity =>
+            {
+                entity.ToTable("token_sequences");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.BranchId).HasColumnName("branch_id").IsRequired();
+                entity.Property(e => e.SequenceDate).HasColumnName("sequence_date");
+                entity.Property(e => e.CurrentSequence).HasColumnName("current_sequence");
+                entity.Property(e => e.BranchPrefix).HasColumnName("branch_prefix").HasMaxLength(10).IsRequired();
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                
+                entity.HasIndex(e => new { e.BranchId, e.SequenceDate }).IsUnique();
+            });
+
+            // Day 4: Itemized Billing Entities (Feb 6, 2026)
+            builder.Entity<OpdBillItem>(entity =>
+            {
+                entity.ToTable("opd_bill_items");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.OpdBillId).HasColumnName("opd_bill_id").IsRequired();
+                entity.Property(e => e.ServiceVariantId).HasColumnName("service_variant_id");
+                entity.Property(e => e.ServiceCode).HasColumnName("service_code").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.ServiceName).HasColumnName("service_name").HasMaxLength(200).IsRequired();
+                entity.Property(e => e.Quantity).HasColumnName("quantity").HasDefaultValue(1);
+                entity.Property(e => e.UnitPrice).HasColumnName("unit_price").HasPrecision(10, 2).IsRequired();
+                entity.Property(e => e.Subtotal).HasColumnName("subtotal").HasPrecision(10, 2).IsRequired();
+                entity.Property(e => e.DiscountPercentage).HasColumnName("discount_percentage").HasPrecision(5, 2).HasDefaultValue(0);
+                entity.Property(e => e.DiscountAmount).HasColumnName("discount_amount").HasPrecision(10, 2).HasDefaultValue(0);
+                entity.Property(e => e.TaxPercentage).HasColumnName("tax_percentage").HasPrecision(5, 2).HasDefaultValue(0);
+                entity.Property(e => e.TaxAmount).HasColumnName("tax_amount").HasPrecision(10, 2).HasDefaultValue(0);
+                entity.Property(e => e.TotalAmount).HasColumnName("total_amount").HasPrecision(10, 2).IsRequired();
+                entity.Property(e => e.PerformedByUserId).HasColumnName("performed_by_user_id");
+                entity.Property(e => e.PerformedAt).HasColumnName("performed_at");
+                entity.Property(e => e.DepartmentId).HasColumnName("department_id");
+                entity.Property(e => e.Notes).HasColumnName("notes");
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20).HasDefaultValue("active");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id").IsRequired();
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                
+                entity.HasOne(e => e.OpdBill)
+                    .WithMany()
+                    .HasForeignKey(e => e.OpdBillId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                
+                entity.HasOne(e => e.ServiceVariant)
+                    .WithMany()
+                    .HasForeignKey(e => e.ServiceVariantId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                
+                entity.HasOne(e => e.Department)
+                    .WithMany()
+                    .HasForeignKey(e => e.DepartmentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.OpdBillId);
+                entity.HasIndex(e => e.ServiceVariantId);
+                entity.HasIndex(e => e.Status);
+            });
+
+            // Module 30: Patient Directory Hub (Feb 9, 2026)
+            builder.Entity<PatientAllergy>(entity =>
+            {
+                entity.ToTable("patient_allergies");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.TenantId, e.PatientId });
+                entity.HasQueryFilter(e => e.DeletedAt == null);
+            });
+
+            builder.Entity<PatientConsent>(entity =>
+            {
+                entity.ToTable("patient_consents");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.TenantId, e.PatientId });
+                entity.HasQueryFilter(e => e.DeletedAt == null);
+            });
+
+            builder.Entity<PatientCommunication>(entity =>
+            {
+                entity.ToTable("patient_communications");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.TenantId, e.PatientId });
+                entity.HasIndex(e => e.SentAt);
+                entity.HasQueryFilter(e => e.DeletedAt == null);
+            });
+
+            builder.Entity<LabReport>(entity =>
+            {
+                entity.ToTable("lab_reports");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.TenantId, e.PatientId });
+                entity.HasIndex(e => e.Status);
+                entity.HasQueryFilter(e => e.DeletedAt == null);
+            });
+
+            builder.Entity<PatientInsurance>(entity =>
+            {
+                entity.ToTable("patient_insurance");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.TenantId, e.PatientId });
+                entity.HasIndex(e => e.PolicyNumber);
+                entity.HasQueryFilter(e => e.DeletedAt == null);
+            });
+
+            builder.Entity<PatientNote>(entity =>
+            {
+                entity.ToTable("patient_notes");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.TenantId, e.PatientId });
+                entity.HasIndex(e => e.NoteType);
+                entity.HasQueryFilter(e => e.DeletedAt == null);
+            });
+
+            builder.Entity<OpticalOrder>(entity =>
+            {
+                entity.ToTable("optical_orders");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.TenantId, e.PatientId });
+                entity.HasIndex(e => e.Status);
+                entity.HasQueryFilter(e => e.DeletedAt == null);
+            });
+
+            // Module 3.9: Consent Management (Feb 23, 2026)
+            builder.Entity<ConsentFormTemplate>(entity =>
+            {
+                entity.ToTable("consent_form_templates");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.TemplateName).HasColumnName("template_name").HasMaxLength(200).IsRequired();
+                entity.Property(e => e.ConsentCategory).HasColumnName("consent_category").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Description).HasColumnName("description");
+                entity.Property(e => e.TemplateHtml).HasColumnName("template_html").IsRequired();
+                entity.Property(e => e.RequiresPatientSignature).HasColumnName("requires_patient_signature").HasDefaultValue(true);
+                entity.Property(e => e.RequiresWitnessSignature).HasColumnName("requires_witness_signature").HasDefaultValue(true);
+                entity.Property(e => e.RequiresGuardianSignature).HasColumnName("requires_guardian_signature").HasDefaultValue(false);
+                entity.Property(e => e.ComplianceStandards).HasColumnName("compliance_standards");
+                entity.Property(e => e.Version).HasColumnName("version").HasMaxLength(20);
+                entity.Property(e => e.EffectiveFrom).HasColumnName("effective_from");
+                entity.Property(e => e.EffectiveTo).HasColumnName("effective_to");
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id").IsRequired();
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.ConsentCategory);
+                entity.HasIndex(e => e.IsActive);
+                entity.HasQueryFilter(e => e.DeletedAt == null);
+            });
+
+            builder.Entity<CounselingConsent>(entity =>
+            {
+                entity.ToTable("counseling_consents");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.BranchId).HasColumnName("branch_id").IsRequired();
+                entity.Property(e => e.TemplateId).HasColumnName("template_id").IsRequired();
+                entity.Property(e => e.SessionId).HasColumnName("session_id").IsRequired();
+                entity.Property(e => e.PatientId).HasColumnName("patient_id").IsRequired();
+                entity.Property(e => e.PackageId).HasColumnName("package_id");
+                entity.Property(e => e.RenderedHtml).HasColumnName("rendered_html").IsRequired();
+                entity.Property(e => e.PatientSignatureBase64).HasColumnName("patient_signature_base64");
+                entity.Property(e => e.PatientSignedAt).HasColumnName("patient_signed_at");
+                entity.Property(e => e.WitnessName).HasColumnName("witness_name").HasMaxLength(200);
+                entity.Property(e => e.WitnessSignatureBase64).HasColumnName("witness_signature_base64");
+                entity.Property(e => e.WitnessSignedAt).HasColumnName("witness_signed_at");
+                entity.Property(e => e.GuardianName).HasColumnName("guardian_name").HasMaxLength(200);
+                entity.Property(e => e.GuardianRelation).HasColumnName("guardian_relationship").HasMaxLength(50);
+                entity.Property(e => e.GuardianSignatureBase64).HasColumnName("guardian_signature_base64");
+                entity.Property(e => e.GuardianSignedAt).HasColumnName("guardian_signed_at");
+                entity.Property(e => e.PdfUrl).HasColumnName("pdf_url");
+                entity.Property(e => e.PdfGeneratedAt).HasColumnName("pdf_generated_at");
+                entity.Property(e => e.ConsentStatus).HasColumnName("consent_status").HasMaxLength(20).HasDefaultValue("Draft");
+                entity.Property(e => e.RevokedAt).HasColumnName("revoked_at");
+                entity.Property(e => e.RevocationReason).HasColumnName("revocation_reason");
+                entity.Property(e => e.RevokedByUserId).HasColumnName("revoked_by_user_id");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id").IsRequired();
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.TemplateId);
+                entity.HasIndex(e => e.PatientId);
+                entity.HasIndex(e => e.SessionId);
+                entity.HasIndex(e => e.ConsentStatus);
+                entity.HasQueryFilter(e => e.DeletedAt == null);
+            });
+
+            // ============================================================================
+            // SERVICE CATALOG V2 (Global — no tenant_id)
+            // ============================================================================
+
+            builder.Entity<ServiceCategory>(entity =>
+            {
+                entity.ToTable("service_categories");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+                entity.Property(e => e.DisplayOrder).HasColumnName("display_order").HasDefaultValue(0);
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.HasIndex(e => e.Code).IsUnique();
+            });
+
+            builder.Entity<CatalogService>(entity =>
+            {
+                entity.ToTable("catalog_services");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.CategoryId).HasColumnName("category_id").IsRequired();
+                entity.Property(e => e.ServiceCode).HasColumnName("service_code").HasMaxLength(50);
+                entity.Property(e => e.ServiceName).HasColumnName("service_name").HasMaxLength(200).IsRequired();
+                entity.Property(e => e.DisplayOrder).HasColumnName("display_order").HasDefaultValue(0);
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.HasOne(e => e.Category).WithMany(c => c.Services).HasForeignKey(e => e.CategoryId);
+                entity.HasIndex(e => e.ServiceCode);
+                entity.HasIndex(e => e.CategoryId);
+            });
+
+            builder.Entity<ServiceVariant>(entity =>
+            {
+                entity.ToTable("service_variants");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.CatalogServiceId).HasColumnName("catalog_service_id").IsRequired();
+                entity.Property(e => e.VariantCode).HasColumnName("variant_code").HasMaxLength(50);
+                entity.Property(e => e.VariantName).HasColumnName("variant_name").HasMaxLength(200).IsRequired();
+                entity.Property(e => e.PriceType).HasColumnName("price_type").HasMaxLength(20).HasDefaultValue("FIXED");
+                entity.Property(e => e.HasIolOptions).HasColumnName("has_iol_options").HasDefaultValue(false);
+                entity.Property(e => e.DisplayOrder).HasColumnName("display_order").HasDefaultValue(0);
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.Property(e => e.SubOptions).HasColumnName("sub_options");
+                entity.HasOne(e => e.CatalogService).WithMany(s => s.Variants).HasForeignKey(e => e.CatalogServiceId);
+                entity.HasIndex(e => e.VariantCode);
+                entity.HasIndex(e => e.CatalogServiceId);
+            });
+
+            builder.Entity<IolMaster>(entity =>
+            {
+                entity.ToTable("iol_master");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.ModelName).HasColumnName("model_name").HasMaxLength(200).IsRequired();
+                entity.Property(e => e.BrandManufacturer).HasColumnName("brand_manufacturer").HasMaxLength(200).IsRequired();
+                entity.Property(e => e.IolType).HasColumnName("iol_type").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Origin).HasColumnName("origin").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.HasIndex(e => e.IolType);
+            });
+
+            builder.Entity<VariantIolMapping>(entity =>
+            {
+                entity.ToTable("variant_iol_mapping");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.VariantId).HasColumnName("variant_id").IsRequired();
+                entity.Property(e => e.IolMasterId).HasColumnName("iol_master_id").IsRequired();
+                entity.Property(e => e.IsDefault).HasColumnName("is_default").HasDefaultValue(false);
+                entity.HasOne(e => e.Variant).WithMany(v => v.IolMappings).HasForeignKey(e => e.VariantId);
+                entity.HasOne(e => e.IolMaster).WithMany().HasForeignKey(e => e.IolMasterId);
+                entity.HasIndex(e => new { e.VariantId, e.IolMasterId }).IsUnique();
+            });
+
+            builder.Entity<VariantPrice>(entity =>
+            {
+                entity.ToTable("variant_prices");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.VariantId).HasColumnName("variant_id").IsRequired();
+                entity.Property(e => e.BranchId).HasColumnName("branch_id");
+                entity.Property(e => e.Amount).HasColumnName("amount").HasColumnType("numeric(12,2)");
+                entity.Property(e => e.EffectiveFrom).HasColumnName("effective_from");
+                entity.Property(e => e.EffectiveTo).HasColumnName("effective_to");
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(50).HasDefaultValue("active");
+                entity.HasOne(e => e.Variant).WithMany(v => v.Prices).HasForeignKey(e => e.VariantId);
+                entity.HasIndex(e => e.VariantId);
+                entity.HasIndex(e => new { e.VariantId, e.BranchId, e.EffectiveTo });
+                entity.HasQueryFilter(e => e.DeletedAt == null);
+            });
+
+            builder.Entity<IolPrice>(entity =>
+            {
+                entity.ToTable("iol_prices");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.IolMasterId).HasColumnName("iol_master_id").IsRequired();
+                entity.Property(e => e.BranchId).HasColumnName("branch_id");
+                entity.Property(e => e.Amount).HasColumnName("amount").HasColumnType("numeric(12,2)");
+                entity.Property(e => e.EffectiveFrom).HasColumnName("effective_from");
+                entity.Property(e => e.EffectiveTo).HasColumnName("effective_to");
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(50).HasDefaultValue("active");
+                entity.HasOne(e => e.IolMaster).WithMany(i => i.Prices).HasForeignKey(e => e.IolMasterId);
+                entity.HasIndex(e => e.IolMasterId);
+                entity.HasIndex(e => new { e.IolMasterId, e.BranchId, e.EffectiveTo });
+                entity.HasQueryFilter(e => e.DeletedAt == null);
+            });
+
+            builder.Entity<BranchPricingOverride>(entity =>
+            {
+                entity.ToTable("branch_pricing_overrides");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.BranchId).HasColumnName("branch_id").IsRequired();
+                entity.Property(e => e.ItemType).HasColumnName("item_type").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.ItemId).HasColumnName("item_id").IsRequired();
+                entity.Property(e => e.OverridePrice).HasColumnName("override_price").HasColumnType("decimal(15,2)");
+                entity.Property(e => e.DiscountPercentage).HasColumnName("discount_percentage").HasColumnType("decimal(5,2)");
+                entity.Property(e => e.PricingStrategy).HasColumnName("pricing_strategy").HasMaxLength(50).HasDefaultValue("Fixed");
+                entity.Property(e => e.EffectiveFrom).HasColumnName("effective_from");
+                entity.Property(e => e.EffectiveTo).HasColumnName("effective_to");
+                entity.Property(e => e.Reason).HasColumnName("reason");
+                entity.Property(e => e.ApprovedByUserId).HasColumnName("approved_by_user_id");
+                entity.Property(e => e.ApprovedAt).HasColumnName("approved_at");
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(50).HasDefaultValue("active");
+                
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.BranchId);
+                entity.HasIndex(e => new { e.ItemType, e.ItemId });
+                entity.HasIndex(e => new { e.BranchId, e.ItemType, e.ItemId, e.EffectiveFrom }).IsUnique();
+                entity.HasIndex(e => new { e.IsActive, e.EffectiveFrom, e.EffectiveTo });
+                entity.HasQueryFilter(e => e.DeletedAt == null);
+            });
+
+            builder.Entity<ConsultationCharge>(entity =>
+            {
+                entity.ToTable("consultation_charges");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.BranchId).HasColumnName("branch_id").IsRequired();
+                entity.Property(e => e.ChargeType).HasColumnName("charge_type").HasMaxLength(50).IsRequired();
+                entity.Property(e => e.DoctorId).HasColumnName("doctor_id");
+                entity.Property(e => e.DepartmentId).HasColumnName("department_id");
+                entity.Property(e => e.Specialty).HasColumnName("specialty").HasMaxLength(100);
+                entity.Property(e => e.ConsultationFee).HasColumnName("consultation_fee").HasColumnType("decimal(15,2)").IsRequired();
+                entity.Property(e => e.FollowUpFee).HasColumnName("follow_up_fee").HasColumnType("decimal(15,2)");
+                entity.Property(e => e.EmergencyConsultationFee).HasColumnName("emergency_consultation_fee").HasColumnType("decimal(15,2)");
+                entity.Property(e => e.HomeVisitFee).HasColumnName("home_visit_fee").HasColumnType("decimal(15,2)");
+                entity.Property(e => e.ValidityDays).HasColumnName("validity_days").HasDefaultValue(30);
+                entity.Property(e => e.FreeFollowUpsCount).HasColumnName("free_follow_ups_count");
+                entity.Property(e => e.AcceptsCash).HasColumnName("accepts_cash").HasDefaultValue(true);
+                entity.Property(e => e.AcceptsCard).HasColumnName("accepts_card").HasDefaultValue(true);
+                entity.Property(e => e.AcceptsInsurance).HasColumnName("accepts_insurance").HasDefaultValue(true);
+                entity.Property(e => e.EffectiveFrom).HasColumnName("effective_from");
+                entity.Property(e => e.EffectiveTo).HasColumnName("effective_to");
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(50).HasDefaultValue("active");
+                
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.BranchId);
+                entity.HasIndex(e => e.DoctorId);
+                entity.HasIndex(e => e.DepartmentId);
+                entity.HasIndex(e => e.Specialty);
+                entity.HasIndex(e => e.ChargeType);
+                entity.HasIndex(e => new { e.DoctorId, e.BranchId }).IsUnique().HasFilter("doctor_id IS NOT NULL");
+                entity.HasIndex(e => new { e.DepartmentId, e.BranchId }).IsUnique().HasFilter("department_id IS NOT NULL");
+                entity.HasQueryFilter(e => e.DeletedAt == null);
+            });
+
+            // ========================================
+            // MODULE 3.12: Session Recordings & Transcription
+            // ========================================
+            
+            builder.Entity<SessionRecording>(entity =>
+            {
+                entity.ToTable("session_recordings");
+                entity.HasKey(e => e.Id);
+                
+                // Primary columns
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.SessionId).HasColumnName("session_id").IsRequired();
+                entity.Property(e => e.DocumentId).HasColumnName("document_id");
+                
+                // Recording details
+                entity.Property(e => e.RecordingType).HasColumnName("recording_type").HasMaxLength(20).HasDefaultValue("Audio");
+                entity.Property(e => e.FileUrl).HasColumnName("file_url").IsRequired();
+                entity.Property(e => e.FileName).HasColumnName("file_name").HasMaxLength(500).IsRequired();
+                entity.Property(e => e.FileSizeBytes).HasColumnName("file_size_bytes");
+                entity.Property(e => e.DurationSeconds).HasColumnName("duration_seconds");
+                entity.Property(e => e.MimeType).HasColumnName("mime_type").HasMaxLength(100);
+                
+                // Transcription status
+                entity.Property(e => e.TranscriptionStatus).HasColumnName("transcription_status").HasMaxLength(30).HasDefaultValue("Pending");
+                entity.Property(e => e.TranscriptionStartedAt).HasColumnName("transcription_started_at");
+                entity.Property(e => e.TranscriptionCompletedAt).HasColumnName("transcription_completed_at");
+                entity.Property(e => e.TranscriptionError).HasColumnName("transcription_error");
+                
+                // Translation status
+                entity.Property(e => e.TranslationStatus).HasColumnName("translation_status").HasMaxLength(30).HasDefaultValue("Pending");
+                entity.Property(e => e.TranslationStartedAt).HasColumnName("translation_started_at");
+                entity.Property(e => e.TranslationCompletedAt).HasColumnName("translation_completed_at");
+                entity.Property(e => e.TranslationError).HasColumnName("translation_error");
+                
+                // Processing metadata
+                entity.Property(e => e.AzureJobId).HasColumnName("azure_job_id").HasMaxLength(200);
+                entity.Property(e => e.ProcessingDurationMs).HasColumnName("processing_duration_ms");
+                
+                // Status & audit
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20).HasDefaultValue("active");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                
+                // Indexes
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.SessionId);
+                entity.HasIndex(e => e.TranscriptionStatus);
+                entity.HasIndex(e => e.CreatedAt);
+                
+                // Query filter
+                entity.HasQueryFilter(e => e.DeletedAt == null);
+            });
+            
+            builder.Entity<SessionTranscript>(entity =>
+            {
+                entity.ToTable("session_transcripts");
+                entity.HasKey(e => e.Id);
+                
+                // Primary columns
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.RecordingId).HasColumnName("recording_id").IsRequired();
+                entity.Property(e => e.SessionId).HasColumnName("session_id").IsRequired();
+                
+                // Transcript content
+                entity.Property(e => e.LanguageCode).HasColumnName("language_code").HasMaxLength(10).IsRequired();
+                entity.Property(e => e.LanguageName).HasColumnName("language_name").HasMaxLength(50);
+                entity.Property(e => e.IsOriginalLanguage).HasColumnName("is_original_language").HasDefaultValue(true);
+                entity.Property(e => e.TranscriptText).HasColumnName("transcript_text").IsRequired();
+                
+                // Subtitle files
+                entity.Property(e => e.VttFileUrl).HasColumnName("vtt_file_url");
+                entity.Property(e => e.SrtFileUrl).HasColumnName("srt_file_url");
+                
+                // Quality metrics
+                entity.Property(e => e.ConfidenceScore).HasColumnName("confidence_score").HasPrecision(5, 4);
+                entity.Property(e => e.WordCount).HasColumnName("word_count");
+                entity.Property(e => e.CharacterCount).HasColumnName("character_count");
+                
+                // Timestamps (JSONB)
+                entity.Property(e => e.Segments).HasColumnName("segments").HasColumnType("jsonb");
+                
+                // Status & audit
+                entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20).HasDefaultValue("active");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                
+                // Indexes
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.RecordingId);
+                entity.HasIndex(e => e.SessionId);
+                entity.HasIndex(e => e.LanguageCode);
+                entity.HasIndex(e => new { e.RecordingId, e.LanguageCode }).IsUnique().HasFilter("deleted_at IS NULL");
+                
+                // Query filter
+                entity.HasQueryFilter(e => e.DeletedAt == null);
+            });
+            
+            builder.Entity<TranscriptEdit>(entity =>
+            {
+                entity.ToTable("transcript_edits");
+                entity.HasKey(e => e.Id);
+                
+                // Primary columns
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.TranscriptId).HasColumnName("transcript_id").IsRequired();
+                
+                // Edit details
+                entity.Property(e => e.SegmentIndex).HasColumnName("segment_index").IsRequired();
+                entity.Property(e => e.OriginalText).HasColumnName("original_text").IsRequired();
+                entity.Property(e => e.EditedText).HasColumnName("edited_text").IsRequired();
+                entity.Property(e => e.EditReason).HasColumnName("edit_reason").HasMaxLength(200);
+                
+                // Audit (edit history for legal compliance)
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id").IsRequired();
+                
+                // Indexes
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.TranscriptId);
+                entity.HasIndex(e => e.CreatedByUserId);
+                entity.HasIndex(e => e.CreatedAt);
             });
         }
 

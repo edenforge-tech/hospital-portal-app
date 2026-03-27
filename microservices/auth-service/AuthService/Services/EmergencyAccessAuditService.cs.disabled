@@ -1,0 +1,227 @@
+using AuthService.Context;
+using AuthService.Models.Domain;
+using AuthService.Models.Identity;
+using Microsoft.EntityFrameworkCore;
+using System.Text;
+
+namespace AuthService.Services
+{
+    public interface IEmergencyAccessAuditService
+    {
+        Task LogEmergencyActionAsync(Guid emergencyAccessId, Guid userId, string action, string resourceType, string resourceId, string details);
+        Task<List<EmergencyAccessAuditLog>> GetAuditLogsForSessionAsync(Guid emergencyAccessId);
+        Task<List<EmergencyAccessAuditLog>> GetAuditLogsForUserAsync(Guid userId, DateTime? startDate, DateTime? endDate);
+        Task<byte[]> GeneratePdfAuditReportAsync(Guid emergencyAccessId);
+        Task NotifyComplianceOfficerAsync(Guid emergencyAccessId, string eventType);
+    }
+
+    public class EmergencyAccessAuditService : IEmergencyAccessAuditService
+    {
+        private readonly AppDbContext _context;
+        private readonly ILogger<EmergencyAccessAuditService> _logger;
+
+        public EmergencyAccessAuditService(
+            AppDbContext context,
+            ILogger<EmergencyAccessAuditService> logger)
+        {
+            _context = context;
+            _logger = logger;
+        }
+
+        public async Task LogEmergencyActionAsync(Guid emergencyAccessId, Guid userId, string action, string resourceType, string resourceId, string details)
+        {
+            try
+            {
+                var auditLog = new EmergencyAccessAuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    EmergencyAccessId = emergencyAccessId,
+                    UserId = userId,
+                    Action = action,
+                    ResourceType = resourceType,
+                    ResourceId = resourceId,
+                    Details = details,
+                    Timestamp = DateTime.UtcNow,
+                    IpAddress = "127.0.0.1", // Should be captured from HttpContext
+                    UserAgent = "Unknown" // Should be captured from HttpContext
+                };
+
+                _context.EmergencyAccessAuditLogs.Add(auditLog);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation(
+                    "Emergency access action logged: AccessId={EmergencyAccessId}, User={UserId}, Action={Action}, Resource={ResourceType}/{ResourceId}",
+                    emergencyAccessId, userId, action, resourceType, resourceId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error logging emergency access action for AccessId={EmergencyAccessId}", emergencyAccessId);
+                throw;
+            }
+        }
+
+        public async Task<List<EmergencyAccessAuditLog>> GetAuditLogsForSessionAsync(Guid emergencyAccessId)
+        {
+            try
+            {
+                return await _context.EmergencyAccessAuditLogs
+                    .Where(log => log.EmergencyAccessId == emergencyAccessId)
+                    .OrderBy(log => log.Timestamp)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving audit logs for emergency access session {EmergencyAccessId}", emergencyAccessId);
+                throw;
+            }
+        }
+
+        public async Task<List<EmergencyAccessAuditLog>> GetAuditLogsForUserAsync(Guid userId, DateTime? startDate, DateTime? endDate)
+        {
+            try
+            {
+                var query = _context.EmergencyAccessAuditLogs
+                    .Where(log => log.UserId == userId);
+
+                if (startDate.HasValue)
+                {
+                    query = query.Where(log => log.Timestamp >= startDate.Value);
+                }
+
+                if (endDate.HasValue)
+                {
+                    query = query.Where(log => log.Timestamp <= endDate.Value);
+                }
+
+                return await query
+                    .OrderByDescending(log => log.Timestamp)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving audit logs for user {UserId}", userId);
+                throw;
+            }
+        }
+
+        public async Task<byte[]> GeneratePdfAuditReportAsync(Guid emergencyAccessId)
+        {
+            try
+            {
+                // Get emergency access request details
+                var emergencyAccess = await _context.EmergencyAccesses
+                    .Include(ea => ea.RequestedByUser)
+                    .Include(ea => ea.ApprovedByUser)
+                    .FirstOrDefaultAsync(ea => ea.Id == emergencyAccessId);
+
+                if (emergencyAccess == null)
+                {
+                    throw new Exception($"Emergency access request {emergencyAccessId} not found");
+                }
+
+                // Get all audit logs for this session
+                var auditLogs = await GetAuditLogsForSessionAsync(emergencyAccessId);
+
+                // Generate PDF using iTextSharp or similar library
+                // For now, return placeholder
+                var reportContent = $@"
+EMERGENCY ACCESS AUDIT REPORT
+Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC
+
+===========================================
+REQUEST DETAILS
+===========================================
+Request ID: {emergencyAccess.Id}
+Requested By: {emergencyAccess.RequestedByUser?.FirstName} {emergencyAccess.RequestedByUser?.LastName}
+Requested At: {emergencyAccess.RequestedAt:yyyy-MM-dd HH:mm:ss}
+Reason: {emergencyAccess.Reason}
+Emergency Type: {emergencyAccess.EmergencyType}
+
+Approved By: {emergencyAccess.ApprovedByUser?.FirstName} {emergencyAccess.ApprovedByUser?.LastName}
+Approved At: {emergencyAccess.ApprovedAt:yyyy-MM-dd HH:mm:ss}
+Status: {emergencyAccess.Status}
+
+===========================================
+AUDIT TRAIL ({auditLogs.Count} actions)
+===========================================
+";
+
+                foreach (var log in auditLogs)
+                {
+                    reportContent += $@"
+[{log.Timestamp:yyyy-MM-dd HH:mm:ss}] {log.Action}
+  Resource: {log.ResourceType}/{log.ResourceId}
+  Details: {log.Details}
+  IP: {log.IpAddress}
+";
+                }
+
+                reportContent += @"
+
+===========================================
+COMPLIANCE CERTIFICATION
+===========================================
+This report contains a complete audit trail of all actions performed during the emergency access session.
+All actions were logged in real-time and this report has been generated for compliance and review purposes.
+
+Report Hash (for tamper detection): [SHA256 hash would go here]
+";
+
+                return System.Text.Encoding.UTF8.GetBytes(reportContent);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating PDF audit report for {EmergencyAccessId}", emergencyAccessId);
+                throw;
+            }
+        }
+
+        public async Task NotifyComplianceOfficerAsync(Guid emergencyAccessId, string eventType)
+        {
+            try
+            {
+                // Get emergency access details
+                var emergencyAccess = await _context.EmergencyAccesses
+                    .Include(ea => ea.RequestedByUser)
+                    .Include(ea => ea.ApprovedByUser)
+                    .FirstOrDefaultAsync(ea => ea.Id == emergencyAccessId);
+
+                if (emergencyAccess == null)
+                {
+                    _logger.LogWarning("Cannot notify compliance officer - emergency access {EmergencyAccessId} not found", emergencyAccessId);
+                    return;
+                }
+
+                // Get tenant's compliance officers
+                var complianceOfficers = await _context.Users
+                    .Where(u => u.TenantId == emergencyAccess.TenantId && u.UserType == "ComplianceOfficer")
+                    .ToListAsync();
+
+                if (!complianceOfficers.Any())
+                {
+                    _logger.LogWarning("No compliance officers found for tenant {TenantId}", emergencyAccess.TenantId);
+                    return;
+                }
+
+                // Log notification (Email integration to be added when notification service is integrated)
+                _logger.LogInformation(
+                    "Emergency access notification: {EventType} for {EmergencyAccessId}. Would notify {Count} compliance officers.",
+                    eventType, emergencyAccessId, complianceOfficers.Count);
+                    
+                // TODO: Integrate with notification service when available
+                // For now, just log the notification details
+                foreach (var officer in complianceOfficers)
+                {
+                    _logger.LogInformation(
+                        "Would notify compliance officer {Email}: Emergency Access {EventType} - Request ID {RequestId}",
+                        officer.Email, eventType, emergencyAccess.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error notifying compliance officers for {EmergencyAccessId}", emergencyAccessId);
+                // Don't throw - this is a notification failure, not a critical error
+            }
+        }
+    }
+}

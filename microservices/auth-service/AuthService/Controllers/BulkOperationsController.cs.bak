@@ -1,0 +1,220 @@
+using AuthService.Authorization;
+using AuthService.Models.BulkOperations;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+
+namespace AuthService.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    [Authorize]
+    public class BulkOperationsController : ControllerBase
+    {
+        private readonly ILogger<BulkOperationsController> _logger;
+
+        public BulkOperationsController(ILogger<BulkOperationsController> logger)
+        {
+            _logger = logger;
+        }
+
+        private bool TryGetTenantId(out Guid tenantId)
+        {
+            var tenantIdClaim = User.FindFirst("tenant_id")?.Value;
+            if (Guid.TryParse(tenantIdClaim, out tenantId))
+            {
+                return true;
+            }
+            tenantId = Guid.Empty;
+            return false;
+        }
+
+        // GET: api/bulkoperations/template/users
+        [HttpGet("template/users")]
+        [RequirePermission("user.import")]
+        public ActionResult DownloadUsersCsvTemplate()
+        {
+            try
+            {
+                var csv = "Email,FirstName,LastName,PhoneNumber,UserType,LicenseNumber\n" +
+                          "john.doe@example.com,John,Doe,+1234567890,Staff,LIC001\n" +
+                          "jane.smith@example.com,Jane,Smith,+0987654321,Doctor,LIC002";
+                
+                var bytes = System.Text.Encoding.UTF8.GetBytes(csv);
+                return File(bytes, "text/csv", "users_import_template.csv");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating CSV template");
+                return StatusCode(500, new { message = "Error generating template", error = ex.Message });
+            }
+        }
+
+        // POST: api/bulkoperations/import/users
+        [HttpPost("import/users")]
+        [RequirePermission("user.import")]
+        [RequestSizeLimit(10_485_760)] // 10 MB limit
+        public ActionResult ImportUsers([FromForm] IFormFile file)
+        {
+            if (!TryGetTenantId(out var tenantId))
+                return BadRequest(new { message = "Tenant ID is required" });
+
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "No file uploaded" });
+
+            if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { message = "Only CSV files are supported" });
+
+            try
+            {
+                // TODO: Implement CSV import logic with BulkOperationsService
+                return Ok(new
+                {
+                    message = "CSV import endpoint - implementation pending",
+                    status = "not_implemented"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error importing users from CSV");
+                return StatusCode(500, new { message = "Error importing users", error = ex.Message });
+            }
+        }
+
+        // POST: api/bulkoperations/export/users
+        [HttpPost("export/users")]
+        [RequirePermission("user.export")]
+        public ActionResult ExportUsers([FromBody] object? filter = null)
+        {
+            try
+            {
+                var csv = "Email,FirstName,LastName,PhoneNumber,Status\n";
+                var bytes = System.Text.Encoding.UTF8.GetBytes(csv);
+                var fileName = $"users_export_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv";
+                return File(bytes, "text/csv", fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting users");
+                return StatusCode(500, new { message = "Error exporting users", error = ex.Message });
+            }
+        }
+
+        // POST: api/bulkoperations/users/assign-role
+        [HttpPost("users/assign-role")]
+        [RequirePermission("user.bulk-update")]
+        public ActionResult BulkAssignRole([FromBody] BulkAssignRoleDto dto)
+        {
+            if (!TryGetTenantId(out var tenantId))
+                return BadRequest(new { message = "Tenant ID is required" });
+
+            if (dto.UserIds == null || dto.UserIds.Count == 0)
+                return BadRequest(new { message = "No user IDs provided" });
+
+            return Ok(new { message = "Bulk assign role - implementation pending", status = "not_implemented" });
+        }
+
+        // POST: api/bulkoperations/users/change-status
+        [HttpPost("users/change-status")]
+        [RequirePermission("user.bulk-update")]
+        public ActionResult BulkChangeStatus([FromBody] BulkChangeStatusDto dto)
+        {
+            if (!TryGetTenantId(out var tenantId))
+                return BadRequest(new { message = "Tenant ID is required" });
+
+            if (dto.UserIds == null || dto.UserIds.Count == 0)
+                return BadRequest(new { message = "No user IDs provided" });
+
+            if (string.IsNullOrWhiteSpace(dto.NewStatus))
+                return BadRequest(new { message = "New status is required" });
+
+            return Ok(new { message = "Bulk change status - implementation pending", status = "not_implemented" });
+        }
+
+        // POST: api/bulkoperations/users/activate
+        [HttpPost("users/activate")]
+        [RequirePermission("user.bulk-update")]
+        public ActionResult BulkActivateUsers([FromBody] BulkUserActionDto dto)
+        {
+            if (!TryGetTenantId(out var tenantId))
+                return BadRequest(new { message = "Tenant ID is required" });
+
+            if (dto.UserIds == null || dto.UserIds.Count == 0)
+                return BadRequest(new { message = "No user IDs provided" });
+
+            return Ok(new { message = "Bulk activate - implementation pending", status = "not_implemented" });
+        }
+
+        // POST: api/bulkoperations/users/deactivate
+        [HttpPost("users/deactivate")]
+        [RequirePermission("user.bulk-update")]
+        public ActionResult BulkDeactivateUsers([FromBody] BulkUserActionDto dto)
+        {
+            if (!TryGetTenantId(out var tenantId))
+                return BadRequest(new { message = "Tenant ID is required" });
+
+            if (dto.UserIds == null || dto.UserIds.Count == 0)
+                return BadRequest(new { message = "No user IDs provided" });
+
+            return Ok(new { message = "Bulk deactivate - implementation pending", status = "not_implemented" });
+        }
+
+        // DELETE: api/bulkoperations/users/delete
+        [HttpDelete("users/delete")]
+        [RequirePermission("user.bulk-delete")]
+        public ActionResult BulkDeleteUsers([FromBody] BulkUserActionDto dto)
+        {
+            if (!TryGetTenantId(out var tenantId))
+                return BadRequest(new { message = "Tenant ID is required" });
+
+            if (dto.UserIds == null || dto.UserIds.Count == 0)
+                return BadRequest(new { message = "No user IDs provided" });
+
+            return Ok(new { message = "Bulk delete - implementation pending", status = "not_implemented" });
+        }
+
+        // GET: api/bulkoperations/jobs
+        [HttpGet("jobs")]
+        [RequirePermission("user.view")]
+        public ActionResult<List<BulkOperationJob>> GetBulkOperationJobs()
+        {
+            if (!TryGetTenantId(out var tenantId))
+                return BadRequest(new { message = "Tenant ID is required" });
+
+            return Ok(new List<BulkOperationJob>());
+        }
+
+        // GET: api/bulkoperations/jobs/{jobId}
+        [HttpGet("jobs/{jobId}")]
+        [RequirePermission("user.view")]
+        public ActionResult<BulkOperationJob> GetBulkOperationJobStatus(Guid jobId)
+        {
+            if (!TryGetTenantId(out var tenantId))
+                return BadRequest(new { message = "Tenant ID is required" });
+
+            return NotFound(new { message = "Job not found" });
+        }
+    }
+
+    // DTOs
+    public class BulkAssignRoleDto
+    {
+        public List<Guid> UserIds { get; set; } = new();
+        public Guid RoleId { get; set; }
+    }
+
+    public class BulkChangeStatusDto
+    {
+        public List<Guid> UserIds { get; set; } = new();
+        public string NewStatus { get; set; } = string.Empty;
+    }
+
+    public class BulkUserActionDto
+    {
+        public List<Guid> UserIds { get; set; } = new();
+    }
+}

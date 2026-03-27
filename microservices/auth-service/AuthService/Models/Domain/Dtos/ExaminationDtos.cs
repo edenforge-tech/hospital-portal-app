@@ -46,3 +46,23 @@ public class ExaminationResponse
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
+
+public class FinalizeExaminationRequest
+{
+    [Required]
+    [StringLength(6, MinimumLength = 4)]
+    public string Pin { get; set; } = null!;
+
+    public DateTime? FollowUpDate { get; set; }
+
+    public string? FollowUpReason { get; set; }
+}
+
+public class FinalizeExaminationResponse
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = null!;
+    public string DigitalSignature { get; set; } = null!;
+    public DateTime SignedAt { get; set; }
+    public Guid? FollowUpAppointmentId { get; set; }
+}

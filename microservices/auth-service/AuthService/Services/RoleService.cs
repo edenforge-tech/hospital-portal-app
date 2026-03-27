@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using AuthService.Context;
 using AuthService.Models.Identity;
 using AuthService.Models.Role;
+using AuthService.Models.Domain;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -958,6 +959,457 @@ namespace AuthService.Services
         }
 
         // ================================================================================
+        // ROLE TEMPLATE OPERATIONS
+        // ================================================================================
+
+        public async Task<RoleTemplateListResponse> GetTemplatesAsync(Guid tenantId, RoleTemplateFilters filters)
+        {
+            try
+            {
+                var query = _context.RoleTemplates
+                    .Where(t => t.TenantId == tenantId && t.DeletedAt == null);
+
+                // Apply filters
+                if (!string.IsNullOrEmpty(filters.Search))
+                {
+                    query = query.Where(t =>
+                        t.Name.Contains(filters.Search) ||
+                        t.Description.Contains(filters.Search));
+                }
+
+                if (!string.IsNullOrEmpty(filters.TemplateCategory))
+                {
+                    query = query.Where(t => t.TemplateCategory == filters.TemplateCategory);
+                }
+
+                if (!string.IsNullOrEmpty(filters.RoleType))
+                {
+                    query = query.Where(t => t.RoleType == filters.RoleType);
+                }
+
+                if (filters.IsSystemTemplate.HasValue)
+                {
+                    query = query.Where(t => t.IsSystemTemplate == filters.IsSystemTemplate.Value);
+                }
+
+                if (filters.IsActive.HasValue)
+                {
+                    query = query.Where(t => t.IsActive == filters.IsActive.Value);
+                }
+
+                var totalCount = await query.CountAsync();
+
+                // Apply sorting and pagination
+                query = ApplyTemplateSorting(query, filters.SortBy, filters.SortOrder);
+                var skip = (filters.PageNumber - 1) * filters.PageSize;
+                query = query.Skip(skip).Take(filters.PageSize);
+
+                var templates = await query.Select(t => new RoleTemplateDto
+                {
+                    Id = t.Id,
+                    Name = t.Name,
+                    Description = t.Description,
+                    RoleType = t.RoleType,
+                    TemplateCategory = t.TemplateCategory,
+                    Priority = t.Priority,
+                    IsSystemTemplate = t.IsSystemTemplate,
+                    IsActive = t.IsActive,
+                    CreatedAt = t.CreatedAt
+                }).ToListAsync();
+
+                return new RoleTemplateListResponse
+                {
+                    Templates = templates,
+                    TotalCount = totalCount,
+                    PageNumber = filters.PageNumber,
+                    PageSize = filters.PageSize,
+                    TotalPages = (int)Math.Ceiling((double)totalCount / filters.PageSize),
+                    HasPreviousPage = filters.PageNumber > 1,
+                    HasNextPage = filters.PageNumber < Math.Ceiling((double)totalCount / filters.PageSize)
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting role templates for tenant {TenantId}", tenantId);
+                throw;
+            }
+        }
+
+        public async Task<RoleTemplateDto> GetTemplateByIdAsync(Guid tenantId, Guid templateId)
+        {
+            var template = await _context.RoleTemplates
+                .Where(t => t.TenantId == tenantId && t.Id == templateId && t.DeletedAt == null)
+                .FirstOrDefaultAsync();
+
+            if (template == null)
+                return null;
+
+            // Parse configuration to extract permissions and settings
+            var config = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(template.Configuration);
+            var defaultPermissions = new List<Guid>();
+            var settings = new Dictionary<string, object>();
+
+            if (config.ContainsKey("permissions") && config["permissions"] is System.Text.Json.JsonElement permissionsElement)
+            {
+                foreach (var item in permissionsElement.EnumerateArray())
+                {
+                    if (Guid.TryParse(item.GetString(), out var permissionId))
+                    {
+                        defaultPermissions.Add(permissionId);
+                    }
+                }
+            }
+
+            if (config.ContainsKey("settings") && config["settings"] is System.Text.Json.JsonElement settingsElement)
+            {
+                settings = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(settingsElement.GetRawText());
+            }
+
+            return new RoleTemplateDto
+            {
+                Id = template.Id,
+                Name = template.Name,
+                Description = template.Description,
+                RoleType = template.RoleType,
+                TemplateCategory = template.TemplateCategory,
+                Priority = template.Priority,
+                DefaultPermissions = defaultPermissions,
+                Settings = settings,
+                IsSystemTemplate = template.IsSystemTemplate,
+                IsActive = template.IsActive,
+                CreatedAt = template.CreatedAt
+            };
+        }
+
+        public async Task<RoleOperationResult> CreateRoleFromTemplateAsync(Guid tenantId, Guid userId, CreateRoleFromTemplateRequest request)
+        {
+            try
+            {
+                // Get the template
+                var template = await GetTemplateByIdAsync(tenantId, request.TemplateId);
+                if (template == null)
+                {
+                    return new RoleOperationResult
+                    {
+                        Success = false,
+                        Message = "Template not found",
+                        Errors = new List<string> { "The specified template does not exist" }
+                    };
+                }
+
+                // Validate hierarchy if parent role specified
+                if (request.ParentRoleId.HasValue)
+                {
+                    var isValidHierarchy = await ValidateHierarchyAsync(tenantId, Guid.NewGuid(), request.ParentRoleId);
+                    if (!isValidHierarchy)
+                    {
+                        return new RoleOperationResult
+                        {
+                            Success = false,
+                            Message = "Invalid hierarchy",
+                            Errors = new List<string> { "The specified parent role would create a circular reference" }
+                        };
+                    }
+                }
+
+                // Create the role
+                var role = new AppRole
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    Name = request.RoleName,
+                    NormalizedName = request.RoleName.ToUpper(),
+                    RoleCode = request.RoleCode,
+                    Description = request.Description,
+                    RoleType = template.RoleType,
+                    ParentRoleId = request.ParentRoleId,
+                    DepartmentId = request.DepartmentId,
+                    Settings = request.CustomSettings.Count > 0 ? 
+                        System.Text.Json.JsonSerializer.Serialize(request.CustomSettings) : 
+                        System.Text.Json.JsonSerializer.Serialize(template.Settings),
+                    CreatedBy = userId,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                var result = await _roleManager.CreateAsync(role);
+                if (!result.Succeeded)
+                {
+                    return new RoleOperationResult
+                    {
+                        Success = false,
+                        Message = "Failed to create role",
+                        Errors = result.Errors.Select(e => e.Description).ToList()
+                    };
+                }
+
+                // Assign permissions from template
+                var permissionsToAssign = template.DefaultPermissions
+                    .Union(request.AdditionalPermissions)
+                    .Except(request.ExcludedPermissions)
+                    .ToList();
+
+                if (permissionsToAssign.Any())
+                {
+                    var permissionAssignResult = await AssignPermissionsAsync(tenantId, userId, new AssignPermissionsToRoleRequest
+                    {
+                        RoleId = role.Id,
+                        PermissionIds = permissionsToAssign
+                    });
+
+                    if (!permissionAssignResult.Success)
+                    {
+                        _logger.LogWarning("Role created but permission assignment failed for role {RoleId}", role.Id);
+                    }
+                }
+
+                // Create hierarchy relationship if parent specified
+                if (request.ParentRoleId.HasValue)
+                {
+                    await CreateHierarchyRelationshipAsync(tenantId, userId, request.ParentRoleId.Value, role.Id);
+                }
+
+                await LogAuditTrailAsync(userId, tenantId, "Role", role.Id, "Created from template", null, new { TemplateName = template.Name, RoleName = role.Name });
+
+                return new RoleOperationResult
+                {
+                    Success = true,
+                    Message = $"Role '{request.RoleName}' created successfully from template '{template.Name}'",
+                    RoleId = role.Id
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating role from template for tenant {TenantId}", tenantId);
+                return new RoleOperationResult
+                {
+                    Success = false,
+                    Message = "An error occurred while creating the role",
+                    Errors = new List<string> { ex.Message }
+                };
+            }
+        }
+
+        public async Task<List<string>> GetTemplateNamesAsync(Guid tenantId)
+        {
+            return await _context.RoleTemplates
+                .Where(t => t.TenantId == tenantId && t.DeletedAt == null && t.IsActive)
+                .OrderBy(t => t.Name)
+                .Select(t => t.Name)
+                .ToListAsync();
+        }
+
+        // ================================================================================
+        // ROLE HIERARCHY OPERATIONS
+        // ================================================================================
+
+        public async Task<RoleOperationResult> UpdateHierarchyAsync(Guid tenantId, Guid userId, UpdateRoleHierarchyRequest request)
+        {
+            try
+            {
+                // Validate hierarchy
+                var isValid = await ValidateHierarchyAsync(tenantId, request.RoleId, request.NewParentRoleId);
+                if (!isValid)
+                {
+                    return new RoleOperationResult
+                    {
+                        Success = false,
+                        Message = "Invalid hierarchy",
+                        Errors = new List<string> { "This change would create a circular reference in the role hierarchy" }
+                    };
+                }
+
+                // Update the role's parent
+                var role = await _roleManager.FindByIdAsync(request.RoleId.ToString());
+                if (role == null || role.TenantId != tenantId)
+                {
+                    return new RoleOperationResult
+                    {
+                        Success = false,
+                        Message = "Role not found",
+                        Errors = new List<string> { "The specified role does not exist" }
+                    };
+                }
+
+                var oldParentId = role.ParentRoleId;
+                role.ParentRoleId = request.NewParentRoleId;
+                role.UpdatedBy = userId;
+                role.UpdatedAt = DateTime.UtcNow;
+
+                await _roleManager.UpdateAsync(role);
+
+                // Remove old hierarchy relationships
+                var existingRelationships = await _context.RoleHierarchies
+                    .Where(h => h.TenantId == tenantId && h.ChildRoleId == request.RoleId && h.DeletedAt == null)
+                    .ToListAsync();
+
+                foreach (var relationship in existingRelationships)
+                {
+                    relationship.DeletedAt = DateTime.UtcNow;
+                    relationship.DeletedBy = userId;
+                }
+
+                // Create new hierarchy relationship
+                if (request.NewParentRoleId.HasValue)
+                {
+                    await CreateHierarchyRelationshipAsync(tenantId, userId, request.NewParentRoleId.Value, request.RoleId, request.InheritanceType, request.ExcludedPermissions);
+                }
+
+                await _context.SaveChangesAsync();
+
+                await LogAuditTrailAsync(userId, tenantId, "RoleHierarchy", request.RoleId, "Updated", 
+                    new { OldParent = oldParentId }, new { NewParent = request.NewParentRoleId });
+
+                return new RoleOperationResult
+                {
+                    Success = true,
+                    Message = "Role hierarchy updated successfully",
+                    RoleId = request.RoleId
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating role hierarchy for role {RoleId}", request.RoleId);
+                return new RoleOperationResult
+                {
+                    Success = false,
+                    Message = "An error occurred while updating the role hierarchy",
+                    Errors = new List<string> { ex.Message }
+                };
+            }
+        }
+
+        public async Task<RoleInheritancePreviewDto> GetInheritancePreviewAsync(Guid tenantId, Guid roleId, Guid? newParentId)
+        {
+            var role = await _roleManager.FindByIdAsync(roleId.ToString());
+            if (role == null || role.TenantId != tenantId)
+                return null;
+
+            var currentPermissions = await GetRolePermissionsAsync(tenantId, roleId);
+            var inheritedPermissions = new List<RolePermissionDto>();
+            var inheritancePath = new List<string> { role.Name };
+
+            if (newParentId.HasValue)
+            {
+                // Calculate what would be inherited from new parent
+                var parentRole = await _roleManager.FindByIdAsync(newParentId.Value.ToString());
+                if (parentRole != null)
+                {
+                    inheritedPermissions = await GetAllInheritedPermissionsAsync(tenantId, newParentId.Value);
+                    inheritancePath = await BuildInheritancePathAsync(tenantId, newParentId.Value);
+                    inheritancePath.Add(role.Name);
+                }
+            }
+
+            // Combine current + inherited (avoiding duplicates)
+            var finalPermissions = currentPermissions
+                .Union(inheritedPermissions, new PermissionComparer())
+                .ToList();
+
+            return new RoleInheritancePreviewDto
+            {
+                RoleId = roleId,
+                RoleName = role.Name,
+                CurrentPermissions = currentPermissions,
+                InheritedPermissions = inheritedPermissions,
+                FinalPermissions = finalPermissions,
+                InheritancePath = inheritancePath
+            };
+        }
+
+        public async Task<BulkRoleOperationResult> RefreshInheritanceAsync(Guid tenantId, Guid userId, Guid parentRoleId)
+        {
+            try
+            {
+                var childRoles = await GetChildRolesAsync(tenantId, parentRoleId);
+                var results = new List<BulkOperationItem>();
+                var successCount = 0;
+                var failureCount = 0;
+
+                foreach (var childRole in childRoles)
+                {
+                    try
+                    {
+                        // Get inherited permissions from parent
+                        var inheritedPermissions = await GetAllInheritedPermissionsAsync(tenantId, parentRoleId);
+                        
+                        // Apply inheritance based on the child role's inheritance settings
+                        var hierarchyRelation = await _context.RoleHierarchies
+                            .Where(h => h.TenantId == tenantId && h.ChildRoleId == childRole.Id && h.DeletedAt == null)
+                            .FirstOrDefaultAsync();
+
+                        if (hierarchyRelation?.InheritanceType == "inherit_all")
+                        {
+                            var permissionIds = inheritedPermissions.Select(p => p.PermissionId).ToList();
+                            await AssignPermissionsAsync(tenantId, userId, new AssignPermissionsToRoleRequest
+                            {
+                                RoleId = childRole.Id,
+                                PermissionIds = permissionIds
+                            });
+                        }
+
+                        results.Add(new BulkOperationItem
+                        {
+                            Id = childRole.Id,
+                            Name = childRole.Name,
+                            Success = true,
+                            Message = "Inheritance refreshed successfully"
+                        });
+                        successCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        results.Add(new BulkOperationItem
+                        {
+                            Id = childRole.Id,
+                            Name = childRole.Name,
+                            Success = false,
+                            Message = "Failed to refresh inheritance",
+                            Errors = new List<string> { ex.Message }
+                        });
+                        failureCount++;
+                    }
+                }
+
+                return new BulkRoleOperationResult
+                {
+                    Success = successCount > 0,
+                    TotalProcessed = results.Count,
+                    SuccessCount = successCount,
+                    FailureCount = failureCount,
+                    Results = results,
+                    Summary = $"Inheritance refreshed for {successCount} of {results.Count} child roles"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error refreshing inheritance for parent role {ParentRoleId}", parentRoleId);
+                return new BulkRoleOperationResult
+                {
+                    Success = false,
+                    TotalProcessed = 0,
+                    SuccessCount = 0,
+                    FailureCount = 1,
+                    Results = new List<BulkOperationItem>(),
+                    Summary = "Failed to refresh inheritance"
+                };
+            }
+        }
+
+        public async Task<bool> ValidateHierarchyAsync(Guid tenantId, Guid roleId, Guid? newParentId)
+        {
+            if (!newParentId.HasValue)
+                return true; // No parent means no circular reference possible
+
+            if (roleId == newParentId.Value)
+                return false; // Role cannot be its own parent
+
+            // Check if newParentId is already a descendant of roleId
+            var descendants = await GetAllDescendantRoleIdsAsync(tenantId, roleId);
+            return !descendants.Contains(newParentId.Value);
+        }
+
+        // ================================================================================
         // HELPER METHODS
         // ================================================================================
 
@@ -970,28 +1422,138 @@ namespace AuthService.Services
                 "name" => ascending ? query.OrderBy(r => r.Name) : query.OrderByDescending(r => r.Name),
                 "priority" => ascending ? query.OrderBy(r => r.Priority) : query.OrderByDescending(r => r.Priority),
                 "createdat" => ascending ? query.OrderBy(r => r.CreatedAt) : query.OrderByDescending(r => r.CreatedAt),
+                "totalusers" => ascending ? query.OrderBy(r => r.UserRoles.Count) : query.OrderByDescending(r => r.UserRoles.Count),
                 _ => query.OrderBy(r => r.Name)
             };
         }
 
-        private List<RoleHierarchyDto> BuildHierarchyTree(List<RoleHierarchyDto> allRoles, Guid? parentId, int level)
+        private IQueryable<AuthService.Models.Domain.RoleTemplate> ApplyTemplateSorting(IQueryable<AuthService.Models.Domain.RoleTemplate> query, string sortBy, string sortOrder)
         {
-            var children = allRoles.Where(r => r.ParentRoleId == parentId).ToList();
-            foreach (var child in children)
+            var ascending = string.IsNullOrEmpty(sortOrder) || sortOrder.ToLower() == "asc";
+
+            return sortBy?.ToLower() switch
             {
-                child.Level = level;
-                child.Children = BuildHierarchyTree(allRoles, child.Id, level + 1);
-            }
-            return children;
+                "name" => ascending ? query.OrderBy(t => t.Name) : query.OrderByDescending(t => t.Name),
+                "priority" => ascending ? query.OrderBy(t => t.Priority) : query.OrderByDescending(t => t.Priority),
+                "category" => ascending ? query.OrderBy(t => t.TemplateCategory) : query.OrderByDescending(t => t.TemplateCategory),
+                "createdat" => ascending ? query.OrderBy(t => t.CreatedAt) : query.OrderByDescending(t => t.CreatedAt),
+                _ => query.OrderBy(t => t.Name)
+            };
         }
 
-        private async Task<List<Guid>> GetPermissionIds(Guid roleId)
+        private async Task CreateHierarchyRelationshipAsync(Guid tenantId, Guid userId, Guid parentRoleId, Guid childRoleId, string inheritanceType = "inherit_all", List<Guid> excludedPermissions = null)
         {
-            // Placeholder - implement actual permission query
-            return await Task.FromResult(new List<Guid>());
+            var parentRole = await _roleManager.FindByIdAsync(parentRoleId.ToString());
+            var childRole = await _roleManager.FindByIdAsync(childRoleId.ToString());
+            
+            if (parentRole == null || childRole == null)
+                return;
+
+            // Calculate level and path
+            var parentLevel = await GetRoleLevelAsync(tenantId, parentRoleId);
+            var level = parentLevel + 1;
+            var parentPath = await GetRolePathAsync(tenantId, parentRoleId);
+            var path = string.Join("/", parentPath.Select(r => r.Name)) + "/" + childRole.Name;
+
+            // Create inheritance config
+            var inheritanceConfig = new
+            {
+                inherited_permissions = new List<Guid>(),
+                excluded_permissions = excludedPermissions ?? new List<Guid>()
+            };
+
+            var hierarchy = new AuthService.Models.Domain.RoleHierarchy
+            {
+                TenantId = tenantId,
+                ParentRoleId = parentRoleId,
+                ChildRoleId = childRoleId,
+                Level = level,
+                Path = path,
+                InheritanceType = inheritanceType,
+                InheritanceConfig = System.Text.Json.JsonSerializer.Serialize(inheritanceConfig),
+                CreatedByUserId = userId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _context.RoleHierarchies.Add(hierarchy);
+            await _context.SaveChangesAsync();
         }
 
-        private async Task LogAudit(Guid tenantId, Guid userId, string entityType, Guid entityId, string action, object oldValues, object newValues)
+        private async Task<int> GetRoleLevelAsync(Guid tenantId, Guid roleId)
+        {
+            var role = await _roleManager.FindByIdAsync(roleId.ToString());
+            if (role?.ParentRoleId == null)
+                return 0; // Root level
+
+            var parentLevel = await GetRoleLevelAsync(tenantId, role.ParentRoleId.Value);
+            return parentLevel + 1;
+        }
+
+        private async Task<List<RolePermissionDto>> GetAllInheritedPermissionsAsync(Guid tenantId, Guid roleId)
+        {
+            var inheritedPermissions = new List<RolePermissionDto>();
+            var visited = new HashSet<Guid>();
+
+            await CollectInheritedPermissionsRecursive(tenantId, roleId, inheritedPermissions, visited);
+            return inheritedPermissions.DistinctBy(p => p.PermissionId).ToList();
+        }
+
+        private async Task CollectInheritedPermissionsRecursive(Guid tenantId, Guid roleId, List<RolePermissionDto> result, HashSet<Guid> visited)
+        {
+            if (visited.Contains(roleId))
+                return; // Avoid infinite recursion
+
+            visited.Add(roleId);
+
+            // Get direct permissions for this role
+            var directPermissions = await GetRolePermissionsAsync(tenantId, roleId);
+            result.AddRange(directPermissions);
+
+            // Get parent role permissions
+            var role = await _roleManager.FindByIdAsync(roleId.ToString());
+            if (role?.ParentRoleId != null)
+            {
+                await CollectInheritedPermissionsRecursive(tenantId, role.ParentRoleId.Value, result, visited);
+            }
+        }
+
+        private async Task<List<string>> BuildInheritancePathAsync(Guid tenantId, Guid roleId)
+        {
+            var path = new List<string>();
+            var currentRoleId = (Guid?)roleId;
+
+            while (currentRoleId != null)
+            {
+                var role = await _roleManager.FindByIdAsync(currentRoleId.ToString());
+                if (role == null) break;
+
+                path.Insert(0, role.Name);
+                currentRoleId = role.ParentRoleId;
+            }
+
+            return path;
+        }
+
+        private async Task<List<Guid>> GetAllDescendantRoleIdsAsync(Guid tenantId, Guid roleId)
+        {
+            var descendants = new List<Guid>();
+            var directChildren = await _context.RoleHierarchies
+                .Where(h => h.TenantId == tenantId && h.ParentRoleId == roleId && h.DeletedAt == null)
+                .Select(h => h.ChildRoleId)
+                .ToListAsync();
+
+            foreach (var childId in directChildren)
+            {
+                descendants.Add(childId);
+                var childDescendants = await GetAllDescendantRoleIdsAsync(tenantId, childId);
+                descendants.AddRange(childDescendants);
+            }
+
+            return descendants;
+        }
+
+        private async Task LogAuditTrailAsync(Guid userId, Guid tenantId, string entityType, Guid entityId, string action, object oldValues, object newValues)
         {
             try
             {
@@ -1014,6 +1576,39 @@ namespace AuthService.Services
             {
                 _logger.LogError(ex, "Error logging audit trail");
             }
+        }
+
+        // Helper method for audit logging (simple version)
+        private async Task LogAudit(Guid tenantId, Guid userId, string entityType, Guid entityId, string action, object oldValues, object newValues)
+        {
+            await LogAuditTrailAsync(userId, tenantId, entityType, entityId, action, oldValues, newValues);
+        }
+
+        // Helper method to build hierarchy tree
+        private List<RoleHierarchyDto> BuildHierarchyTree(List<RoleHierarchyDto> roles, Guid? parentId, int level)
+        {
+            var result = new List<RoleHierarchyDto>();
+            var childRoles = roles.Where(r => (parentId == null && r.ParentRoleId == null) || r.ParentRoleId == parentId).ToList();
+
+            foreach (var role in childRoles)
+            {
+                role.Level = level;
+                role.Children = BuildHierarchyTree(roles, role.Id, level + 1);
+                result.Add(role);
+            }
+
+            return result;
+        }
+
+        // Helper method to get permission IDs for a role
+        private async Task<List<Guid>> GetPermissionIds(Guid roleId)
+        {
+            var permissions = await _context.RolePermissions
+                .Where(rp => rp.RoleId == roleId)
+                .Select(rp => rp.PermissionId)
+                .ToListAsync();
+            
+            return permissions;
         }
 
         private class PermissionComparer : IEqualityComparer<RolePermissionDto>

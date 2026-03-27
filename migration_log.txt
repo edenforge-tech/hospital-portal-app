@@ -1,0 +1,15 @@
+13.24.14 - 
+=== MODULE 4 DATABASE MIGRATION ===
+13.24.14 - Starting at 02/04/2026 13:24:14
+13.24.14 - 
+Step 1: Finding Npgsql.dll...
+13.24.14 -   Found: C:\Users\Sam Aluri\Downloads\Hospital Portal\microservices\auth-service\AuthService\bin\Debug\net8.0\Npgsql.dll
+13.24.14 - 
+Step 2: Loading Npgsql assembly and dependencies...
+13.24.14 - 
+[ERROR] Migration failed:
+13.24.14 - Unable to load one or more of the requested types. Retrieve the LoaderExceptions property for more information.
+13.24.14 - 
+Stack trace:
+13.24.14 - at <ScriptBlock>, C:\Users\Sam Aluri\Downloads\Hospital Portal\execute_migration.ps1: line 61
+at <ScriptBlock>, <No file>: line 1

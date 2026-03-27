@@ -1,0 +1,14 @@
+{
+  "sessionId": "33333333-3333-3333-3333-333333333333",
+  "patientId": "f2fd249b-8e6c-4d16-83de-0e074c3935c6",
+  "admissionType": "Emergency",
+  "admissionDate": "2026-02-24",
+  "admissionTime": "02:00:00",
+  "surgeryType": "Emergency Retinal Detachment Repair",
+  "surgeryDate": "2026-02-24",
+  "eyeOperated": "OU",
+  "attendantName": "Anjali Mehta",
+  "attendantPhone": "8899776655",
+  "attendantRelation": "Wife",
+  "admissionDepositPaid": 37500
+}

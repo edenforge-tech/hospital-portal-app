@@ -182,6 +182,80 @@ namespace AuthService.Controllers
                 return StatusCode(500, new { message = "Error deleting device", error = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Approve a device registration
+        /// </summary>
+        [HttpPost("devices/{deviceId:guid}/approve")]
+        public async Task<IActionResult> ApproveDevice(Guid deviceId, [FromBody] DeviceApprovalRequest request)
+        {
+            try
+            {
+                var approverId = Guid.Parse(User.FindFirst("sub")?.Value ?? throw new UnauthorizedAccessException());
+                var device = await _deviceService.ApproveDeviceAsync(deviceId, approverId, request.Notes ?? "");
+                return Ok(new { message = "Device approved successfully", device });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error approving device {DeviceId}", deviceId);
+                return StatusCode(500, new { message = "Error approving device", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get device analytics for current tenant
+        /// </summary>
+        [HttpGet("analytics")]
+        public async Task<IActionResult> GetDeviceAnalytics([FromQuery] Guid? userId = null)
+        {
+            try
+            {
+                var analytics = await _deviceService.GetDeviceAnalyticsAsync(userId);
+                return Ok(analytics);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting device analytics");
+                return StatusCode(500, new { message = "Error retrieving analytics", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get device security metrics
+        /// </summary>
+        [HttpGet("security-metrics")]
+        public async Task<IActionResult> GetDeviceSecurityMetrics()
+        {
+            try
+            {
+                var metrics = await _deviceService.GetDeviceSecurityMetricsAsync();
+                return Ok(metrics);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting security metrics");
+                return StatusCode(500, new { message = "Error retrieving security metrics", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get device activity summary for a user
+        /// </summary>
+        [HttpGet("activity")]
+        public async Task<IActionResult> GetDeviceActivity([FromQuery] int days = 30)
+        {
+            try
+            {
+                var userId = Guid.Parse(User.FindFirst("sub")?.Value ?? throw new UnauthorizedAccessException());
+                var activities = await _deviceService.GetDeviceActivitySummaryAsync(userId, days);
+                return Ok(activities);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting device activity");
+                return StatusCode(500, new { message = "Error retrieving device activity", error = ex.Message });
+            }
+        }
     }
 
     public class RegisterDeviceRequest
@@ -200,5 +274,10 @@ namespace AuthService.Controllers
     public class BlockDeviceRequest
     {
         public string Reason { get; set; } = string.Empty;
+    }
+
+    public class DeviceApprovalRequest
+    {
+        public string? Notes { get; set; }
     }
 }

@@ -1,0 +1,8 @@
+{
+  "actionType": "Approve",
+  "approvedAmount": 50000,
+  "tpaApprovalNumber": "TPA-STAR-2024-00123",
+  "tpaResponseNotes": "Pre-authorization approved for cataract surgery with phacoemulsification and IOL implantation",
+  "validFrom": "2026-02-23",
+  "validUntil": "2026-03-15"
+}

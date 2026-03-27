@@ -395,4 +395,119 @@ namespace AuthService.Models.Role
         public double SimilarityPercentage { get; set; }
         public string Recommendation { get; set; }
     }
+
+    // ================================================================================
+    // ROLE TEMPLATE DTOs
+    // ================================================================================
+
+    /// <summary>
+    /// Role template for creating pre-configured roles
+    /// </summary>
+    public class RoleTemplateDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public string RoleType { get; set; }
+        public string TemplateCategory { get; set; }
+        public int Priority { get; set; }
+        public List<Guid> DefaultPermissions { get; set; }
+        public Dictionary<string, object> Settings { get; set; }
+        public bool IsSystemTemplate { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string CreatedBy { get; set; }
+    }
+
+    /// <summary>
+    /// Create role from template request
+    /// </summary>
+    public class CreateRoleFromTemplateRequest
+    {
+        public Guid TemplateId { get; set; }
+        public string RoleName { get; set; }
+        public string RoleCode { get; set; }
+        public string Description { get; set; }
+        public Guid? ParentRoleId { get; set; }
+        public Guid? DepartmentId { get; set; }
+        public List<Guid> AdditionalPermissions { get; set; } = new();
+        public List<Guid> ExcludedPermissions { get; set; } = new();
+        public Dictionary<string, object> CustomSettings { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Role template filters
+    /// </summary>
+    public class RoleTemplateFilters
+    {
+        public string Search { get; set; }
+        public string TemplateCategory { get; set; }
+        public string RoleType { get; set; }
+        public bool? IsSystemTemplate { get; set; }
+        public bool? IsActive { get; set; }
+        public string SortBy { get; set; } = "name";
+        public string SortOrder { get; set; } = "asc";
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+    }
+
+    /// <summary>
+    /// Role template list response
+    /// </summary>
+    public class RoleTemplateListResponse
+    {
+        public List<RoleTemplateDto> Templates { get; set; }
+        public int TotalCount { get; set; }
+        public int PageNumber { get; set; }
+        public int PageSize { get; set; }
+        public int TotalPages { get; set; }
+        public bool HasPreviousPage { get; set; }
+        public bool HasNextPage { get; set; }
+    }
+
+    // ================================================================================
+    // ROLE HIERARCHY DTOs
+    // ================================================================================
+
+    /// <summary>
+    /// Role hierarchy relationship
+    /// </summary>
+    public class RoleHierarchyRelationDto
+    {
+        public Guid Id { get; set; }
+        public Guid ParentRoleId { get; set; }
+        public string ParentRoleName { get; set; }
+        public Guid ChildRoleId { get; set; }
+        public string ChildRoleName { get; set; }
+        public int Level { get; set; }
+        public string Path { get; set; }
+        public string InheritanceType { get; set; }
+        public List<Guid> InheritedPermissions { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    /// <summary>
+    /// Update role hierarchy request
+    /// </summary>
+    public class UpdateRoleHierarchyRequest
+    {
+        public Guid RoleId { get; set; }
+        public Guid? NewParentRoleId { get; set; }
+        public string InheritanceType { get; set; } = "inherit_all";
+        public List<Guid> ExcludedPermissions { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Role inheritance preview
+    /// </summary>
+    public class RoleInheritancePreviewDto
+    {
+        public Guid RoleId { get; set; }
+        public string RoleName { get; set; }
+        public List<RolePermissionDto> CurrentPermissions { get; set; }
+        public List<RolePermissionDto> InheritedPermissions { get; set; }
+        public List<RolePermissionDto> FinalPermissions { get; set; }
+        public List<string> InheritancePath { get; set; }
+    }
 }

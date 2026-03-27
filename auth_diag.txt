@@ -1,0 +1,274 @@
+﻿Building...
+C:\Users\Sam Aluri\Downloads\Hospital Portal\microservices\auth-service\AuthService\AuthService.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+C:\Users\Sam Aluri\Downloads\Hospital Portal\microservices\auth-service\AuthService\AuthService.csproj : warning NU1902: Package 'SixLabors.ImageSharp' 3.1.7 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc
+=== BACKEND STARTUP: Starting application ===
+Γ£ô WebApplication builder created
+Adding controllers...
+Γ£ô Controllers configured
+Database configuration: PostgreSQL
+Γ£ô PostgreSQL DbContext configured with tenant RLS interceptor
+Configuring Identity...
+Γ£ô Identity configured
+Configuring JWT Authentication...
+Γ£ô JWT Authentication configured
+Configuring Authorization...
+Γ£ô Authorization configured with permission-based policies
+Registering services...
+Γ£ô Services registered
+Configuring SignalR...
+Γ£ô SignalR configured
+Configuring CORS...
+Γ£ô CORS configured
+Building application...
+Γ£ô Application built successfully
+Configuring HTTP pipeline...
+Γ£ô Swagger UI enabled at /swagger
+Γ£ô CORS applied
+Γ£ô Tenant resolution middleware applied
+Γ£ô Authentication/Authorization configured
+Γ£ô Check-in validation middleware applied (enforces patient check-in for clinical endpoints)
+Γ£ô Controllers mapped
+Γ£ô SignalR hubs mapped (NotificationHub, CapacityHub, QueueHub)
+Γ£ô Database migrations skipped (using SQL scripts)
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (80ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      DROP FUNCTION IF EXISTS audit_department_access_changes() CASCADE;
+Γ£ô Dropped audit_department_access_changes() function and trigger (was referencing non-existent is_primary column)
+Starting data seeding...
+Γ£ô Tenant seeding skipped (use Admin UI to create tenants)
+warn: Microsoft.EntityFrameworkCore.Query[10103]
+      The query uses the 'First'/'FirstOrDefault' operator without 'OrderBy' and filter operators. This may lead to unpredictable results.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (67ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT t.id, t.address, t.city, t.country, t.created_at, t.default_currency, t.dpa_compliant, t.company_email, t.gdpr_compliant, t.hipaa_compliant, t.is_active, t.max_branches, t.max_users, t.nabh_accredited, t.name, t.company_phone, t.pincode, t.primary_region, t.state, t.status, t.subscription_type, t.tenant_code, t.tenant_type, t.updated_at, t.updated_by
+      FROM tenant AS t
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (63ms) [Parameters=[@__adminUser_Id_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT EXISTS (
+          SELECT 1
+          FROM users AS u
+          WHERE u.id = @__adminUser_Id_0)
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (62ms) [Parameters=[@__adminRole_Id_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT EXISTS (
+          SELECT 1
+          FROM app_roles AS a
+          WHERE a.id = @__adminRole_Id_0)
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (57ms) [Parameters=[@__userRole_UserId_0='?' (DbType = Guid), @__userRole_RoleId_1='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT EXISTS (
+          SELECT 1
+          FROM app_user_roles AS a
+          WHERE a.user_id = @__userRole_UserId_0 AND a.role_id = @__userRole_RoleId_1)
+Γ£ô Test admin user created: admin@test.com / Admin123!
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (57ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT t.id, t.address, t.city, t.country, t.created_at, t.default_currency, t.dpa_compliant, t.company_email, t.gdpr_compliant, t.hipaa_compliant, t.is_active, t.max_branches, t.max_users, t.nabh_accredited, t.name, t.company_phone, t.pincode, t.primary_region, t.state, t.status, t.subscription_type, t.tenant_code, t.tenant_type, t.updated_at, t.updated_by
+      FROM tenant AS t
+      LIMIT 1
+Checking for existing departments...
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (64ms) [Parameters=[@__testTenantId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT count(*)::int
+      FROM department AS d
+      WHERE d.tenant_id = @__testTenantId_0 AND d.deleted_at IS NULL
+Found 95 existing departments
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (60ms) [Parameters=[@__testTenantId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT count(*)::int
+      FROM department AS d
+      WHERE d.tenant_id = @__testTenantId_0 AND d.department_code LIKE 'STD\_%' AND d.deleted_at IS NULL
+Γ£ô Standard departments already exist (15 found), skipping seeding
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (61ms) [Parameters=[@__testTenantId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT count(*)::int
+      FROM department AS d
+      WHERE d.tenant_id = @__testTenantId_0 AND d.parent_department_id IS NOT NULL AND d.deleted_at IS NULL
+Γ£ô Sub-departments already seeded (62 found), skipping deletion and re-seeding
+Γ£ô Sub-departments already exist (62 found), skipping seeding
+Γ£ô Database initialization completed
+=== BACKEND STARTUP: Starting server ===
+info: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[63]
+      User profile is available. Using 'C:\Users\Sam Aluri\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+info: AuthService.Services.BackgroundReminderService[0]
+      Background Reminder Service started at: 02/09/2026 17:45:20 +05:30
+fail: Microsoft.Extensions.Hosting.Internal.Host[11]
+      Hosting failed to start
+      System.IO.IOException: Failed to bind to address http://127.0.0.1:5073: address already in use.
+       ---> Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.
+       ---> System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.
+         at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)
+         at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)
+         at System.Net.Sockets.Socket.Bind(EndPoint localEP)
+         at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)
+         at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+         --- End of inner exception stack trace ---
+         at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+         at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.<>c__DisplayClass28_0`1.<<StartAsync>g__OnBind|0>d.MoveNext()
+      --- End of stack trace from previous location ---
+         at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+         --- End of inner exception stack trace ---
+         at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindAsync(ListenOptions[] listenOptions, AddressBindContext context, Func`2 useHttps, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)
+         at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+         at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__15_1(IHostedService service, CancellationToken token)
+         at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+!!! FATAL ERROR during app.Run(): Failed to bind to address http://127.0.0.1:5073: address already in use.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (67ms) [Parameters=[@__checkUntil_0='?' (DbType = DateTime), @__AddMinutes_1='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+      SELECT a.id, a.appointment_id, a.created_at, a.delivery_status, a.error_message, a.reminder_type, a.retry_count, a.scheduled_time, a.sent_at, a.status, a.tenant_id, a.updated_at, a0.id, a0.appointment_date, a0.appointment_type, a0.cancellation_reason, a0.created_at, a0.deleted_at, a0.department_id, a0.doctor_id, a0.duration_minutes, a0.end_time, a0.is_recurring, a0.notes, a0.parent_appointment_id, a0.patient_email, a0.patient_id, a0.patient_phone, a0.priority, a0.reason_for_visit, a0.recurring_pattern, a0.reminder_sent, a0.start_time, a0.status, a0.tenant_id, a0.updated_at, p.id, p.aadhaar_number, p.address, p.address_line_1, p.address_line_2, p.alcohol_use, p.allergies, p.blood_group, p.chronic_conditions, p.contact_number, p.country, p.created_at, p.created_by_user_id, p.current_medications, p.date_of_birth, p.deceased_date, p.deleted_at, p.diet_type, p.disability_status, p.district, p.driving_license, p.email, p.emergency_contact_address, p.emergency_contact_email, p.emergency_contact_name, p.emergency_contact_phone, p.emergency_contact_relationship, p.exercise_habits, p.family_medical_history, p.first_name, p.gender, p.guardian_address, p.guardian_email, p.guardian_id_proof, p.guardian_name, p.guardian_phone, p.guardian_relationship, p.health_id, p.id_proof_type, p.immunization_records, p.insurance_group_number, p.insurance_policy_number, p.insurance_provider, p.insurance_status, p.insurance_valid_from, p.insurance_valid_to, p.known_allergies_details, p.landmark, p.language_preference, p.last_name, p.lifestyle_notes, p.marital_status, p.medical_record_number, p.middle_name, p.national_id, p.nationality, p.occupation, p.passport_number, p.past_surgeries, p.photo_thumbnail_url, p.photo_uploaded_at, p.photo_url, p.pin_code, p.religion, p.smoking_status, p.special_needs, p.status, p.tenant_id, p.title, p.updated_at, p.updated_by_user_id, u.id, u.accepted_hipaa, u.accepted_hipaa_at, u.accepted_privacy, u.accepted_privacy_at, u.accepted_terms, u.accepted_terms_at, u.access_failed_count, u.activation_status, u."BranchId", u.compliance_acceptance_ip, u.concurrency_stamp, u."CreatedAt", u."CreatedBy", u."DateOfBirth", u."DeletedAt", u.designation, u.email, u.email_confirmed, u.email_verification_sent_at, u.email_verification_token, u.email_verified, u."EmployeeId", u.failed_login_attempts, u."FirstName", u."Gender", u."InitialPasswordCreatedAt", u."LastLoginAt", u.last_login_ip, u."LastName", u.last_password_change, u."LastPasswordChangeAt", u.license_number, u.locked_until, u.lockout_enabled, u.lockout_end, u."MustChangePasswordOnLogin", u.must_reset_password, u.normalized_email, u.normalized_user_name, u.npi_number, u.one_time_password_hash, u."OrganizationId", u.otp_expires_at, u."PasswordExpiresAt", u.password_hash, u.password_reset_token, u.phone_number, u.phone_number_confirmed, u.professional_registration_date, u."Qualifications", u.reset_token_expires_at, u.security_stamp, u."Specialization", u.tenant_id, u.two_factor_enabled, u."UpdatedAt", u."UpdatedBy", u.user_name, u."UserStatus", u."UserType"
+      FROM appointment_reminders AS a
+      INNER JOIN appointment AS a0 ON a.appointment_id = a0.id
+      INNER JOIN patient AS p ON a0.patient_id = p.id
+      INNER JOIN users AS u ON a0.doctor_id = u.id
+      WHERE a.scheduled_time <= @__checkUntil_0 AND a.scheduled_time > @__AddMinutes_1 AND a.sent_at IS NULL AND a.delivery_status = 'pending' AND a0.status <> 'Cancelled' AND a0.deleted_at IS NULL
+info: AuthService.Services.BackgroundReminderService[0]
+      Found 0 pending reminders to process
+fail: Microsoft.Extensions.Hosting.Internal.Host[9]
+      BackgroundService failed
+      System.Threading.Tasks.TaskCanceledException: A task was canceled.
+         at AuthService.Services.BackgroundReminderService.ExecuteAsync(CancellationToken stoppingToken) in C:\Users\Sam Aluri\Downloads\Hospital Portal\microservices\auth-service\AuthService\Services\BackgroundReminderService.cs:line 40
+         at Microsoft.Extensions.Hosting.Internal.Host.TryExecuteBackgroundServiceAsync(BackgroundService backgroundService)
+!!! Stack trace:    at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindAsync(ListenOptions[] listenOptions, AddressBindContext context, Func`2 useHttps, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__15_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)
+   at Program.<Main>$(String[] args) in C:\Users\Sam Aluri\Downloads\Hospital Portal\microservices\auth-service\AuthService\Program.cs:line 949
+!!! FATAL ERROR during startup: Failed to bind to address http://127.0.0.1:5073: address already in use.
+!!! Stack Trace:    at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindAsync(ListenOptions[] listenOptions, AddressBindContext context, Func`2 useHttps, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__15_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)
+   at Program.<Main>$(String[] args) in C:\Users\Sam Aluri\Downloads\Hospital Portal\microservices\auth-service\AuthService\Program.cs:line 949
+!!! Inner Exception: Only one usage of each socket address (protocol/network address/port) is normally permitted.
+!!! Inner Stack Trace:    at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.<>c__DisplayClass28_0`1.<<StartAsync>g__OnBind|0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+EVENT: UnhandledException - System.IO.IOException: Failed to bind to address http://127.0.0.1:5073: address already in use.
+ ---> Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.
+ ---> System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.
+   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)
+   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)
+   at System.Net.Sockets.Socket.Bind(EndPoint localEP)
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+   --- End of inner exception stack trace ---
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.<>c__DisplayClass28_0`1.<<StartAsync>g__OnBind|0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindAsync(ListenOptions[] listenOptions, AddressBindContext context, Func`2 useHttps, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__15_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)
+   at Program.<Main>$(String[] args) in C:\Users\Sam Aluri\Downloads\Hospital Portal\microservices\auth-service\AuthService\Program.cs:line 949
+   at Program.<Main>(String[] args)
+dotnet : Unhandled exception. System.IO.IOException: Failed to bind to address 
+http://127.0.0.1:5073: address already in use.
+At line:1 char:91
++ ... rtal\microservices\auth-service\AuthService"; dotnet run 2>&1 | Out-F ...
++                                                   ~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Unhandled excep...already in use. 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ ---> Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage 
+of each socket address (protocol/network address/port) is normally permitted.
+ ---> System.Net.Sockets.SocketException (10048): Only one usage of each 
+socket address (protocol/network address/port) is normally permitted.
+   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(S
+ocketError error, Boolean disconnectOnFailure, String callerName)
+   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, 
+SocketAddress socketAddress)
+   at System.Net.Sockets.Socket.Bind(EndPoint localEP)
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOpti
+ons.CreateDefaultBoundListenSocket(EndPoint endpoint)
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionLis
+tener.Bind()
+   --- End of inner exception stack trace ---
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionLis
+tener.Bind()
+   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFact
+ory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.Transpor
+tManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, 
+EndpointConfig endpointConfig, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.<>c__DisplayCl
+ass28_0`1.<<StartAsync>g__OnBind|0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpo
+intAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken 
+cancellationToken)
+   --- End of inner exception stack trace ---
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpo
+intAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken 
+cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync
+(AddressBindContext context, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.Addresses
+Strategy.BindAsync(AddressBindContext context, CancellationToken 
+cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindAsync
+(ListenOptions[] listenOptions, AddressBindContext context, Func`2 useHttps, 
+CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(Canc
+ellationToken cancellationToken)
+   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TCo
+ntext](IHttpApplication`1 application, CancellationToken cancellationToken)
+   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(Cancellatio
+nToken cancellationToken)
+   at 
+Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__15_1(IHostedService 
+service, CancellationToken token)
+   at 
+Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 
+services, CancellationToken token, Boolean concurrent, Boolean 
+abortOnFirstException, List`1 exceptions, Func`3 operation)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken 
+cancellationToken)
+   at 
+Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost 
+host, CancellationToken token)
+   at 
+Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost 
+host, CancellationToken token)
+   at Program.<Main>$(String[] args) in C:\Users\Sam Aluri\Downloads\Hospital 
+Portal\microservices\auth-service\AuthService\Program.cs:line 949
+   at Program.<Main>(String[] args)

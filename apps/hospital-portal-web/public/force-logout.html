@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Force Logout - Clear Session</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 500px;
+        }
+        h1 { color: #333; margin-bottom: 20px; }
+        p { color: #666; margin: 15px 0; line-height: 1.6; }
+        .success { color: #10b981; font-weight: bold; font-size: 18px; margin: 20px 0; }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background 0.3s;
+            font-weight: bold;
+        }
+        button:hover { background: #5568d3; }
+        .code {
+            background: #f3f4f6;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-family: monospace;
+            color: #d97706;
+        }
+        .instructions {
+            background: #fef3c7;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #f59e0b;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #92400e;
+        }
+        .instructions ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin: 8px 0;
+            color: #78350f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Session Cleanup Required</h1>
+        
+        <div class="instructions">
+            <h3>Why you're seeing this:</h3>
+            <p style="margin: 10px 0;">
+                You logged in BEFORE we added the <span class="code">patient.view</span> permission to the database. 
+                Your current JWT token doesn't have this permission, so the backend rejects your API calls.
+            </p>
+        </div>
+
+        <p><strong>The permission IS in the database ✅</strong></p>
+        <p>Admin role has <span class="code">patient.view</span> permission confirmed!</p>
+
+        <div class="instructions">
+            <h3>Follow these steps exactly:</h3>
+            <ol>
+                <li>Click the button below to clear storage</li>
+                <li>You'll be redirected to the login page</li>
+                <li>Login with: <strong>admin@test.com / Admin123!</strong></li>
+                <li>Navigate to Appointments</li>
+                <li>Click "+ Book Appointment"</li>
+            </ol>
+        </div>
+
+        <button onclick="clearAndRedirect()">
+            🚀 Clear Storage & Go to Login
+        </button>
+
+        <div id="status" class="success" style="display:none;"></div>
+    </div>
+
+    <script>
+        function clearAndRedirect() {
+            const status = document.getElementById('status');
+            status.style.display = 'block';
+            status.textContent = 'Clearing storage...';
+            
+            // Clear everything
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // Clear cookies
+            document.cookie.split(";").forEach(function(c) { 
+                document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+            });
+            
+            status.textContent = '✓ Storage cleared! Redirecting...';
+            
+            // Redirect after 1 second
+            setTimeout(function() {
+                window.location.href = 'http://localhost:3000/auth/login';
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

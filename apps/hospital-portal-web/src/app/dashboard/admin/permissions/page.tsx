@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import React from 'react';
 import { permissionsApi, rolesApi, usersApi, departmentsApi } from '@/lib/api';
+import CreatePermissionModal from '@/components/admin/CreatePermissionModal';
 
 // ============================================================================
 // INTERFACES
@@ -138,6 +139,9 @@ export default function UnifiedPermissionsPage() {
   // Tab state
   const [activeTab, setActiveTab] = useState<'roles' | 'users' | 'departments' | 'bulk'>('roles');
   
+  // Modal state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  
   // Data state
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -198,7 +202,11 @@ export default function UnifiedPermissionsPage() {
       console.log(`✓ Found ${uniqueModules.length} unique modules:`, uniqueModules);
       
       setPermissions(loadedPermissions);
-      setRoles(rolesRes.data || []);
+      
+      // Filter out roles with empty names
+      const validRoles = (rolesRes.data || []).filter((r: any) => r.name && r.name.trim().length > 0);
+      setRoles(validRoles);
+      
       setUsers(usersRes.data?.users || usersRes.data || []);
       
       // Handle department data - API might return array directly or wrapped
@@ -206,17 +214,32 @@ export default function UnifiedPermissionsPage() {
       console.log('Departments loaded:', deptData);
       setDepartments(deptData);
 
-      // Load role permissions
+      // Load role permissions in batches to improve performance
+      console.log(`Loading permissions for ${validRoles.length} roles...`);
       const rolePermMap = new Map<string, string[]>();
-      for (const role of (rolesRes.data || [])) {
-        try {
-          const rolePermsRes = await rolesApi.getRolePermissions(role.id);
-          rolePermMap.set(role.id, (rolePermsRes.data || []).map((p: any) => p.id));
-        } catch (err) {
-          console.error(`Failed to load permissions for role ${role.name}:`, err);
-          rolePermMap.set(role.id, []);
-        }
+      
+      // Process roles in batches of 10 to avoid overloading the server
+      const batchSize = 10;
+      for (let i = 0; i < validRoles.length; i += batchSize) {
+        const batch = validRoles.slice(i, i + batchSize);
+        const batchPromises = batch.map(async (role: any) => {
+          try {
+            const rolePermsRes = await rolesApi.getRolePermissions(role.id);
+            return { roleId: role.id, permissions: (rolePermsRes.data || []).map((p: any) => p.id) };
+          } catch (err) {
+            console.error(`Failed to load permissions for role ${role.name}:`, err);
+            return { roleId: role.id, permissions: [] };
+          }
+        });
+        
+        const batchResults = await Promise.all(batchPromises);
+        batchResults.forEach(({ roleId, permissions }) => {
+          rolePermMap.set(roleId, permissions);
+        });
+        
+        console.log(`Loaded permissions for ${Math.min(i + batchSize, validRoles.length)}/${validRoles.length} roles`);
       }
+      
       setRolePermissions(rolePermMap);
 
       console.log('All data loaded successfully');
@@ -265,6 +288,24 @@ export default function UnifiedPermissionsPage() {
           <p className="text-gray-600 mt-1">Manage user access, roles, and department permissions</p>
         </div>
         <div className="flex gap-3">
+          <button
+            onClick={() => router.push('/dashboard/admin/permissions/matrix')}
+            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            </svg>
+            Permission Matrix
+          </button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Create Permission
+          </button>
           {pendingChanges.length > 0 && (
             <button
               onClick={resetChanges}
@@ -1192,6 +1233,16 @@ function BulkOperationsTab({
           <p className="text-sm mt-2">This feature allows you to manage multiple users simultaneously</p>
         </div>
       </div>
+
+      {/* Create Permission Modal */}
+      <CreatePermissionModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={() => {
+          loadPermissions();
+          setShowCreateModal(false);
+        }}
+      />
     </div>
   );
 }

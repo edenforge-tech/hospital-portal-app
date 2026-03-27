@@ -2,28 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Dark Mode Utilities */
+/* @import '../styles/dark-mode.css'; */
+
+/* Google Fonts - Loaded via next/font/google in layout.tsx */
+/* Inter: UI text, forms, tables */
+/* Plus Jakarta Sans: Headings */
+/* IBM Plex Mono: Clinical notes, code, data */
+
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  /* Emerald green theme - CSS variables */
+  --primary-50: #ecfdf5;
+  --primary-100: #d1fae5;
+  --primary-200: #a7f3d0;
+  --primary-300: #6ee7b7;
+  --primary-400: #34d399;
+  --primary-500: #10b981;   /* Main emerald */
+  --primary-600: #059669;   /* Hover state */
+  --primary-700: #047857;   /* Active state */
+  --primary-800: #065f46;   /* Text/headings */
+  --primary-900: #064e3b;
+  
+  /* Status colors */
+  --status-critical: #ef4444;
+  --status-warning: #f59e0b;
+  --status-info: #3b82f6;
+  --status-success: #10b981;
+  
+  /* Semantic colors */
+  --foreground-rgb: 17, 24, 39;  /* gray-900 */
+  --background-rgb: 255, 255, 255;  /* white */
+  --background-secondary: 249, 250, 251;  /* gray-50 */
+  
+  /* Spacing */
+  --sidebar-width: 280px;
+  --topnav-height: 64px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
+    /* Dark mode support (optional - future enhancement) */
     --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+    --background-rgb: 17, 24, 39;
+    --background-secondary: 31, 41, 55;
   }
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+@layer base {
+  body {
+    @apply font-sans text-gray-900 bg-white;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+  
+  code, pre {
+    @apply font-mono;
+  }
 }
 
 * {
@@ -70,6 +106,26 @@ body {
   }
 }
 
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(-25%);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
 .animate-fadeIn {
   animation: fadeIn 0.3s ease-out;
 }
@@ -82,21 +138,146 @@ body {
   animation: slideUp 0.5s ease-out;
 }
 
-/* Custom scrollbar for healthcare theme */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-bounce {
+  animation: bounce 1s infinite;
+}
+
+/* Custom scrollbar for emerald theme */
 .overflow-y-auto::-webkit-scrollbar {
   width: 8px;
 }
 
 .overflow-y-auto::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #f1f5f9;  /* gray-100 */
   border-radius: 4px;
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #10b981;  /* emerald-500 */
   border-radius: 4px;
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #059669;  /* emerald-600 */
+}
+
+/* Hide scrollbar utility (for patient sidebar and compact views) */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari, Opera */
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Focus outline for accessibility (WCAG 2.1 AA) */
+.focus-ring {
+  outline: none;
+}
+
+.focus-ring:focus {
+  outline: 2px solid #10b981;
+  outline-offset: 2px;
+}
+
+.focus-ring-inset {
+  outline: none;
+}
+
+.focus-ring-inset:focus {
+  outline: 2px solid #10b981;
+  outline-offset: -2px;
+}
+
+/* Skeleton loading animation */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #f3f4f6 0%,
+    #e5e7eb 50%,
+    #f3f4f6 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+/* Emerald scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #10b981;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #059669;
+}
+
+/* Hide scrollbar for sidebar */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Responsive table wrapper */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .table-responsive table {
+    min-width: 600px;
+  }
+}
+
+/* Responsive grid utilities for tablets/desktops */
+@media (min-width: 640px) and (max-width: 1024px) {
+  .responsive-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .responsive-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Mobile-friendly modals */
+@media (max-width: 768px) {
+  .modal-responsive {
+    max-height: 95vh !important;
+    margin: 0.5rem !important;
+  }
+  
+  .modal-content-responsive {
+    padding: 1rem !important;
+  }
 }

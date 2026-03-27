@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, User, Phone, Mail, Calendar, Droplet, MapPin } from 'lucide-react';
-import { patientApi } from '@/lib/api';
+import { X, User, Phone, Mail, Calendar, Droplet, MapPin, Camera, FileText } from 'lucide-react';
+import { patientApi, getApi } from '@/lib/api';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
+import PhotoCapture from '../shared/PhotoCapture';
+import RegistrationCardPreview from './RegistrationCardPreview';
+import DuplicatePatientWarningDialog from './DuplicatePatientWarningDialog';
 
 interface Patient {
   id?: string;
@@ -25,13 +28,16 @@ interface Patient {
   insuranceProvider?: string;
   insuranceNumber?: string;
   notes?: string;
+  photoUrl?: string;
+  idProofType?: string;
+  idProofNumber?: string;
 }
 
 interface PatientFormModalProps {
   patient?: Patient;
   isOpen: boolean;
   onClose: () => void;
-  onSave: () => void;
+  onSave: (patient: Patient) => void;
 }
 
 const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -45,6 +51,17 @@ export default function PatientFormModal({
 }: PatientFormModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [idProofFile, setIdProofFile] = useState<File | null>(null);
+  const [savedPatient, setSavedPatient] = useState<Patient | null>(null);
+  const [showRegistrationCard, setShowRegistrationCard] = useState(false);
+  
+  {/* Duplicate detection state */}
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+  const [duplicateMatches, setDuplicateMatches] = useState<any[]>([]);
+  const [proceedWithDuplicate, setProceedWithDuplicate] = useState(false);
+  
   const [formData, setFormData] = useState<Patient>({
     firstName: '',
     lastName: '',
@@ -61,7 +78,10 @@ export default function PatientFormModal({
     medications: '',
     insuranceProvider: '',
     insuranceNumber: '',
-    notes: ''
+    notes: '',
+    photoUrl: '',
+    idProofType: '',
+    idProofNumber: ''
   });
 
   useEffect(() => {
@@ -84,8 +104,12 @@ export default function PatientFormModal({
         medications: patient.medications || '',
         insuranceProvider: patient.insuranceProvider || '',
         insuranceNumber: patient.insuranceNumber || '',
-        notes: patient.notes || ''
+        notes: patient.notes || '',
+        photoUrl: patient.photoUrl || '',
+        idProofType: patient.idProofType || '',
+        idProofNumber: patient.idProofNumber || ''
       });
+      setPhotoPreview(patient.photoUrl || null);
     } else {
       // Reset form for new patient
       setFormData({
@@ -104,8 +128,15 @@ export default function PatientFormModal({
         medications: '',
         insuranceProvider: '',
         insuranceNumber: '',
-        notes: ''
+        notes: '',
+        photoUrl: '',
+        idProofType: '',
+        idProofNumber: ''
       });
+      setPhotoPreview(null);
+      setPhotoFile(null);
+      setIdProofFile(null);
+      setSavedPatient(null);
     }
   }, [patient, isOpen]);
 
@@ -139,14 +170,69 @@ export default function PatientFormModal({
     setLoading(true);
     setError('');
 
-    try {
-      if (patient?.id) {
-        await patientApi.update(patient.id, formData);
-      } else {
-        await patientApi.create(formData);
+    {/* Check for duplicates BEFORE submission (only for new patients, unless user already confirmed) */}
+    if (!proceedWithDuplicate && !patient?.id) {
+      try {
+        const api = getApi();
+        const duplicateCheck = await api.post('/patients/check-duplicates', {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          dateOfBirth: formData.dateOfBirth,
+          contactNumber: formData.contactNumber,
+          email: formData.email
+        });
+
+        if (duplicateCheck.data.isDuplicate && duplicateCheck.data.matches.length > 0) {
+          setDuplicateMatches(duplicateCheck.data.matches);
+          setShowDuplicateWarning(true);
+          setLoading(false);
+          return; {/* Stop submission */}
+        }
+      } catch (duplicateError) {
+        console.error('Duplicate check failed:', duplicateError);
+        {/* Continue with submission if duplicate check fails (don't block patient registration) */}
       }
-      onSave();
-      onClose();
+    }
+
+    try {
+      let response;
+      if (patient?.id) {
+        response = await patientApi.update(patient.id, formData);
+      } else {
+        response = await patientApi.create(formData);
+      }
+      
+      const patientId = patient?.id || response.data.id;
+      
+      // Upload patient photo if provided
+      if (photoFile && patientId) {
+        try {
+          const photoFormData = new FormData();
+          photoFormData.append('photo', photoFile);
+          await patientApi.uploadPhoto(patientId, photoFormData);
+        } catch (photoErr) {
+          console.error('Failed to upload photo:', photoErr);
+        }
+      }
+      
+      // Upload ID proof if provided (future enhancement)
+      if (idProofFile && patientId) {
+        console.log('ID proof upload not yet implemented');
+      }
+      
+      // Set saved patient data for registration card
+      const savedPatientData = {
+        ...formData,
+        id: patientId,
+        medicalRecordNumber: response.data.medicalRecordNumber || patient?.medicalRecordNumber,
+        photoUrl: photoPreview || undefined
+      };
+      setSavedPatient(savedPatientData);
+      
+      // Call onSave with patient data immediately for walk-in registration
+      onSave(savedPatientData);
+      
+      // Don't close modal yet - let user see success state and print card if needed
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to save patient');
     } finally {
@@ -157,15 +243,73 @@ export default function PatientFormModal({
   const handleInputChange = (field: keyof Patient, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+  
+  const handlePhotoCapture = (file: File, preview: string) => {
+    setPhotoFile(file);
+    setPhotoPreview(preview);
+  };
+  
+  const handleIdProofUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+      if (!allowedTypes.includes(file.type)) {
+        setError('ID proof must be an image (JPG, PNG) or PDF file');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('ID proof file size must be less than 5MB');
+        return;
+      }
+      
+      setIdProofFile(file);
+      setError('');
+    }
+  };
+
+  // Duplicate warning dialog handlers
+  const handleProceedWithDuplicate = () => {
+    setProceedWithDuplicate(true);
+    setShowDuplicateWarning(false);
+    // Re-trigger form submission by calling handleSubmit
+    setTimeout(() => {
+      const form = document.querySelector('form');
+      if (form) {
+        form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+      }
+    }, 100);
+  };
+
+  const handleSelectExistingPatient = (patientId: string) => {
+    setShowDuplicateWarning(false);
+    // Navigate to existing patient or close modal
+    const selectedDuplicate = duplicateMatches.find((m: any) => m.id === patientId);
+    if (selectedDuplicate) {
+      // Close modal and potentially navigate to patient details
+      onClose();
+      // You could also emit an event to navigate to the patient
+      window.location.href = `/dashboard/patients?id=${patientId}`;
+    }
+  };
+
+  const handleCloseDuplicateWarning = () => {
+    setShowDuplicateWarning(false);
+    setProceedWithDuplicate(false);
+    setLoading(false);
+  };
+
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-white">
-          <h2 className="text-2xl font-bold text-gray-900">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b sticky top-0 bg-white">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
             {patient ? 'Edit Patient' : 'Add New Patient'}
           </h2>
           <button
@@ -177,7 +321,7 @@ export default function PatientFormModal({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
               {error}
@@ -265,6 +409,115 @@ export default function PatientFormModal({
               </div>
             </div>
           </div>
+
+          {/* Patient Photo */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+              <Camera className="w-5 h-5 mr-2" />
+              Patient Photo
+            </h3>
+            <PhotoCapture 
+              onPhotoCapture={handlePhotoCapture}
+              currentPreview={photoPreview}
+              optional={true}
+              label="Patient Photo"
+            />
+          </div>
+
+          {/* ID Proof */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+              <FileText className="w-5 h-5 mr-2" />
+              Identity Documents
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  ID Proof Type <span className="text-gray-500">(Optional)</span>
+                </label>
+                <select
+                  value={formData.idProofType}
+                  onChange={(e) => handleInputChange('idProofType', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                >
+                  <option value="">Select ID Type</option>
+                  <option value="Aadhaar">Aadhaar Card</option>
+                  <option value="PAN">PAN Card</option>
+                  <option value="Passport">Passport</option>
+                  <option value="DrivingLicense">Driving License</option>
+                  <option value="VoterID">Voter ID</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  ID Number <span className="text-gray-500">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.idProofNumber}
+                  onChange={(e) => handleInputChange('idProofNumber', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Enter ID number"
+                />
+              </div>
+              
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Upload ID Proof <span className="text-gray-500">(Optional, JPG/PNG/PDF, max 5MB)</span>
+                </label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/jpg,application/pdf"
+                  onChange={handleIdProofUpload}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+                {idProofFile && (
+                  <p className="text-sm text-green-600 mt-2">
+                    ✓ File selected: {idProofFile.name}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* MRN Display (after patient saved) */}
+          {savedPatient?.medicalRecordNumber && (
+            <div className="bg-green-50 p-4 rounded-lg border-2 border-green-500">
+              <h3 className="text-lg font-medium text-green-900 mb-2 flex items-center">
+                ✅ Patient Registered Successfully
+              </h3>
+              <p className="text-xl font-bold text-green-700 mb-4">
+                Medical Record Number (MRN): {savedPatient.medicalRecordNumber}
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowRegistrationCard(true)}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              >
+                🖨️ Print Registration Card
+              </button>
+            </div>
+          )}
+          
+          {/* Registration Card Preview Modal */}
+          {showRegistrationCard && savedPatient && (
+            <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
+              <div className="bg-white rounded-lg p-6 max-w-2xl">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-bold">Registration Card Preview</h3>
+                  <button
+                    onClick={() => setShowRegistrationCard(false)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+                <RegistrationCardPreview patient={savedPatient} />
+              </div>
+            </div>
+          )}
 
           {/* Contact Information */}
           <div className="bg-gray-50 p-4 rounded-lg">
@@ -389,53 +642,7 @@ export default function PatientFormModal({
             </div>
           </div>
 
-          {/* Medical Information */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-              <Droplet className="w-5 h-5 mr-2" />
-              Medical Information
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Known Allergies
-                </label>
-                <textarea
-                  value={formData.allergies}
-                  onChange={(e) => handleInputChange('allergies', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  rows={2}
-                  placeholder="List any known allergies (e.g., penicillin, nuts, latex)"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Medical Conditions
-                </label>
-                <textarea
-                  value={formData.medicalConditions}
-                  onChange={(e) => handleInputChange('medicalConditions', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  rows={2}
-                  placeholder="List any chronic conditions (e.g., diabetes, hypertension, asthma)"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Current Medications
-                </label>
-                <textarea
-                  value={formData.medications}
-                  onChange={(e) => handleInputChange('medications', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  rows={2}
-                  placeholder="List current medications with dosages"
-                />
-              </div>
-            </div>
-          </div>
+          {/* Medical Information section removed per requirements */}
 
           {/* Insurance Information */}
           <div className="bg-gray-50 p-4 rounded-lg">
@@ -488,22 +695,45 @@ export default function PatientFormModal({
           <div className="flex justify-end gap-3 pt-4 border-t">
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => {
+                onClose();
+                if (savedPatient) {
+                  onSave(); // Trigger refresh when closing after successful save
+                }
+              }}
               className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
               disabled={loading}
             >
-              Cancel
+              {savedPatient ? 'Close' : 'Cancel'}
             </button>
-            <button
-              type="submit"
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={loading}
-            >
-              {loading ? 'Saving...' : (patient ? 'Update Patient' : 'Create Patient')}
-            </button>
+            {!savedPatient && (
+              <button
+                type="submit"
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-called"
+                disabled={loading}
+              >
+                {loading ? 'Saving...' : (patient ? 'Update Patient' : 'Create Patient')}
+              </button>
+            )}
           </div>
         </form>
       </div>
+      
+      {/* Duplicate Patient Warning Dialog */}
+      <DuplicatePatientWarningDialog
+        isOpen={showDuplicateWarning}
+        onClose={handleCloseDuplicateWarning}
+        onProceedAnyway={handleProceedWithDuplicate}
+        onSelectExisting={handleSelectExistingPatient}
+        duplicates={duplicateMatches}
+        newPatientData={{
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          dateOfBirth: formData.dateOfBirth,
+          contactNumber: formData.contactNumber,
+          email: formData.email
+        }}
+      />
     </div>
   );
 }

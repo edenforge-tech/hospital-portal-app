@@ -1,0 +1,9 @@
+{
+  "sessionId": "33333333-3333-3333-3333-333333333333",
+  "patientId": "f2fd249b-8e6c-4d16-83de-0e074c3935c6",
+  "totalBillAmount": 60000,
+  "discountAmount": 3000,
+  "paymentMethod": "UPI",
+  "upiTransactionId": "UPI1234567890",
+  "upiVpa": "patient@paytm"
+}

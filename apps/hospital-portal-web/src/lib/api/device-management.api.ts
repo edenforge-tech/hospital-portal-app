@@ -33,6 +33,45 @@ export interface RegisterDeviceDto {
   userAgent: string;
 }
 
+export interface DeviceAnalytics {
+  totalDevices: number;
+  activeDevices: number;
+  trustedDevices: number;
+  blockedDevices: number;
+  untrustedDevices: number;
+  deviceTypeDistribution: Record<string, number>;
+  trustLevelDistribution: Record<string, number>;
+  monthlyRegistrations: Record<string, number>;
+  averageDevicesPerUser: number;
+  mostActiveDeviceTypes: string[];
+}
+
+export interface DeviceSecurityMetrics {
+  securityIncidents: number;
+  blockedAttempts: number;
+  suspiciousLogins: number;
+  trustScoreAverage: number;
+  trendData: SecurityTrend[];
+  blockReasons: Record<string, number>;
+}
+
+export interface SecurityTrend {
+  date: string;
+  incidents: number;
+  blockedDevices: number;
+}
+
+export interface DeviceActivity {
+  deviceId: string;
+  deviceName: string;
+  deviceType: string;
+  lastActivity: string;
+  loginCount: number;
+  trustLevel: string;
+  totalUsageTime: string; // TimeSpan as string
+  recentLocations: string[];
+}
+
 export const deviceManagementApi = {
   // Get all devices for current user
   getMyDevices: async () => {
@@ -72,5 +111,26 @@ export const deviceManagementApi = {
   // Delete device
   delete: async (deviceId: string) => {
     return getApi().delete(`/device-management/devices/${deviceId}`);
+  },
+
+  // Approve device
+  approve: async (deviceId: string, notes?: string) => {
+    return getApi().post(`/device-management/devices/${deviceId}/approve`, { notes });
+  },
+
+  // Get device analytics
+  getAnalytics: async (userId?: string) => {
+    const params = userId ? { userId } : {};
+    return getApi().get<DeviceAnalytics>('/device-management/analytics', { params });
+  },
+
+  // Get security metrics
+  getSecurityMetrics: async () => {
+    return getApi().get<DeviceSecurityMetrics>('/device-management/security-metrics');
+  },
+
+  // Get device activity
+  getActivity: async (days: number = 30) => {
+    return getApi().get<DeviceActivity[]>('/device-management/activity', { params: { days } });
   }
 };

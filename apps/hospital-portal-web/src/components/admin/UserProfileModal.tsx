@@ -124,8 +124,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ userId, onClose, on
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="max-h-[90vh] w-full max-w-5xl overflow-auto rounded-lg bg-white shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2 sm:p-4">
+      <div className="max-h-[95vh] sm:max-h-[90vh] w-full max-w-5xl overflow-auto rounded-lg bg-white shadow-xl">
         {/* Header */}
         <div className="border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-6">
           <div className="flex items-center justify-between">
