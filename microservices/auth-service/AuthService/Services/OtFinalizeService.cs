@@ -200,24 +200,29 @@ namespace AuthService.Services
                     .Where(p => missingIds.Contains(p.Id))
                     .ToDictionaryAsync(
                         p => p.Id,
-                        p => (p.HealthId ?? p.MedicalRecordNumber,
-                              $"{p.FirstName} {p.LastName}".Trim()));
+                        p => (Uhid: (string?)(p.HealthId ?? p.MedicalRecordNumber),
+                              PatientName: $"{p.FirstName} {p.LastName}".Trim()));
             }
 
-            // Batch-load counselling sessions to backfill missing SurgeryName / Eye in list view
-            var missingSurgerySessionIds = results
-                .Where(s => (string.IsNullOrEmpty(s.SurgeryName) || string.IsNullOrEmpty(s.Eye))
-                         && s.CounsellingSessionId.HasValue)
+            // Batch-load counselling sessions for backfill + checklist computation
+            var allSessionIds = results
+                .Where(s => s.CounsellingSessionId.HasValue)
                 .Select(s => s.CounsellingSessionId!.Value).Distinct().ToList();
 
-            var sessionCache = new Dictionary<Guid, (string? Surgery, string? Eye)>();
-            if (missingSurgerySessionIds.Count > 0)
+            var sessionCache = new Dictionary<Guid, (string? Surgery, string? Eye, bool AnesthesiaConsent, string PatientType, decimal? PackageAmount)>();
+            if (allSessionIds.Count > 0)
             {
                 sessionCache = await _db.CounselingSession
-                    .Where(cs => missingSurgerySessionIds.Contains(cs.Id))
+                    .Where(cs => allSessionIds.Contains(cs.Id))
                     .ToDictionaryAsync(
                         cs => cs.Id,
-                        cs => (cs.RecommendedSurgery, cs.SurgeryTentativeEye));
+                        cs => (
+                            Surgery: cs.RecommendedSurgery,
+                            Eye: cs.SurgeryTentativeEye,
+                            AnesthesiaConsent: cs.AnesthesiaConsent,
+                            PatientType: cs.PatientType,
+                            PackageAmount: cs.PackageAmount
+                        ));
             }
 
             return results.Select(e =>
@@ -231,10 +236,18 @@ namespace AuthService.Services
                 if (e.CounsellingSessionId.HasValue &&
                     sessionCache.TryGetValue(e.CounsellingSessionId.Value, out var sd))
                 {
-                    if (string.IsNullOrEmpty(r.SurgeryName) && !string.IsNullOrEmpty(sd.Surgery))
+                    if (!string.IsNullOrEmpty(sd.Surgery))
                         r.SurgeryName = sd.Surgery!;
                     if (string.IsNullOrEmpty(r.Eye) && !string.IsNullOrEmpty(sd.Eye))
                         r.Eye = sd.Eye;
+                    // Backfill package rate from session when entity row has none
+                    if (!r.PackageRate.HasValue && sd.PackageAmount.HasValue)
+                        r.PackageRate = sd.PackageAmount;
+                    // Compute checklist summary for list view columns
+                    r.InvestigationsStatus = "Pending"; // no dedicated tracking field yet
+                    var paymentDone = !string.IsNullOrWhiteSpace(sd.PatientType);
+                    var consentDone = sd.AnesthesiaConsent;
+                    r.ChecklistSummary = (paymentDone && consentDone) ? "AllClear" : "Pending";
                 }
                 return r;
             }).ToList();
@@ -391,12 +404,22 @@ namespace AuthService.Services
         {
             var entity = await GetOrThrowAsync(id, tenantId);
 
-            if (entity.Status != OtFinalizeStatus.OTPrepared)
-                throw new InvalidOperationException(
-                    $"Cannot reopen: record is '{entity.Status}', expected 'OTPrepared'.");
-
             var oldStatus = entity.Status;
-            entity.Status    = OtFinalizeStatus.Confirmed;
+
+            if (entity.Status == OtFinalizeStatus.OTPrepared)
+            {
+                entity.Status = OtFinalizeStatus.Confirmed;
+            }
+            else if (entity.Status == OtFinalizeStatus.Cancelled)
+            {
+                entity.Status = OtFinalizeStatus.NotConfirmed;
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    $"Cannot reopen: record is '{entity.Status}', expected 'OTPrepared' or 'Cancelled'.");
+            }
+
             entity.IsLocked  = false;
             entity.Version++;
             entity.UpdatedAt       = DateTime.UtcNow;
@@ -572,7 +595,9 @@ namespace AuthService.Services
             CanConfirm = e.Status == OtFinalizeStatus.NotConfirmed,
             CanFinalise = e.Status == OtFinalizeStatus.Confirmed,
             CanCancel  = e.Status != OtFinalizeStatus.Cancelled && e.Status != OtFinalizeStatus.SurgeryDone,
-            CanReopen  = e.Status == OtFinalizeStatus.OTPrepared,
+            CanReopen  = e.Status == OtFinalizeStatus.OTPrepared || e.Status == OtFinalizeStatus.Cancelled,
+            PackageName = e.PackageName,
+            PackageRate = e.PackageRate,
         };
 
         private static OtScheduleDetailResponse ToDetailResponse(
@@ -721,14 +746,16 @@ namespace AuthService.Services
                     if (string.IsNullOrEmpty(resp.Uhid) && patient != null)
                         resp.Uhid = patient.HealthId ?? patient.MedicalRecordNumber;
 
-                    // Supplement: auto-fill doctor from referring doctor if not set in OT record
-                    if (!resp.DoctorId.HasValue && session.ReferredByDoctorId != Guid.Empty)
+                    // Populate patient demographics
+                    if (patient != null)
                     {
-                        resp.DoctorId = session.ReferredByDoctorId;
-                        var doc = await _db.Users.AsNoTracking()
-                            .FirstOrDefaultAsync(u => u.Id == session.ReferredByDoctorId);
-                        if (doc != null)
-                            resp.DoctorName = $"{doc.FirstName ?? ""} {doc.LastName ?? ""}".Trim();
+                        resp.ContactNumber                = patient.ContactNumber;
+                        resp.BloodGroup                   = patient.BloodGroup;
+                        resp.DateOfBirth                  = patient.DateOfBirth;
+                        resp.EmergencyContactName         = patient.EmergencyContactName;
+                        resp.EmergencyContactPhone        = patient.EmergencyContactPhone;
+                        resp.EmergencyContactRelationship = patient.EmergencyContactRelationship;
+                        resp.Address                      = patient.Address;
                     }
 
                     // Supplement: use session date as surgery date hint when StartTime is null
@@ -738,7 +765,7 @@ namespace AuthService.Services
                     // Supplement: enrich clinical fields from session when OT row has nulls
                     if (string.IsNullOrEmpty(resp.Eye) && !string.IsNullOrEmpty(session.SurgeryTentativeEye))
                         resp.Eye = session.SurgeryTentativeEye;
-                    if (string.IsNullOrEmpty(resp.SurgeryName) && !string.IsNullOrEmpty(session.RecommendedSurgery))
+                    if (!string.IsNullOrEmpty(session.RecommendedSurgery))
                         resp.SurgeryName = session.RecommendedSurgery;
                     if (string.IsNullOrEmpty(resp.AnesthesiaType) && !string.IsNullOrEmpty(session.AnesthesiaTypeChoice))
                         resp.AnesthesiaType = session.AnesthesiaTypeChoice;
@@ -751,13 +778,21 @@ namespace AuthService.Services
                 }
             }
 
-            // No session link — return with empty checklist; try to fill Uhid from Patient table
+            // No session link — return with empty checklist; load demographics from Patient table
             var fallbackResp = ToDetailResponse(entity, age, gender, visitDate, diagnosis, new OtChecklistDto());
-            if (string.IsNullOrEmpty(fallbackResp.Uhid))
+            var fp = await _db.Patients.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == entity.PatientId);
+            if (fp != null)
             {
-                var p = await _db.Patients.AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.Id == entity.PatientId);
-                if (p != null) fallbackResp.Uhid = p.HealthId ?? p.MedicalRecordNumber;
+                if (string.IsNullOrEmpty(fallbackResp.Uhid))
+                    fallbackResp.Uhid = fp.HealthId ?? fp.MedicalRecordNumber;
+                fallbackResp.ContactNumber                = fp.ContactNumber;
+                fallbackResp.BloodGroup                   = fp.BloodGroup;
+                fallbackResp.DateOfBirth                  = fp.DateOfBirth;
+                fallbackResp.EmergencyContactName         = fp.EmergencyContactName;
+                fallbackResp.EmergencyContactPhone        = fp.EmergencyContactPhone;
+                fallbackResp.EmergencyContactRelationship = fp.EmergencyContactRelationship;
+                fallbackResp.Address                      = fp.Address;
             }
             return fallbackResp;
         }

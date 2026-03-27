@@ -54,6 +54,14 @@ export interface WaitingListPatient {
   newPackage?: string;
   /** Price difference = new − previous (AddOnSurgery rows only). */
   upgradeDiff?: number;
+  /** Patient demographics — returned from backend for quick display. */
+  contactNumber?: string;
+  bloodGroup?: string;
+  dob?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  emergencyContactRelationship?: string;
+  address?: string;
 }
 
 export interface SurgeryOption {
@@ -186,6 +194,10 @@ export interface FinalizeSurgeryRecord {
   canFinalise?: boolean;
   canCancel?: boolean;
   canReopen?: boolean;
+  // Gap-analysis & new display fields
+  investigationsStatus?: ChecklistStatus;
+  checklistSummary?: 'AllClear' | 'Pending' | 'Missing';
+  counsellingDate?: string;
 }
 
 export type ChecklistStatus = 'Done' | 'Pending' | 'NotRequired';
@@ -205,6 +217,14 @@ export interface OtScheduleDetail extends FinalizeSurgeryRecord {
   checklistItems?: OtChecklist;
   doctorId?: string;
   theatreId?: string;
+  // Patient demographics
+  contactNumber?: string;
+  bloodGroup?: string;
+  dob?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  emergencyContactRelationship?: string;
+  address?: string;
 }
 
 export interface UpdateOtDetailsPayload {

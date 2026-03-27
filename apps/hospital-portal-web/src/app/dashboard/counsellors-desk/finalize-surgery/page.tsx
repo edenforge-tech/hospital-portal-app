@@ -1,7 +1,7 @@
 ﻿'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, MoreVertical, ClipboardList, Lock, AlertCircle, X, Printer } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Search, ClipboardList, LockKeyhole, AlertCircle, X, Printer } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { counsellorsDeskApi } from '@/lib/api/counsellors-desk.api';
 import { StatusBadge } from '@/components/counsellors-desk/StatusBadge';
@@ -14,87 +14,17 @@ import type {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const STATUS_TABS: { key: string; label: string }[] = [
-  { key: 'All',          label: 'All' },
-  { key: 'NotConfirmed', label: 'Not Confirmed' },
-  { key: 'Confirmed',    label: 'Confirmed' },
-  { key: 'Finalised',    label: 'Finalised' },
-  { key: 'OTPrepared',   label: 'OT Prepared' },
-  { key: 'Cancelled',    label: 'Cancelled' },
-  { key: 'SurgeryDone',  label: 'Surgery Done' },
+const STATUS_TABS = [
+  { key: 'All',          label: 'All',           color: 'bg-slate-500',   activeClass: 'bg-slate-600 border-slate-600 text-white'   },
+  { key: 'NotConfirmed', label: 'Not Confirmed',  color: 'bg-amber-500',   activeClass: 'bg-amber-500 border-amber-500 text-white'   },
+  { key: 'Confirmed',    label: 'Confirmed',      color: 'bg-blue-500',    activeClass: 'bg-blue-500 border-blue-500 text-white'     },
+  { key: 'Finalised',    label: 'Finalised',      color: 'bg-indigo-500',  activeClass: 'bg-indigo-500 border-indigo-500 text-white' },
+  { key: 'OTPrepared',   label: 'OT Prepared',    color: 'bg-emerald-500', activeClass: 'bg-emerald-500 border-emerald-500 text-white' },
+  { key: 'Cancelled',    label: 'Cancelled',      color: 'bg-red-500',     activeClass: 'bg-red-500 border-red-500 text-white'       },
+  { key: 'SurgeryDone',  label: 'Surgery Done',   color: 'bg-teal-500',    activeClass: 'bg-teal-500 border-teal-500 text-white'     },
 ];
 
 type ActionKey = 'confirm' | 'finalise' | 'cancel' | 'reopen';
-
-interface MenuOption { key: ActionKey; label: string; colorCls: string }
-
-function getMenuOptions(status: FinalizeStatus): MenuOption[] {
-  switch (status) {
-    case 'NotConfirmed': return [
-      { key: 'confirm',  label: 'Confirm',     colorCls: 'text-blue-700 hover:bg-blue-50' },
-      { key: 'cancel',   label: 'Cancel',      colorCls: 'text-red-600 hover:bg-red-50' },
-    ];
-    case 'Confirmed': return [
-      { key: 'finalise', label: 'Finalise',    colorCls: 'text-indigo-700 hover:bg-indigo-50' },
-      { key: 'cancel',   label: 'Cancel',      colorCls: 'text-red-600 hover:bg-red-50' },
-    ];
-    case 'Finalised': return [
-      { key: 'cancel',   label: 'Cancel',      colorCls: 'text-red-600 hover:bg-red-50' },
-    ];
-    case 'OTPrepared': return [
-      { key: 'reopen',   label: 'Reopen Case', colorCls: 'text-amber-700 hover:bg-amber-50' },
-    ];
-    default: return [];
-  }
-}
-
-// ─── Three-dot ActionMenu (status-aware) ──────────────────────────────────────
-
-function ActionMenu({
-  status,
-  onAction,
-}: {
-  status: FinalizeStatus;
-  onAction: (action: ActionKey) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const options = getMenuOptions(status);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  if (options.length === 0) return <span className="text-gray-300 px-2">—</span>;
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }}
-        className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
-      >
-        <MoreVertical className="h-4 w-4" />
-      </button>
-      {open && (
-        <div className="absolute left-0 top-8 w-36 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden py-1">
-          {options.map(({ key, label, colorCls }) => (
-            <button
-              key={key}
-              onClick={(e) => { e.stopPropagation(); setOpen(false); onAction(key); }}
-              className={`w-full text-left px-4 py-2 text-sm font-medium transition-colors ${colorCls}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ─── Prepare OT List Modal ────────────────────────────────────────────────────
 
@@ -294,6 +224,71 @@ export default function FinalizeSurgeryPage() {
     return base.filter(r => r.startTime?.startsWith(prepareDate));
   }, [records, prepareDate]);
 
+  // ── Stats bar ─────────────────────────────────────────────────────────────
+  const statsBar = useMemo(() => {
+    const pendingActions = records.filter(r => r.status === 'NotConfirmed' || r.status === 'Confirmed').length;
+    const surgeryDone    = records.filter(r => r.status === 'SurgeryDone').length;
+    const waitTimes      = records
+      .filter(r => r.counsellingDate && r.scheduleDate)
+      .map(r => Math.round(
+        (new Date(r.scheduleDate!).getTime() - new Date(r.counsellingDate!).getTime()) / 86_400_000
+      ))
+      .filter(d => d >= 0);
+    const avgWait = waitTimes.length > 0
+      ? Math.round(waitTimes.reduce((a, b) => a + b, 0) / waitTimes.length)
+      : 0;
+    return { total: records.length, pendingActions, surgeryDone, avgWait };
+  }, [records]);
+
+  // ── Duplicate booking detection ───────────────────────────────────────────
+  const duplicateIds = useMemo(() => {
+    const groups: Record<string, string[]> = {};
+    for (const r of records) {
+      const date = r.scheduleDate?.slice(0, 10) ?? '_nodate_';
+      const key  = `${r.uhid}_${date}`;
+      (groups[key] ??= []).push(r.id);
+    }
+    const result = new Set<string>();
+    Object.values(groups).forEach(ids => { if (ids.length > 1) ids.forEach(id => result.add(id)); });
+    return result;
+  }, [records]);
+
+  // ── Print OT Slip ─────────────────────────────────────────────────────────
+  const printOtSlip = (rec: FinalizeSurgeryRecord) => {
+    const w = window.open('', '_blank', 'width=620,height=540');
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html><html><head><title>OT Slip – ${rec.patientName}</title><style>
+body{font-family:Arial,sans-serif;padding:20px;font-size:13px;}
+h1{font-size:15px;text-align:center;color:#1e40af;margin:0 0 14px;}
+table{width:100%;border-collapse:collapse;}
+td{padding:7px 10px;border:1px solid #e2e8f0;}
+td:first-child{font-weight:600;background:#f8fafc;width:42%;}
+.footer{font-size:10px;color:#94a3b8;text-align:center;margin-top:14px;}
+</style></head><body>
+<h1>OT Slip</h1>
+<table>
+<tr><td>Patient Name</td><td>${rec.patientName}</td></tr>
+<tr><td>UHID</td><td>${rec.uhid}</td></tr>
+<tr><td>Surgery</td><td>${rec.surgeryName || '—'}</td></tr>
+<tr><td>Eye</td><td>${rec.eyes || '—'}</td></tr>
+<tr><td>Surgeon</td><td>${rec.surgeon || '—'}</td></tr>
+<tr><td>Theatre</td><td>${rec.theaterName || '—'}</td></tr>
+<tr><td>Surgery Date</td><td>${rec.scheduleDate ? new Date(rec.scheduleDate).toLocaleDateString('en-IN') : '—'}</td></tr>
+<tr><td>Start Time</td><td>${rec.startTime || '—'}</td></tr>
+<tr><td>Reporting Time</td><td>${rec.reportingTime || '—'}</td></tr>
+<tr><td>Anesthesia</td><td>${rec.anesthesiaType || '—'}</td></tr>
+<tr><td>Package</td><td>${rec.packageName || '—'}</td></tr>
+<tr><td>Package Amount</td><td>${rec.packageRate != null ? '₹' + Number(rec.packageRate).toLocaleString('en-IN') : '—'}</td></tr>
+<tr><td>Patient Type</td><td>${rec.patientType || '—'}</td></tr>
+<tr><td>Payment Mode</td><td>${rec.paymentMode || '—'}</td></tr>
+<tr><td>Status</td><td>${rec.status}</td></tr>
+</table>
+<p class="footer">Generated: ${new Date().toLocaleString('en-IN')}</p>
+<script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};};<\/script>
+</body></html>`);
+    w.document.close();
+  };
+
   const handleAction = async (action: ActionKey, rec: FinalizeSurgeryRecord) => {
     const patch = (p: Partial<FinalizeSurgeryRecord>) =>
       setRecords(rs => rs.map(r => r.id === rec.id ? { ...r, ...p } : r));
@@ -368,20 +363,6 @@ export default function FinalizeSurgeryPage() {
         />
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div />
-        <button
-          disabled={(tabCounts['Finalised'] ?? 0) === 0}
-          title={(tabCounts['Finalised'] ?? 0) === 0 ? 'No Finalised records — finalise some records first' : 'Prepare OT List'}
-          onClick={() => { setPrepareDate(filters.date); setPrepareModalOpen(true); }}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
-        >
-          <ClipboardList className="h-4 w-4" />
-          Prepare OT List
-        </button>
-      </div>
-
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <div className="flex items-end gap-3 flex-wrap">
@@ -413,46 +394,98 @@ export default function FinalizeSurgeryPage() {
           >
             <Search className="h-4 w-4" />Search
           </button>
+          <div className="ml-auto">
+            <button
+              disabled={(tabCounts['Finalised'] ?? 0) === 0}
+              title={(tabCounts['Finalised'] ?? 0) === 0 ? 'No Finalised records — finalise some records first' : 'Prepare OT List'}
+              onClick={() => { setPrepareDate(filters.date); setPrepareModalOpen(true); }}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
+            >
+              <ClipboardList className="h-4 w-4" />
+              Prepare OT List
+            </button>
+          </div>
         </div>
+      </div>
+
+      {/* Stats Bar */}
+      <div className="grid grid-cols-4 gap-3">
+        {[
+          { label: 'Total Scheduled',  value: statsBar.total,          color: 'bg-blue-50 border-blue-200',     text: 'text-blue-700'    },
+          { label: 'Pending Actions',  value: statsBar.pendingActions,  color: 'bg-amber-50 border-amber-200',   text: 'text-amber-700'   },
+          { label: 'Surgery Done',     value: statsBar.surgeryDone,     color: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' },
+          { label: 'Avg. Wait (days)', value: statsBar.avgWait,         color: 'bg-indigo-50 border-indigo-200', text: 'text-indigo-700'  },
+        ].map(card => (
+          <div key={card.label} className={`rounded-xl border p-4 ${card.color}`}>
+            <p className={`text-2xl font-bold ${card.text}`}>{card.value}</p>
+            <p className="text-xs text-gray-500 mt-1 font-medium">{card.label}</p>
+          </div>
+        ))}
       </div>
 
       {/* Main Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="flex items-center px-4 pt-4 pb-0 overflow-x-auto gap-1">
-          {STATUS_TABS.map(({ key, label }) => (
-            <button key={key} onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-lg whitespace-nowrap border-b-2 transition-colors
-                ${activeTab === key ? 'border-blue-600 text-blue-600 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
-            >
-              {label}
-              <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${activeTab === key ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
-                {tabCounts[key] ?? 0}
-              </span>
-            </button>
-          ))}
+        <div className="flex items-center px-4 pt-4 pb-3 overflow-x-auto gap-1.5">
+          {STATUS_TABS.map(({ key, label, color, activeClass }) => {
+            const count = tabCounts[key] ?? 0;
+            const isActive = activeTab === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all border ${
+                  isActive
+                    ? `${activeClass} shadow-sm`
+                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-white/80' : color}`} />
+                {label}
+                <span className={`text-xs font-bold px-1.5 py-0.5 rounded-md ${
+                  isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                }`}>{count}</span>
+              </button>
+            );
+          })}
         </div>
+
+        {duplicateIds.size > 0 && (
+          <div className="mx-4 mb-3 flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+            <AlertCircle className="h-4 w-4 flex-shrink-0 text-amber-500" />
+            <span>
+              <strong>{duplicateIds.size} record{duplicateIds.size > 1 ? 's' : ''}</strong> flagged as possible duplicate bookings — same patient scheduled on the same date.
+            </span>
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-y border-gray-100">
-                <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">UHID</th>
-                <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Patient</th>
-                <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Surgery</th>
-                <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Eyes</th>
-                <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Type</th>
-                <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Surgeon</th>
-                <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Start Time</th>
-                <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Theatre</th>
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Status</th>
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">UHID</th>
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Patient</th>
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Surgery</th>
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Eyes</th>
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Type</th>
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Surgeon</th>
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Start Time</th>
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Theatre</th>
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Package</th>
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Pkg. Amount</th>
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Reporting</th>
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Anesthesia</th>
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Payment</th>
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Checklist</th>
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {isLoading
-                ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={9} />)
+                ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={16} />)
                 : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-14 text-center text-gray-400">
+                    <td colSpan={16} className="py-14 text-center text-gray-400">
                       <ClipboardList className="h-8 w-8 mx-auto mb-2 opacity-30" />
                       <p className="text-sm">No records found</p>
                     </td>
@@ -468,7 +501,7 @@ export default function FinalizeSurgeryPage() {
                         <StatusBadge status={rec.status} size="sm" />
                         {rec.isLocked && (
                           <span title="Record locked — use Reopen to edit">
-                            <Lock className="h-3 w-3 text-indigo-500" />
+                            <LockKeyhole className="h-3 w-3 text-indigo-500" />
                           </span>
                         )}
                       </div>
@@ -479,10 +512,54 @@ export default function FinalizeSurgeryPage() {
                     <td className="px-3 py-3">
                       <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-xs font-medium">{rec.eyes}</span>
                     </td>
-                    <td className="px-3 py-3 text-gray-600 text-xs">{rec.patientType}</td>
+                    <td className="px-3 py-3 text-gray-600 text-xs">{rec.patientType === 'Insurance' ? 'Insurance / TPA' : (rec.patientType || '—')}</td>
                     <td className="px-3 py-3 text-gray-700 text-xs">{rec.surgeon}</td>
                     <td className="px-3 py-3 text-gray-600 text-xs whitespace-nowrap">{rec.startTime || '—'}</td>
                     <td className="px-3 py-3 text-gray-600 text-xs">{rec.theaterName}</td>
+                    <td className="px-3 py-3 text-gray-700 text-xs max-w-[120px]">
+                      <span className="truncate block" title={rec.packageName ?? ''}>{rec.packageName || '—'}</span>
+                    </td>
+                    <td className="px-3 py-3 text-gray-700 text-xs whitespace-nowrap">
+                      {rec.packageRate != null ? `₹${Number(rec.packageRate).toLocaleString('en-IN')}` : '—'}
+                    </td>
+                    <td className="px-3 py-3 text-gray-600 text-xs whitespace-nowrap">{rec.reportingTime || '—'}</td>
+                    <td className="px-3 py-3 text-xs">
+                      {rec.anesthesiaType
+                        ? <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-xs font-medium">{rec.anesthesiaType}</span>
+                        : <span className="text-gray-400">—</span>
+                      }
+                    </td>
+                    <td className="px-3 py-3 text-gray-600 text-xs">{rec.paymentMode || '—'}</td>
+                    <td className="px-3 py-3 text-xs">
+                      {rec.checklistSummary
+                        ? <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                            rec.checklistSummary === 'AllClear' ? 'bg-green-100 text-green-700'
+                            : rec.checklistSummary === 'Pending' ? 'bg-yellow-100 text-yellow-700'
+                            : 'bg-red-100 text-red-600'
+                          }`}>
+                            {rec.checklistSummary === 'AllClear' ? '✓ Clear'
+                              : rec.checklistSummary === 'Pending' ? '⏳ Pending'
+                              : '✗ Missing'}
+                          </span>
+                        : <span className="text-gray-400">—</span>
+                      }
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                        <button
+                          title="Print OT Slip"
+                          onClick={() => printOtSlip(rec)}
+                          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
+                        >
+                          <Printer className="h-4 w-4" />
+                        </button>
+                        {duplicateIds.has(rec.id) && (
+                          <span title="Possible duplicate booking — patient already scheduled on this date">
+                            <AlertCircle className="h-4 w-4 text-amber-500" />
+                          </span>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))
               }
@@ -504,7 +581,7 @@ export default function FinalizeSurgeryPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-            <Lock className="h-4 w-4 text-indigo-500" />
+            <LockKeyhole className="h-4 w-4 text-indigo-500" />
             Prepared OT List
           </h2>
           {otList.length > 0 && (

@@ -338,8 +338,10 @@ export function FinalizeOtModal({ isOpen, onClose, scheduleId, onStatusChange }:
           setAnesthetistMode(det.anesthetistName ? 'external' : 'external');
         }
         setScheduleDate(det.scheduleDate ?? '');
+        // Resolve doctorId: use explicit id first, fall back to matching name in loaded surgeon list
+        const resolvedDoctorId = det.doctorId ?? surg.find((s: { id: string; name: string }) => s.name === det.surgeon)?.id ?? '';
         setForm({
-          doctorId:        det.doctorId    ?? '',
+          doctorId:        resolvedDoctorId,
           doctorName:      det.surgeon     ?? '',
           theatreId:       det.theatreId   ?? '',
           theatreName:     det.theaterName ?? '',
@@ -467,7 +469,7 @@ export function FinalizeOtModal({ isOpen, onClose, scheduleId, onStatusChange }:
       <div className="relative z-10 w-full max-w-3xl max-h-[90vh] flex flex-col bg-white rounded-2xl shadow-2xl overflow-hidden">
 
         {/* ─── Header ──────────────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+        <div className={`flex items-start justify-between gap-4 px-6 py-4 border-b border-gray-200 bg-gradient-to-r ${status === 'NotConfirmed' ? 'from-amber-50 to-orange-50' : 'from-blue-50 to-indigo-50'}`}>
           {isLoading ? (
             <div className="space-y-2 animate-pulse flex-1">
               <div className="h-4 bg-gray-200 rounded w-48" />
@@ -480,6 +482,9 @@ export function FinalizeOtModal({ isOpen, onClose, scheduleId, onStatusChange }:
                 <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${STATUS_COLORS[status as FinalizeStatus] ?? ''}`}>
                   {status}
                 </span>
+                {status === 'NotConfirmed' && (
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white">Action Required</span>
+                )}
                 {isLocked && <LockKeyhole className="w-4 h-4 text-gray-400 flex-shrink-0" aria-label="Locked" />}
               </div>
               <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 flex-wrap">
@@ -516,7 +521,26 @@ export function FinalizeOtModal({ isOpen, onClose, scheduleId, onStatusChange }:
               ))}
             </div>
           ) : (
-            <>
+            <>              {/* ── Patient Details ─────────────────────────────────────────────── */}
+              <section className="rounded-xl border border-blue-100 bg-blue-50/30 p-4 space-y-3">
+                <SectionHeader icon={<User className="w-4 h-4" />} title="Patient Details" />
+                <div className="grid grid-cols-3 gap-x-6 gap-y-3">
+                  <ReadonlyField label="Date of Birth"  value={detail?.dob ? fmtDate(detail.dob) : undefined} />
+                  <ReadonlyField label="Blood Group"    value={detail?.bloodGroup} />
+                  <ReadonlyField label="Gender"         value={detail?.gender} />
+                </div>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                  <ReadonlyField label="Contact Number" value={detail?.contactNumber} />
+                  <ReadonlyField label="Address"        value={detail?.address} />
+                </div>
+                {(detail?.emergencyContactName || detail?.emergencyContactPhone) && (
+                  <div className="grid grid-cols-3 gap-x-6 gap-y-3 pt-2 border-t border-blue-100">
+                    <ReadonlyField label="Emergency Contact" value={detail?.emergencyContactName} />
+                    <ReadonlyField label="Emergency Phone"   value={detail?.emergencyContactPhone} />
+                    <ReadonlyField label="Relationship"      value={detail?.emergencyContactRelationship} />
+                  </div>
+                )}
+              </section>
               {/* ── Section 1: Surgery Details ────────────────────────────── */}
               <section className="rounded-xl border border-gray-200 p-4 space-y-3">
                 <SectionHeader icon={<Stethoscope className="w-4 h-4" />} title="Surgery Details" />
@@ -678,18 +702,26 @@ export function FinalizeOtModal({ isOpen, onClose, scheduleId, onStatusChange }:
                   <ReadonlyField label="Patient Type"  value={detail?.patientType} />
                   <div>
                     <FieldLabel>Package Rate (₹)</FieldLabel>
-                    <input
-                      type="number"
-                      min={0}
-                      value={form.packageRate != null && form.packageRate !== 0 ? form.packageRate : ''}
-                      onChange={(e) => set('packageRate', e.target.value ? parseFloat(e.target.value) : undefined)}
-                      readOnly={isLocked}
-                      placeholder="0.00"
-                      className={[
-                        'w-full text-sm rounded-lg border border-gray-300 px-3 py-2 outline-none transition-colors',
-                        isLocked ? 'bg-gray-50 text-gray-500 cursor-default' : 'bg-white hover:border-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500',
-                      ].join(' ')}
-                    />
+                    {(status === 'NotConfirmed' || status === 'Cancelled') ? (
+                      <p className="text-sm font-bold text-gray-900 py-1.5 border-b border-gray-100">
+                        {form.packageRate != null && form.packageRate !== 0
+                          ? `₹${Number(form.packageRate).toLocaleString('en-IN')}`
+                          : '—'}
+                      </p>
+                    ) : (
+                      <input
+                        type="number"
+                        min={0}
+                        value={form.packageRate != null && form.packageRate !== 0 ? form.packageRate : ''}
+                        onChange={(e) => set('packageRate', e.target.value ? parseFloat(e.target.value) : undefined)}
+                        readOnly={isLocked}
+                        placeholder="0.00"
+                        className={[
+                          'w-full text-sm rounded-lg border border-gray-300 px-3 py-2 outline-none transition-colors',
+                          isLocked ? 'bg-gray-50 text-gray-500 cursor-default' : 'bg-white hover:border-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500',
+                        ].join(' ')}
+                      />
+                    )}
                   </div>
                 </div>
               </section>

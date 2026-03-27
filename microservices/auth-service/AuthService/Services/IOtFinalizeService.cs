@@ -100,8 +100,15 @@ namespace AuthService.Services
         public string? IolPower { get; set; }
         public string? Remarks { get; set; }
         public string? CancelReason { get; set; }
-        public string? PackageName { get; set; }
-        public decimal? PackageRate { get; set; }
+        // PackageName and PackageRate inherited from OtScheduleResponse
+        // Patient demographics (populated from Patient table)
+        public string? ContactNumber { get; set; }
+        public string? BloodGroup { get; set; }
+        public DateTime? DateOfBirth { get; set; }
+        public string? EmergencyContactName { get; set; }
+        public string? EmergencyContactPhone { get; set; }
+        public string? EmergencyContactRelationship { get; set; }
+        public string? Address { get; set; }
         // Checklist
         public OtChecklistDto Checklist { get; set; } = new();
     }
@@ -159,6 +166,12 @@ namespace AuthService.Services
         public bool CanFinalise { get; set; }
         public bool CanCancel { get; set; }
         public bool CanReopen { get; set; }
+        // Package info (populated in list and detail views)
+        public string? PackageName { get; set; }
+        public decimal? PackageRate { get; set; }
+        // Derived checklist summary (for list view columns)
+        public string? InvestigationsStatus { get; set; }  // Pending | Done | NotRequired
+        public string? ChecklistSummary { get; set; }       // AllClear | Pending | Missing
     }
 
     // ─── Service Interface ───────────────────────────────────────────────────

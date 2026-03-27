@@ -613,7 +613,9 @@ export default function CounsellingSessionPage() {
               patientId: session.patientId,
               uhid: session.uhid,
               patientName: session.patientName,
-              surgeryName: packageName || '',
+              surgeryName: session?.surgeries?.find(s => s.id === selectedSurgeryId)?.surgeryName
+                || session?.surgeries?.find(s => s.isRecommended)?.surgeryName
+                || packageName || '',
               eyes: selectedEye,
               patientType: paymentType || '',
               paymentMode: paymentType || '',

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Plus, Search, Users, Scissors, RefreshCw, CheckCircle2,
   Activity, Calendar, RotateCcw, ChevronRight, SlidersHorizontal,
-  Clock, X,
+  Clock, X, User,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { counsellorsDeskApi } from '@/lib/api/counsellors-desk.api';
@@ -66,6 +66,96 @@ function MiniBar({ value, max, color }: { value: number; max: number; color: str
   );
 }
 
+// ── Patient Demographics Panel ───────────────────────────────────────────────
+
+function PatientDemographicsPanel({
+  patient,
+  onClose,
+}: {
+  patient: WaitingListPatient;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+      <div
+        className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">{patient.patientName}</h2>
+            <span className="font-mono text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-md">{patient.uhid}</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-white/70 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 space-y-4">
+          {/* Core demographics */}
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <p className="text-xs text-gray-500 font-medium mb-0.5">Date of Birth</p>
+              <p className="text-sm text-gray-900">
+                {patient.dob
+                  ? new Date(patient.dob).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                  : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 font-medium mb-0.5">Blood Group</p>
+              <p className="text-sm font-semibold text-gray-900">{patient.bloodGroup || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 font-medium mb-0.5">Gender</p>
+              <p className="text-sm text-gray-900">{patient.gender || '—'}</p>
+            </div>
+          </div>
+
+          {/* Contact & address */}
+          <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-100">
+            <div>
+              <p className="text-xs text-gray-500 font-medium mb-0.5">Contact Number</p>
+              <p className="text-sm text-gray-900">{patient.contactNumber || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 font-medium mb-0.5">Address</p>
+              <p className="text-sm text-gray-900 leading-snug">{patient.address || '—'}</p>
+            </div>
+          </div>
+
+          {/* Emergency contact */}
+          {(patient.emergencyContactName || patient.emergencyContactPhone) && (
+            <div className="pt-3 border-t border-gray-100">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Emergency Contact</p>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500 font-medium mb-0.5">Name</p>
+                  <p className="text-sm text-gray-900">{patient.emergencyContactName || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium mb-0.5">Phone</p>
+                  <p className="text-sm text-gray-900">{patient.emergencyContactPhone || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium mb-0.5">Relationship</p>
+                  <p className="text-sm text-gray-900">{patient.emergencyContactRelationship || '—'}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CounsellorWaitingListPage() {
   const router = useRouter();
 
@@ -76,6 +166,7 @@ export default function CounsellorWaitingListPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [showFilters, setShowFilters]       = useState(false);
   const [quickSearch, setQuickSearch]       = useState('');
+  const [demographicsPatient, setDemographicsPatient] = useState<WaitingListPatient | null>(null);
 
   const [filters, setFilters] = useState<WaitingListFilters>({
     fromDate: '', toDate: '', patientName: '', mrd: '', type: 'All', status: '',
@@ -522,8 +613,17 @@ export default function CounsellorWaitingListPage() {
                           : <span className="text-gray-200 text-xs">—</span>
                         }
                       </td>
-                      <td className="px-3 py-3 pr-4 text-right">
-                        <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-blue-400 transition-colors ml-auto" />
+                      <td className="px-3 py-3 pr-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={e => { e.stopPropagation(); setDemographicsPatient(patient); }}
+                            title="View patient demographics"
+                            className="p-1 rounded-lg text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                          >
+                            <User className="h-4 w-4" />
+                          </button>
+                          <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-blue-400 transition-colors" />
+                        </div>
                       </td>
                     </tr>
                   );
@@ -562,6 +662,13 @@ export default function CounsellorWaitingListPage() {
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddPatient}
       />
+
+      {demographicsPatient && (
+        <PatientDemographicsPanel
+          patient={demographicsPatient}
+          onClose={() => setDemographicsPatient(null)}
+        />
+      )}
     </div>
   );
 }

@@ -22,24 +22,6 @@ import type {
 
 // ─── Mock Data ──────────────────────────────────────────────────────────────
 
-const MOCK_WAITING_LIST: WaitingListPatient[] = [
-  { id: 'mock-0001-0000-0000-000000000001', slNo: 1, uhid: 'UHID001', patientName: 'Ravi Kumar', eye: 'RE', type: 'Surgery', surgeryName: 'Phacoemulsification', patientType: 'General', age: 62, gender: 'Male', doctor: 'Dr. Sharma', time: '09:00 AM', remarks: 'Diabetic patient', status: 'Pending' },
-  { id: 'mock-0001-0000-0000-000000000002', slNo: 2, uhid: 'UHID002', patientName: 'Meena Devi', eye: 'LE', type: 'Surgery', surgeryName: 'LASIK', patientType: 'Staff', age: 35, gender: 'Female', doctor: 'Dr. Verma', time: '09:30 AM', remarks: '', status: 'Processed' },
-  { id: 'mock-0001-0000-0000-000000000003', slNo: 3, uhid: 'UHID003', patientName: 'Arjun Patel', eye: 'BE', type: 'Procedure', surgeryName: 'Retinal Laser', patientType: 'Insurance', age: 48, gender: 'Male', doctor: 'Dr. Singh', time: '10:00 AM', remarks: 'Pre-auth required', status: 'Pending' },
-  { id: 'mock-0001-0000-0000-000000000004', slNo: 4, uhid: 'UHID004', patientName: 'Sunita Rao', eye: 'RE', type: 'Surgery', surgeryName: 'Vitrectomy', patientType: 'General', age: 55, gender: 'Female', doctor: 'Dr. Sharma', time: '10:30 AM', remarks: '', status: 'Done' },
-  { id: 'mock-0001-0000-0000-000000000005', slNo: 5, uhid: 'UHID005', patientName: 'Ramesh Gupta', eye: 'LE', type: 'Procedure', surgeryName: 'Intravitreal Injection', patientType: 'Free', age: 70, gender: 'Male', doctor: 'Dr. Nair', time: '11:00 AM', remarks: 'Free surgery approved', status: 'RepeatCounselling' },
-  { id: 'mock-0001-0000-0000-000000000006', slNo: 6, uhid: 'UHID006', patientName: 'Lakshmi Bai', eye: 'BE', type: 'Surgery', surgeryName: 'Corneal Transplant', patientType: 'Insurance', age: 44, gender: 'Female', doctor: 'Dr. Verma', time: '11:30 AM', remarks: '', status: 'Pending' },
-  { id: 'mock-0001-0000-0000-000000000007', slNo: 7, uhid: 'UHID007', patientName: 'Suresh Babu', eye: 'RE', type: 'Surgery', surgeryName: 'Phacoemulsification', patientType: 'General', age: 67, gender: 'Male', doctor: 'Dr. Singh', time: '12:00 PM', remarks: 'Hypertensive', status: 'AddOnSurgery' },
-  { id: 'mock-0001-0000-0000-000000000008', slNo: 8, uhid: 'UHID008', patientName: 'Priya Krishnan', eye: 'LE', type: 'Procedure', surgeryName: 'YAG Laser', patientType: 'Staff', age: 29, gender: 'Female', doctor: 'Dr. Sharma', time: '12:30 PM', remarks: '', status: 'Processed' },
-  { id: 'mock-0001-0000-0000-000000000009', slNo: 9, uhid: 'UHID009', patientName: 'Venkat Reddy', eye: 'RE', type: 'Surgery', surgeryName: 'DSAEK', patientType: 'General', age: 58, gender: 'Male', doctor: 'Dr. Nair', time: '01:00 PM', remarks: 'Previous surgery on LE', status: 'Pending' },
-  { id: 'mock-0001-0000-0000-000000000010', slNo: 10, uhid: 'UHID010', patientName: 'Anitha Menon', eye: 'BE', type: 'Surgery', surgeryName: 'LASIK', patientType: 'General', age: 31, gender: 'Female', doctor: 'Dr. Verma', time: '01:30 PM', remarks: '', status: 'Done' },
-  { id: 'mock-0001-0000-0000-000000000011', slNo: 11, uhid: 'UHID011', patientName: 'Harish Chandra', eye: 'RE', type: 'Surgery', surgeryName: 'Glaucoma Filtering', patientType: 'Insurance', age: 72, gender: 'Male', doctor: 'Dr. Sharma', time: '02:00 PM', remarks: 'IOL: +21.5', status: 'RepeatCounselling' },
-  { id: 'mock-0001-0000-0000-000000000012', slNo: 12, uhid: 'UHID012', patientName: 'Fatima Begum', eye: 'LE', type: 'Procedure', surgeryName: 'Retinal Laser', patientType: 'Free', age: 50, gender: 'Female', doctor: 'Dr. Singh', time: '02:30 PM', remarks: '', status: 'Pending' },
-  { id: 'mock-0001-0000-0000-000000000013', slNo: 13, uhid: 'UHID013', patientName: 'Rajesh Iyer', eye: 'BE', type: 'Surgery', surgeryName: 'Phacoemulsification', patientType: 'General', age: 65, gender: 'Male', doctor: 'Dr. Verma', time: '03:00 PM', remarks: 'Bilateral', status: 'Processed' },
-  { id: 'mock-0001-0000-0000-000000000014', slNo: 14, uhid: 'UHID014', patientName: 'Deepa Nambiar', eye: 'RE', type: 'Surgery', surgeryName: 'Vitrectomy', patientType: 'Insurance', age: 42, gender: 'Female', doctor: 'Dr. Nair', time: '03:30 PM', remarks: '', status: 'AddOnSurgery' },
-  { id: 'mock-0001-0000-0000-000000000015', slNo: 15, uhid: 'UHID015', patientName: 'Mohan Lal', eye: 'LE', type: 'Procedure', surgeryName: 'Intravitreal Injection', patientType: 'General', age: 76, gender: 'Male', doctor: 'Dr. Sharma', time: '04:00 PM', remarks: 'Monthly injection', status: 'Pending' },
-];
-
 const MOCK_SESSION: Omit<CounsellingSession, 'id'> = {
   patientId: '',
   patientName: 'Ravi Kumar',
@@ -116,8 +98,8 @@ export const counsellorsDeskApi = {
       if (filters?.status) params.status = filters.status;
       const response = await getApi().get('/Counseling/waiting-list', { params });
       return response.data ?? [];
-    } catch {
-      return MOCK_WAITING_LIST;
+    } catch (err) {
+      throw err;
     }
   },
 
@@ -330,17 +312,8 @@ export const counsellorsDeskApi = {
             }))
           : [],
       };
-    } catch {
-      const patient = MOCK_WAITING_LIST.find((p) => p.id === id);
-      return {
-        ...MOCK_SESSION,
-        id,
-        patientId: id,
-        patientName: patient?.patientName ?? MOCK_SESSION.patientName,
-        age: patient?.age ?? MOCK_SESSION.age,
-        gender: patient?.gender ?? MOCK_SESSION.gender,
-        uhid: patient?.uhid ?? MOCK_SESSION.uhid,
-      };
+    } catch (err) {
+      throw err;
     }
   },
 
@@ -500,6 +473,14 @@ export const counsellorsDeskApi = {
             preAuthStatus:        r.checklist.preAuthStatus        ?? 'NotRequired',
           }
         : undefined,
+      // Patient demographics (backend field names → frontend type names)
+      contactNumber:                r.contactNumber,
+      bloodGroup:                   r.bloodGroup,
+      dob:                          r.dateOfBirth,
+      emergencyContactName:         r.emergencyContactName,
+      emergencyContactPhone:        r.emergencyContactPhone,
+      emergencyContactRelationship: r.emergencyContactRelationship,
+      address:                      r.address,
     } as OtScheduleDetail;
   },
 
