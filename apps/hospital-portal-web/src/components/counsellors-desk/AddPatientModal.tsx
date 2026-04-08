@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
 import type { AddPatientFormData } from '@/types/counsellors-desk';
+import { counsellorsDeskApi } from '@/lib/api/counsellors-desk.api';
 
 interface AddPatientModalProps {
   isOpen: boolean;
@@ -11,7 +12,6 @@ interface AddPatientModalProps {
 }
 
 const EYE_OPTIONS = ['RE', 'LE', 'BE'];
-const DOCTOR_OPTIONS = ['Dr. Sharma', 'Dr. Verma', 'Dr. Singh', 'Dr. Nair', 'Dr. Anand'];
 
 const EMPTY_FORM: AddPatientFormData = {
   uhid: '',
@@ -27,11 +27,18 @@ export function AddPatientModal({ isOpen, onClose, onAdd }: AddPatientModalProps
   const [form, setForm] = useState<AddPatientFormData>(EMPTY_FORM);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [surgeons, setSurgeons] = useState<{ id: string; name: string }[]>([]);
+  const [loadingSurgeons, setLoadingSurgeons] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setForm(EMPTY_FORM);
       setErrors({});
+      setLoadingSurgeons(true);
+      counsellorsDeskApi.getSurgeons()
+        .then(setSurgeons)
+        .catch(console.error)
+        .finally(() => setLoadingSurgeons(false));
     }
   }, [isOpen]);
 
@@ -180,10 +187,11 @@ export function AddPatientModal({ isOpen, onClose, onAdd }: AddPatientModalProps
             <select
               value={form.doctor}
               onChange={(e) => setForm(f => ({ ...f, doctor: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={loadingSurgeons}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
             >
-              <option value="">Select Doctor</option>
-              {DOCTOR_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+              <option value="">{loadingSurgeons ? 'Loading…' : 'Select Doctor'}</option>
+              {surgeons.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
             </select>
           </div>
 

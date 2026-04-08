@@ -5,7 +5,8 @@ export type WaitingListStatus =
   | 'Processed'
   | 'Done'
   | 'AddOnSurgery'
-  | 'RepeatCounselling';
+  | 'RepeatCounselling'
+  | 'SurgeryDone';
 
 export type FinalizeStatus =
   | 'Cancelled'
@@ -247,6 +248,8 @@ export interface UpdateOtDetailsPayload {
 export interface PrepareOtListItem {
   scheduleId: string;
   sequence: number;
+  /** Optional new start time (HH:mm) — sent when the user fixes a time-slot conflict in the modal */
+  newStartTime?: string;
 }
 
 export interface PrepareOtListPayload {
@@ -351,3 +354,97 @@ export interface SessionAuditEntry {
   /** Name of person who requested the override */
   priceRequesterName?: string | null;
 }
+
+// ============================================================================
+// FOLLOW-UP CENTER TYPES
+// ============================================================================
+
+export type FollowupAlertLevel = 'Normal' | 'Medium' | 'High' | 'Critical';
+
+export type PatientIntention =
+  | 'WillingWeek'
+  | 'WillingMonth'
+  | 'WillingQuarter'
+  | 'WillingCallToConfirm'
+  | 'Undecided'
+  | 'WaitingFinancial'
+  | 'WaitingFear'
+  | 'Declined'
+  | 'ReferredElsewhere';
+
+export interface ActiveFollowupRecord {
+  sessionId: string;
+  patientId: string;
+  patientName: string;
+  uhid: string | null;
+  phone: string | null;
+  branchId: string | null;
+  recommendedSurgery: string | null;
+  patientIntention: PatientIntention | null;
+  sessionDate: string;
+  lastContactDate: string | null;
+  contactAttemptCount: number;
+  lastContactOutcome: string | null;
+  escalationStatus: string;
+  overdueSinceDate: string | null;
+  alertLevel: FollowupAlertLevel;
+}
+
+export interface ColdLeadRecord {
+  sessionId: string;
+  patientId: string;
+  patientName: string;
+  uhid: string | null;
+  phone: string | null;
+  branchId: string | null;
+  recommendedSurgery: string | null;
+  patientIntention: 'Declined' | 'ReferredElsewhere' | null;
+  sessionDate: string;
+  lastContactDate: string | null;
+  contactAttemptCount: number;
+  lastContactOutcome: string | null;
+  additionalNotes: string | null;
+}
+
+export interface PostSurgeryFollowupRecord {
+  journeyId: string;
+  patientId: string;
+  patientName: string;
+  uhid: string | null;
+  phone: string | null;
+  branchId: string | null;
+  sessionId: string | null;
+  surgeryType: string | null;
+  dischargedAt: string | null;
+  daysSinceDischarge: number | null;
+  conditionAtDischarge: string | null;
+  dischargeDate: string | null;
+  pendingPostOpVisits: number | undefined;
+}
+
+export interface FollowupPagedResponse<T> {
+  total: number;
+  page: number;
+  pageSize: number;
+  items: T[];
+}
+
+export interface ReQueuePayload {
+  newIntention?: PatientIntention;
+  notes?: string;
+}
+
+export type ReminderMessageType =
+  | 'CallbackReminder'
+  | 'AppointmentReminder'
+  | 'WellnessCheck'
+  | 'PostSurgeryFollowup'
+  | 'General';
+
+export interface SendReminderPayload {
+  channel: 'SMS' | 'WhatsApp' | 'Email';
+  messageType: ReminderMessageType;
+  message: string;
+  journeyId?: string;
+}
+

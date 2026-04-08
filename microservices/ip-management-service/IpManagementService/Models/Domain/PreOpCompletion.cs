@@ -1,0 +1,32 @@
+namespace IpManagementService.Models.Domain;
+
+/// <summary>
+/// Represents a single checklist item completion within a pre_op_clearance.
+/// One row per (clearance_id + item_id).
+/// </summary>
+public class PreOpCompletion
+{
+    public Guid     Id                    { get; set; }
+    public Guid     TenantId              { get; set; }
+    public Guid     ClearanceId           { get; set; }
+    public Guid     ItemId                { get; set; }
+
+    public bool     IsCompleted           { get; set; } = false;
+    public bool     IsBypassed            { get; set; } = false;
+    public string?  BypassReason          { get; set; }
+
+    public string?  Notes                 { get; set; }
+
+    /// <summary>Linked pre_op_document row for items where RequiresDocument is true.</summary>
+    public Guid?    DocumentId            { get; set; }
+
+    public Guid?    CompletedByUserId     { get; set; }
+    public DateTime? CompletedAt          { get; set; }
+
+    public Guid?    CreatedByUserId       { get; set; }
+    public Guid?    UpdatedByUserId       { get; set; }
+    public DateTime CreatedAt             { get; set; }
+    public DateTime UpdatedAt             { get; set; }
+    public DateTime? DeletedAt            { get; set; }
+    public string   Status                { get; set; } = "active";
+}

@@ -100,6 +100,9 @@ namespace AuthService.Models.Counselor
         public List<InvestigationOrderItemDto> InvestigationOrders { get; set; } = new();
         // Suggested pre-op tests from the doctor's recommended surgery
         public List<MasterCatalogItemDto> SuggestedPreOpTests { get; set; } = new();
+        /// <summary>Status of the linked ot_finalize_schedule record (e.g. "SurgeryDone").
+        /// Null when no OT record exists or surgery has not been completed.</summary>
+        public string? OtStatus { get; set; }
     }
 
     public class SurgeryPricingDto

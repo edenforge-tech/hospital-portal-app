@@ -37,6 +37,13 @@ namespace AuthService.Services
         
         // Targeted notifications
         Task NotifyRoleAsync(Guid tenantId, string roleCode, string type, string message, string details);
+
+        /// <summary>
+        /// Sends a SignalR notification to all users assigned to <paramref name="departmentCode"/>
+        /// within a given tenant (and optionally a specific branch).
+        /// Used by the IP Management service via HTTP for pre-op section coordination.
+        /// </summary>
+        Task NotifyDepartmentAsync(Guid tenantId, Guid? branchId, string departmentCode, string type, string message, string details);
     }
 
     public class NotificationService : INotificationService
@@ -322,6 +329,42 @@ namespace AuthService.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to send role notification");
+            }
+        }
+
+        public async Task NotifyDepartmentAsync(Guid tenantId, Guid? branchId, string departmentCode, string type, string message, string details)
+        {
+            try
+            {
+                // Find all users assigned to this department code within the tenant (optionally scope to branch)
+                var query = _context.Set<Models.Domain.UserDepartment>()
+                    .Include(ud => ud.Department)
+                    .Where(ud =>
+                        ud.Department.TenantId == tenantId &&
+                        ud.Department.DepartmentCode == departmentCode &&
+                        ud.Department.DeletedAt == null);
+
+                if (branchId.HasValue)
+                    query = query.Where(ud => ud.Department.BranchId == branchId);
+
+                var userIds = await query
+                    .Select(ud => ud.UserId)
+                    .Distinct()
+                    .ToListAsync();
+
+                foreach (var userId in userIds)
+                {
+                    await _hubContext.Clients.Group($"user_{userId}")
+                        .ReceiveNotification(type, message, details);
+                }
+
+                _logger.LogInformation(
+                    "Dept notification sent to {DeptCode} ({Count} users) in tenant {TenantId}: {Type}",
+                    departmentCode, userIds.Count, tenantId, type);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send department notification to {DeptCode}", departmentCode);
             }
         }
 

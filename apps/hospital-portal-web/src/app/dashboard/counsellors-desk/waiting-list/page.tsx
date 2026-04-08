@@ -10,6 +10,9 @@ import {
 import { toast } from 'react-hot-toast';
 import { counsellorsDeskApi } from '@/lib/api/counsellors-desk.api';
 import { counsellingAzureApi } from '@/lib/api/counselling-azure.api';
+import { ipManagementApi } from '@/lib/api/ip-management.api';
+import type { PatientJourneyRowDto } from '@/lib/api/ip-management.api';
+import { useAuthStore } from '@/lib/auth-store';
 import { AddPatientModal } from '@/components/counsellors-desk/AddPatientModal';
 import type { WaitingListPatient, WaitingListFilters, AddPatientFormData } from '@/types/counsellors-desk';
 
@@ -20,6 +23,8 @@ const STATUS_TABS = [
   { key: 'Done',              label: 'Done',               color: 'bg-emerald-500', activeClass: 'bg-emerald-500 border-emerald-500 text-white' },
   { key: 'AddOnSurgery',      label: 'Add-on Surgery',     color: 'bg-violet-500',  activeClass: 'bg-violet-500  border-violet-500  text-white' },
   { key: 'RepeatCounselling', label: 'Repeat Counselling', color: 'bg-orange-500',  activeClass: 'bg-orange-500  border-orange-500  text-white' },
+  { key: 'SurgeryDone',       label: 'Surgery Done',       color: 'bg-teal-500',    activeClass: 'bg-teal-600    border-teal-600    text-white' },
+  { key: 'OtReturned',        label: 'OT Returned',        color: 'bg-rose-500',    activeClass: 'bg-rose-600    border-rose-600    text-white' },
 ];
 
 const STATUS_BORDER: Record<string, string> = {
@@ -28,6 +33,7 @@ const STATUS_BORDER: Record<string, string> = {
   Done:              'border-l-emerald-400',
   AddOnSurgery:      'border-l-violet-400',
   RepeatCounselling: 'border-l-orange-400',
+  SurgeryDone:       'border-l-teal-400',
 };
 
 const STATUS_BADGE: Record<string, string> = {
@@ -36,6 +42,7 @@ const STATUS_BADGE: Record<string, string> = {
   Done:              'bg-emerald-100 text-emerald-700 ring-emerald-200',
   AddOnSurgery:      'bg-violet-100 text-violet-700 ring-violet-200',
   RepeatCounselling: 'bg-orange-100 text-orange-700 ring-orange-200',
+  SurgeryDone:       'bg-teal-100 text-teal-700 ring-teal-200',
 };
 
 // Skeleton loader row
@@ -160,6 +167,8 @@ export default function CounsellorWaitingListPage() {
   const router = useRouter();
 
   const [patients, setPatients]             = useState<WaitingListPatient[]>([]);
+  const [otReturnedRows, setOtReturnedRows]  = useState<PatientJourneyRowDto[]>([]);
+  const [otReturnedLoading, setOtReturnedLoading] = useState(false);
   const [isLoading, setIsLoading]           = useState(true);
   const [activeTab, setActiveTab]           = useState('All');
   const [selectedId, setSelectedId]         = useState<string | null>(null);
@@ -173,6 +182,22 @@ export default function CounsellorWaitingListPage() {
   });
   const [appliedFilters, setAppliedFilters] = useState<WaitingListFilters>(filters);
 
+  const { user } = useAuthStore();
+  const branchId = user?.branchId;
+
+  const fetchOtReturned = async () => {
+    if (!branchId) return;
+    setOtReturnedLoading(true);
+    try {
+      const rows = await ipManagementApi.listJourneys({ branchId, clinicalState: 'ReadyForSurgery' });
+      setOtReturnedRows(rows.filter(r => !!r.otReturnReason));
+    } catch {
+      // silent — we just show empty list
+    } finally {
+      setOtReturnedLoading(false);
+    }
+  };
+
   const fetchPatients = async (f?: WaitingListFilters) => {
     setIsLoading(true);
     try {
@@ -185,7 +210,7 @@ export default function CounsellorWaitingListPage() {
     }
   };
 
-  useEffect(() => { fetchPatients(); }, []);
+  useEffect(() => { fetchPatients(); fetchOtReturned(); }, []);
 
   // Refetch when user navigates back to this page (visibility change covers router.back())
   useEffect(() => {
@@ -241,10 +266,14 @@ export default function CounsellorWaitingListPage() {
   const tabCounts = useMemo(() => {
     const map: Record<string, number> = { All: patients.length };
     STATUS_TABS.slice(1).forEach(({ key }) => {
-      map[key] = patients.filter(p => p.status === key).length;
+      if (key === 'OtReturned') {
+        map[key] = otReturnedRows.length;
+      } else {
+        map[key] = patients.filter(p => p.status === key).length;
+      }
     });
     return map;
-  }, [patients]);
+  }, [patients, otReturnedRows]);
 
   const handleAddPatient = async (data: AddPatientFormData) => {
     try {
@@ -479,7 +508,82 @@ export default function CounsellorWaitingListPage() {
           </button>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* ── OT RETURNED TABLE ─────────────────────────── */}
+        {activeTab === 'OtReturned' ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-rose-50/70 border-y border-rose-100">
+                  <th className="pl-4 pr-3 py-2.5 w-10 text-left text-[10px] font-extrabold text-rose-700 uppercase tracking-widest">#</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-extrabold text-rose-700 uppercase tracking-widest">UHID</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-extrabold text-rose-700 uppercase tracking-widest">Patient</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-extrabold text-rose-700 uppercase tracking-widest">Procedure</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-extrabold text-rose-700 uppercase tracking-widest">Return Reason</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-extrabold text-rose-700 uppercase tracking-widest">Surgery Date</th>
+                  <th className="px-3 py-2.5 pr-4 text-[10px] font-extrabold text-rose-700 uppercase tracking-widest">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {otReturnedLoading ? (
+                  Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} />)
+                ) : otReturnedRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-16 text-center text-gray-400">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center">
+                          <RotateCcw className="h-5 w-5 text-rose-300" />
+                        </div>
+                        <p className="text-sm font-medium">No OT-returned patients</p>
+                        <p className="text-xs opacity-60">Patients returned from OT will appear here</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : otReturnedRows.map((row, idx) => {
+                  const sched = row.surgeryScheduledAt
+                    ? new Date(row.surgeryScheduledAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : '—';
+                  // The return reason may contain " — notes" suffix: show primary reason bold + notes muted
+                  const reasonParts = (row.otReturnReason ?? '').split(' — ');
+                  const primaryReason = reasonParts[0];
+                  const reasonNote   = reasonParts.slice(1).join(' — ');
+                  return (
+                    <tr key={row.id} className={`border-l-4 border-l-rose-400 ${idx % 2 === 0 ? 'bg-white' : 'bg-rose-50/30'} hover:bg-rose-50/60 transition-colors`}>
+                      <td className="pl-4 pr-3 py-3 text-xs text-gray-500">{idx + 1}</td>
+                      <td className="px-3 py-3">
+                        <span className="font-mono text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">{row.uhid ?? '—'}</span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <p className="font-semibold text-gray-900 text-sm">{row.patientName ?? '—'}</p>
+                        {row.eyeOperated && <p className="text-[10px] text-gray-500">{row.eyeOperated}</p>}
+                      </td>
+                      <td className="px-3 py-3 text-xs text-gray-700 whitespace-nowrap">{row.procedureName ?? '—'}</td>
+                      <td className="px-3 py-3 max-w-[220px]">
+                        <span className="text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">{primaryReason}</span>
+                        {reasonNote && <p className="text-[10px] text-gray-500 mt-0.5 truncate">{reasonNote}</p>}
+                      </td>
+                      <td className="px-3 py-3 text-xs text-gray-500 whitespace-nowrap">{sched}</td>
+                      <td className="px-3 pr-4 py-3">
+                        {row.counselingSessionId ? (
+                          <button
+                            onClick={() => router.push(`/dashboard/counsellors-desk/${row.counselingSessionId}`)}
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            Re-plan
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-gray-400 italic">No session</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <>
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50/70 border-y border-gray-100">
@@ -654,6 +758,8 @@ export default function CounsellorWaitingListPage() {
               </div>
             )}
           </div>
+        )}
+        </>
         )}
       </div>
 

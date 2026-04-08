@@ -138,8 +138,32 @@ CREATE INDEX IF NOT EXISTS idx_ot_audit_schedule     ON ot_finalize_audit_log(sc
 -- ─────────────────────────────────────────────────────────────────────────────
 DO $$
 DECLARE
-    v_tenant UUID := '11111111-1111-1111-1111-111111111111';
+    v_tenant    UUID := '11111111-1111-1111-1111-111111111111';
+    v_patient1  UUID;
+    v_patient2  UUID;
+    v_patient3  UUID;
 BEGIN
+    -- Resolve real patient UUIDs for the seed tenant (any 3 active patients).
+    -- Falls back to gen_random_uuid() only when no patients exist at all.
+    SELECT id INTO v_patient1 FROM patient
+        WHERE tenant_id = v_tenant AND deleted_at IS NULL ORDER BY created_at LIMIT 1 OFFSET 0;
+    SELECT id INTO v_patient2 FROM patient
+        WHERE tenant_id = v_tenant AND deleted_at IS NULL ORDER BY created_at LIMIT 1 OFFSET 1;
+    SELECT id INTO v_patient3 FROM patient
+        WHERE tenant_id = v_tenant AND deleted_at IS NULL ORDER BY created_at LIMIT 1 OFFSET 2;
+
+    -- If the seed tenant has no patients, try the primary real tenant
+    IF v_patient1 IS NULL THEN
+        SELECT id INTO v_patient1 FROM patient WHERE deleted_at IS NULL ORDER BY created_at LIMIT 1 OFFSET 0;
+        SELECT id INTO v_patient2 FROM patient WHERE deleted_at IS NULL ORDER BY created_at LIMIT 1 OFFSET 1;
+        SELECT id INTO v_patient3 FROM patient WHERE deleted_at IS NULL ORDER BY created_at LIMIT 1 OFFSET 2;
+    END IF;
+
+    -- Still null — use random UUIDs as last resort
+    v_patient1 := COALESCE(v_patient1, gen_random_uuid());
+    v_patient2 := COALESCE(v_patient2, gen_random_uuid());
+    v_patient3 := COALESCE(v_patient3, gen_random_uuid());
+
     -- Only seed if table is empty for this tenant
     IF NOT EXISTS (SELECT 1 FROM ot_finalize_schedule WHERE tenant_id = v_tenant) THEN
 
@@ -152,7 +176,7 @@ BEGIN
         ) VALUES
         (
             v_tenant,
-            gen_random_uuid(), 'UHID001', 'Ravi Kumar', 'Phacoemulsification', 'RE',
+            v_patient1, 'UHID001', 'Ravi Kumar', 'Phacoemulsification', 'RE',
             'General', 'Cash',
             'Dr. Sharma', 'OT-1',
             NOW() + INTERVAL '1 day' + INTERVAL '9 hours',
@@ -161,7 +185,7 @@ BEGIN
         ),
         (
             v_tenant,
-            gen_random_uuid(), 'UHID002', 'Meena Devi', 'LASIK', 'BE',
+            v_patient2, 'UHID002', 'Meena Devi', 'LASIK', 'BE',
             'Insurance', 'TPA',
             'Dr. Verma', 'OT-2',
             NOW() + INTERVAL '1 day' + INTERVAL '10 hours',
@@ -170,7 +194,7 @@ BEGIN
         ),
         (
             v_tenant,
-            gen_random_uuid(), 'UHID003', 'Arjun Patel', 'Vitrectomy', 'LE',
+            v_patient3, 'UHID003', 'Arjun Patel', 'Vitrectomy', 'LE',
             'General', 'Cash',
             'Dr. Nair', 'OT-3',
             NOW() + INTERVAL '1 day' + INTERVAL '11 hours',

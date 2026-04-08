@@ -94,7 +94,8 @@ namespace AuthService.Services
         public DateTime? VisitDate { get; set; }
         public string? Diagnosis { get; set; }
         // Detail fields (now persisted on ot_finalize_schedule)
-        public TimeSpan? ReportingTime { get; set; }
+        // 'new' suppresses CS0108 — base OtScheduleResponse now also exposes ReportingTime
+        public new TimeSpan? ReportingTime { get; set; }
         public string? AnesthesiaType { get; set; }
         public string? AnesthetistName { get; set; }
         public string? IolPower { get; set; }
@@ -117,6 +118,8 @@ namespace AuthService.Services
     {
         public Guid ScheduleId { get; set; }
         public int Sequence { get; set; }
+        /// <summary>Optional new start time override (time-only; date is taken from the request).</summary>
+        public DateTime? NewStartTime { get; set; }
     }
 
     public class PrepareOtListRequest
@@ -124,6 +127,15 @@ namespace AuthService.Services
         public DateTime Date { get; set; }
         public List<PrepareOtListItem> Items { get; set; } = new();
         public string? PreparedBy { get; set; }
+    }
+
+    /// <summary>Thrown when one or more submitted records share a start-time slot with an already-OTPrepared record.</summary>
+    public class OtPrepareConflictException : Exception
+    {
+        public List<Guid> ConflictingScheduleIds { get; }
+        public OtPrepareConflictException(List<Guid> ids)
+            : base("One or more records conflict with an already-prepared time slot.")
+            => ConflictingScheduleIds = ids;
     }
 
     public class OtScheduleFilters
@@ -169,9 +181,13 @@ namespace AuthService.Services
         // Package info (populated in list and detail views)
         public string? PackageName { get; set; }
         public decimal? PackageRate { get; set; }
+        // Reporting time — surfaced in both list and detail views
+        public TimeSpan? ReportingTime { get; set; }
         // Derived checklist summary (for list view columns)
         public string? InvestigationsStatus { get; set; }  // Pending | Done | NotRequired
         public string? ChecklistSummary { get; set; }       // AllClear | Pending | Missing
+        // Convenience date string derived from StartTime ("yyyy-MM-dd") — used by frontend date filters
+        public string? ScheduleDate { get; set; }
     }
 
     // ─── Service Interface ───────────────────────────────────────────────────
@@ -245,5 +261,14 @@ namespace AuthService.Services
         /// </summary>
         Task<OtScheduleResponse> UpdateDetailsAsync(
             Guid id, UpdateOtDetailsRequest request, Guid tenantId, Guid userId);
+
+        /// <summary>
+        /// Called by IP Management service (via internal HTTP) when a patient's
+        /// clinical state transitions to SurgeryCompleted.
+        /// Transitions OTPrepared → SurgeryDone (idempotent: no-op if already SurgeryDone).
+        /// Must never throw — returns null if the record is not found or not in a
+        /// transitionable state (Cancelled records are skipped silently).
+        /// </summary>
+        Task<OtScheduleResponse?> MarkSurgeryDoneAsync(Guid id, Guid tenantId, string actorUserId);
     }
 }

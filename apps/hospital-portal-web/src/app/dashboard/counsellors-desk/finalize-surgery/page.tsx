@@ -1,9 +1,9 @@
 ﻿'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, ClipboardList, LockKeyhole, AlertCircle, X, Printer } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { counsellorsDeskApi } from '@/lib/api/counsellors-desk.api';
+import { counsellorsDeskApi, mapOtRecord } from '@/lib/api/counsellors-desk.api';
 import { StatusBadge } from '@/components/counsellors-desk/StatusBadge';
 import { FinalizeOtModal } from '@/components/counsellors-desk/FinalizeOtModal';
 import type {
@@ -30,20 +30,24 @@ type ActionKey = 'confirm' | 'finalise' | 'cancel' | 'reopen';
 
 interface PrepareModalProps {
   finalisedRecords: FinalizeSurgeryRecord[];
+  prepareDate: string;
   onClose: () => void;
   onSubmit: (items: PrepareOtListItem[]) => Promise<void>;
 }
 
-function PrepareOtListModal({ finalisedRecords, onClose, onSubmit }: PrepareModalProps) {
+function PrepareOtListModal({ finalisedRecords, prepareDate, onClose, onSubmit }: PrepareModalProps) {
   const [sequences, setSequences] = useState<Record<string, string>>(
     Object.fromEntries(finalisedRecords.map((r, i) => [r.id, String(i + 1)]))
   );
   const [submitting, setSubmitting] = useState(false);
+  const [conflictingIds, setConflictingIds] = useState<string[]>([]);
+  const [editedTimes, setEditedTimes] = useState<Record<string, string>>({});
 
   const handleSubmit = async () => {
     const items: PrepareOtListItem[] = finalisedRecords.map(r => ({
       scheduleId: r.id,
       sequence: parseInt(sequences[r.id] ?? '0', 10) || 0,
+      ...(editedTimes[r.id] ? { newStartTime: editedTimes[r.id] } : {}),
     }));
 
     const hasDuplicates = items.some(
@@ -57,6 +61,30 @@ function PrepareOtListModal({ finalisedRecords, onClose, onSubmit }: PrepareModa
     setSubmitting(true);
     try {
       await onSubmit(items);
+      // success — modal will close from parent; reset conflict state just in case
+      setConflictingIds([]);
+    } catch (err: unknown) {
+      const response = err && typeof err === 'object' && 'response' in err
+        ? (err as { response?: { status?: number; data?: { message?: string; conflictingScheduleIds?: string[] } } }).response
+        : undefined;
+      if (response?.status === 409) {
+        const ids = response.data?.conflictingScheduleIds;
+        if (Array.isArray(ids) && ids.length > 0) {
+          // New backend: time-slot conflict — highlight specific rows
+          setConflictingIds(ids);
+          setEditedTimes(t => {
+            const next = { ...t };
+            Object.keys(next).forEach(id => { if (!ids.includes(id)) delete next[id]; });
+            return next;
+          });
+        } else {
+          // Fallback: backend returned 409 without specific IDs — highlight all rows
+          setConflictingIds(finalisedRecords.map(r => r.id));
+          setEditedTimes({});
+        }
+      } else {
+        throw err;
+      }
     } finally {
       setSubmitting(false);
     }
@@ -76,6 +104,15 @@ function PrepareOtListModal({ finalisedRecords, onClose, onSubmit }: PrepareModa
         </div>
 
         <div className="overflow-y-auto max-h-96 px-6 py-4">
+          {conflictingIds.length > 0 && (
+            <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-amber-800">
+                <span className="font-semibold">Start-time conflict detected.</span>
+                {' '}The highlighted records share a time slot with an already-prepared surgery. Update the start time on each highlighted row, then click Lock &amp; Prepare.
+              </p>
+            </div>
+          )}
           {finalisedRecords.length === 0 ? (
             <div className="py-10 text-center text-gray-400">
               <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-30" />
@@ -110,7 +147,21 @@ function PrepareOtListModal({ finalisedRecords, onClose, onSubmit }: PrepareModa
                       <p className="text-xs text-gray-500 font-mono">{r.uhid}</p>
                     </td>
                     <td className="py-2 pr-3 text-gray-700">{r.surgeryName}</td>
-                    <td className="py-2 pr-3 text-gray-600 text-xs whitespace-nowrap">{r.startTime || '—'}</td>
+                    <td className="py-2 pr-3 text-gray-600 text-xs whitespace-nowrap">
+                      {conflictingIds.includes(r.id) ? (
+                        <div>
+                          <input
+                            type="time"
+                            value={editedTimes[r.id] ?? ''}
+                            onChange={e => setEditedTimes(t => ({ ...t, [r.id]: e.target.value }))}
+                            className="border border-amber-400 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-amber-400 bg-amber-50 w-28"
+                          />
+                          <p className="text-amber-600 text-[10px] mt-0.5 font-medium">Time conflict — choose a new time</p>
+                        </div>
+                      ) : (
+                        r.startTime || '—'
+                      )}
+                    </td>
                     <td className="py-2 text-gray-600 text-xs">{r.surgeon}</td>
                   </tr>
                 ))}
@@ -128,7 +179,7 @@ function PrepareOtListModal({ finalisedRecords, onClose, onSubmit }: PrepareModa
           </button>
           <button
             onClick={handleSubmit}
-            disabled={submitting || finalisedRecords.length === 0}
+            disabled={submitting || finalisedRecords.length === 0 || (conflictingIds.length > 0 && !conflictingIds.every(id => editedTimes[id]))}
             className="px-5 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
           >
             {submitting && (
@@ -177,9 +228,10 @@ export default function FinalizeSurgeryPage() {
   const [prepareDate, setPrepareDate] = useState('');
 
   // Locked OT list (bottom section)
-  const [otListDate, setOtListDate] = useState('');
+  const [otListDate, setOtListDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [otList, setOtList] = useState<FinalizeSurgeryRecord[]>([]);
   const [otLoading, setOtLoading] = useState(false);
+  const preparedListRef = useRef<HTMLDivElement>(null);
 
   const fetchRecords = async (f = appliedFilters) => {
     setIsLoading(true);
@@ -219,10 +271,8 @@ export default function FinalizeSurgeryPage() {
   }, [records]);
 
   const finalisedForDate = useMemo(() => {
-    const base = records.filter(r => r.status === 'Finalised');
-    if (!prepareDate) return base;
-    return base.filter(r => r.startTime?.startsWith(prepareDate));
-  }, [records, prepareDate]);
+    return records.filter(r => r.status === 'Finalised');
+  }, [records]);
 
   // ── Stats bar ─────────────────────────────────────────────────────────────
   const statsBar = useMemo(() => {
@@ -351,13 +401,14 @@ td:first-child{font-weight:600;background:#f8fafc;width:42%;}
         onClose={() => setModalOpen(false)}
         scheduleId={selectedId}
         onStatusChange={(updated) => {
-          setRecords((rs) => rs.map((r) => r.id === updated.id ? { ...r, ...updated } : r));
+          setRecords((rs) => rs.map((r) => r.id === updated.id ? { ...r, ...mapOtRecord(updated) } : r));
           setModalOpen(false);
         }}
       />
       {prepareModalOpen && (
         <PrepareOtListModal
           finalisedRecords={finalisedForDate}
+          prepareDate={prepareDate}
           onClose={() => setPrepareModalOpen(false)}
           onSubmit={handleSubmitPrepareOtList}
         />
@@ -398,7 +449,7 @@ td:first-child{font-weight:600;background:#f8fafc;width:42%;}
             <button
               disabled={(tabCounts['Finalised'] ?? 0) === 0}
               title={(tabCounts['Finalised'] ?? 0) === 0 ? 'No Finalised records — finalise some records first' : 'Prepare OT List'}
-              onClick={() => { setPrepareDate(filters.date); setPrepareModalOpen(true); }}
+              onClick={() => { setPrepareDate(appliedFilters.date); setPrepareModalOpen(true); }}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
             >
               <ClipboardList className="h-4 w-4" />
@@ -466,6 +517,7 @@ td:first-child{font-weight:600;background:#f8fafc;width:42%;}
                 <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">UHID</th>
                 <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Patient</th>
                 <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Surgery</th>
+                <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide whitespace-nowrap">Surgery Date</th>
                 <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Eyes</th>
                 <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Type</th>
                 <th className="px-3 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wide">Surgeon</th>
@@ -482,10 +534,10 @@ td:first-child{font-weight:600;background:#f8fafc;width:42%;}
             </thead>
             <tbody className="divide-y divide-gray-50">
               {isLoading
-                ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={16} />)
+                ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={17} />)
                 : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={16} className="py-14 text-center text-gray-400">
+                    <td colSpan={17} className="py-14 text-center text-gray-400">
                       <ClipboardList className="h-8 w-8 mx-auto mb-2 opacity-30" />
                       <p className="text-sm">No records found</p>
                     </td>
@@ -506,9 +558,10 @@ td:first-child{font-weight:600;background:#f8fafc;width:42%;}
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-3 font-mono text-xs text-blue-700 font-medium">{rec.uhid}</td>
+                    <td className="px-3 py-3 font-mono text-xs text-blue-700 font-medium whitespace-nowrap">{rec.uhid}</td>
                     <td className="px-3 py-3 font-medium text-gray-900">{rec.patientName}</td>
                     <td className="px-3 py-3 text-gray-700">{rec.surgeryName}</td>
+                    <td className="px-3 py-3 text-gray-600 text-xs whitespace-nowrap">{rec.scheduleDate || '—'}</td>
                     <td className="px-3 py-3">
                       <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-xs font-medium">{rec.eyes}</span>
                     </td>
@@ -578,7 +631,7 @@ td:first-child{font-weight:600;background:#f8fafc;width:42%;}
       </div>
 
       {/* ── Locked OT List Section ── */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+      <div ref={preparedListRef} className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
             <LockKeyhole className="h-4 w-4 text-indigo-500" />
@@ -637,6 +690,7 @@ td:first-child{font-weight:600;background:#f8fafc;width:42%;}
                     <th className="px-3 py-2.5 text-left font-semibold">UHID</th>
                     <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap">Patient Name</th>
                     <th className="px-3 py-2.5 text-left font-semibold">Surgery</th>
+                    <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap">Surgery Date</th>
                     <th className="px-3 py-2.5 text-left font-semibold">Eyes</th>
                     <th className="px-3 py-2.5 text-left font-semibold">Surgeon</th>
                     <th className="px-3 py-2.5 text-left font-semibold">Theatre</th>
@@ -653,6 +707,7 @@ td:first-child{font-weight:600;background:#f8fafc;width:42%;}
                       <td className="px-3 py-2.5 font-mono text-blue-700 font-medium">{row.uhid}</td>
                       <td className="px-3 py-2.5 font-medium text-gray-900 whitespace-nowrap">{row.patientName}</td>
                       <td className="px-3 py-2.5 text-gray-700 whitespace-nowrap">{row.surgeryName}</td>
+                      <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{row.scheduleDate || '—'}</td>
                       <td className="px-3 py-2.5">
                         <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded">{row.eyes}</span>
                       </td>

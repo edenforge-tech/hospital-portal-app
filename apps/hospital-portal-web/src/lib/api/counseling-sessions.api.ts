@@ -283,6 +283,15 @@ export const counselingSessionsApi = {
   },
 
   /**
+   * Persist the current workflow step so it survives page refresh.
+   * stage is 1-based (1–6).
+   */
+  advanceStage: async (id: string, stage: number): Promise<{ success: boolean; currentStage: string }> => {
+    const response = await getApi().put(`/counseling/sessions/${id}/advance-stage`, { stage });
+    return response.data;
+  },
+
+  /**
    * Delete a counseling session
    */
   delete: async (id: string): Promise<boolean> => {

@@ -207,6 +207,16 @@ function SessionWorkflowContent({ sessionId }: { sessionId: string }) {
       doctorName: (sessionData as any).doctorName || '',
       notes: (sessionData as any).clinicalSummary || undefined,
     });
+
+    // Restore the saved workflow step so a page refresh lands on the
+    // correct step instead of always resetting to Step 1.
+    const savedStage = (sessionData as any).currentStage;
+    if (savedStage) {
+      const parsed = parseInt(savedStage, 10);
+      if (!isNaN(parsed) && parsed >= 1 && parsed <= 6) {
+        setCurrentStep(parsed);
+      }
+    }
     // NOTE: isLoadingPatient stays true until patient API resolves below
   }, [sessionData]);
 
@@ -327,7 +337,14 @@ function SessionWorkflowContent({ sessionId }: { sessionId: string }) {
     } catch {
       // Auto-save failures are non-blocking — user can still navigate
     }
-    if (currentStep < WORKFLOW_STEPS.length) setCurrentStep(currentStep + 1);
+    if (currentStep < WORKFLOW_STEPS.length) {
+      const nextStep = currentStep + 1;
+      setCurrentStep(nextStep);
+      // Persist new step so page refresh restores correct position
+      counselingSessionsApi.advanceStage(sessionId, nextStep).catch(() => {
+        // Non-blocking — local state already updated above
+      });
+    }
   };
 
   const handlePreviousStep = () => {

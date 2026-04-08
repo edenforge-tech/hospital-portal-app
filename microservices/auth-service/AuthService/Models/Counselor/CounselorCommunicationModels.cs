@@ -153,4 +153,39 @@ namespace AuthService.Models.Counselor
 
         public string? Notes { get; set; }
     }
+
+    // ============================================================================
+    // RE-QUEUE TO COUNSELOR WAITING LIST (Follow-up Center)
+    // ============================================================================
+
+    public class ReQueueSessionRequest
+    {
+        /// <summary>Updated patient intention, e.g. WillingCallToConfirm, WillingWeek etc.</summary>
+        public string? NewIntention { get; set; }
+
+        /// <summary>Optional notes appended to the session's AdditionalNotes.</summary>
+        public string? Notes { get; set; }
+    }
+
+    // ============================================================================
+    // SEND REMINDER / NOTIFICATION (Follow-up Center)
+    // ============================================================================
+
+    public class SendReminderRequest
+    {
+        /// <summary>Channel: SMS | WhatsApp | Email</summary>
+        [Required]
+        public string Channel { get; set; } = "SMS";
+
+        /// <summary>CallbackReminder | AppointmentReminder | WellnessCheck | PostSurgeryFollowup | General</summary>
+        [Required]
+        public string MessageType { get; set; } = "General";
+
+        /// <summary>Actual message body to send / log</summary>
+        [Required]
+        public string Message { get; set; } = null!;
+
+        /// <summary>Optional — link reminder to a patient_journey when sending from Post-Surgery tab</summary>
+        public Guid? JourneyId { get; set; }
+    }
 }

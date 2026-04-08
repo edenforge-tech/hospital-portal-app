@@ -32,6 +32,7 @@ namespace AuthService.Middleware
                 context.Request.Path.StartsWithSegments("/api/appointments") || // Allow appointments endpoints for testing
                 context.Request.Path.StartsWithSegments("/api/SeedData") || // Allow seed data endpoint for testing
                 context.Request.Path.StartsWithSegments("/hubs") || // Skip SignalR hubs - tenant resolved from JWT
+                context.Request.Path.StartsWithSegments("/notificationHub") || // Skip NotificationHub - tenant from JWT claim
                 context.Request.Path.StartsWithSegments("/api/servicecatalog") || // Global catalog - no tenant context needed
                 (context.Request.Path.StartsWithSegments("/api/tenants") && context.Request.Method == "GET"))
             {

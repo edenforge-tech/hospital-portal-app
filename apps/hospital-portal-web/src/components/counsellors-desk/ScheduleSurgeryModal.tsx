@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import type { ScheduleData } from '@/types/counsellors-desk';
+import { counsellorsDeskApi } from '@/lib/api/counsellors-desk.api';
 
 interface ScheduleSurgeryModalProps {
   isOpen: boolean;
@@ -11,14 +12,8 @@ interface ScheduleSurgeryModalProps {
   existingSchedule?: ScheduleData | null;
 }
 
-const OT_OPTIONS = ['OT-1', 'OT-2', 'OT-3', 'OT-4 (Laser)'];
-const DOCTOR_OPTIONS = ['Dr. Sharma', 'Dr. Verma', 'Dr. Singh', 'Dr. Nair', 'Dr. Anand'];
-
-const PREVIEW_ROWS = [
-  { date: '20 Mar 2026', ot: 'OT-1', start: '09:00 AM', end: '09:45 AM', status: 'Confirmed' },
-  { date: '20 Mar 2026', ot: 'OT-2', start: '10:00 AM', end: '10:30 AM', status: 'Scheduled' },
-  { date: '20 Mar 2026', ot: 'OT-1', start: '11:00 AM', end: '11:45 AM', status: 'Finalised' },
-];
+type DropdownOption = { id: string; name: string };
+type PreviewRow = { date: string; ot: string; start: string; end: string; status: string };
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
                  'July', 'August', 'September', 'October', 'November', 'December'];
@@ -46,6 +41,51 @@ export function ScheduleSurgeryModal({ isOpen, onClose, onSubmit, existingSchedu
     avoidTimeTo: existingSchedule?.avoidTimeTo ?? '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Real data for dropdowns
+  const [surgeons,       setSurgeons]       = useState<DropdownOption[]>([]);
+  const [theatres,       setTheatres]       = useState<DropdownOption[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(false);
+
+  // Real schedule data for preview table
+  const [previewRows,    setPreviewRows]    = useState<PreviewRow[]>([]);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+
+  // Load surgeons + theatres once when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+    setLoadingOptions(true);
+    Promise.all([
+      counsellorsDeskApi.getSurgeons(),
+      counsellorsDeskApi.getOtTheaters(),
+    ])
+      .then(([s, t]) => { setSurgeons(s); setTheatres(t); })
+      .catch(console.error)
+      .finally(() => setLoadingOptions(false));
+  }, [isOpen]);
+
+  // Load real booked schedule for chosen date
+  useEffect(() => {
+    if (!selectedDate) { setPreviewRows([]); return; }
+    setLoadingPreview(true);
+    counsellorsDeskApi
+      .getFinalizeList({ date: selectedDate })
+      .then(records =>
+        setPreviewRows(
+          records.map(r => ({
+            date:   new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-IN', {
+                      day: '2-digit', month: 'short', year: 'numeric',
+                    }),
+            ot:     r.theaterName || '—',
+            start:  r.startTime   || '—',
+            end:    r.endTime     || '—',
+            status: r.status,
+          }))
+        )
+      )
+      .catch(() => setPreviewRows([]))
+      .finally(() => setLoadingPreview(false));
+  }, [selectedDate]);
 
   // Reset when modal opens/closes
   useEffect(() => {
@@ -201,7 +241,10 @@ export function ScheduleSurgeryModal({ isOpen, onClose, onSubmit, existingSchedu
                   className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.operationTheatre ? 'border-red-400' : 'border-gray-300'}`}
                 >
                   <option value="">Select OT</option>
-                  {OT_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  {loadingOptions
+                    ? <option disabled>Loading…</option>
+                    : theatres.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)
+                  }
                 </select>
                 {errors.operationTheatre && <p className="text-xs text-red-500 mt-1">{errors.operationTheatre}</p>}
               </div>
@@ -216,7 +259,10 @@ export function ScheduleSurgeryModal({ isOpen, onClose, onSubmit, existingSchedu
                   className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.doctor ? 'border-red-400' : 'border-gray-300'}`}
                 >
                   <option value="">Select Doctor</option>
-                  {DOCTOR_OPTIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+                  {loadingOptions
+                    ? <option disabled>Loading…</option>
+                    : surgeons.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)
+                  }
                 </select>
                 {errors.doctor && <p className="text-xs text-red-500 mt-1">{errors.doctor}</p>}
               </div>
@@ -257,36 +303,52 @@ export function ScheduleSurgeryModal({ isOpen, onClose, onSubmit, existingSchedu
             </div>
           </div>
 
-          {/* Preview table */}
+          {/* Preview table — real booked OT slots for the selected date */}
           <div className="px-6 pb-4">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Existing Schedule Preview</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              {selectedDate ? 'Booked OT Slots for Selected Date' : 'Existing Schedule Preview'}
+            </p>
             <div className="border rounded-xl overflow-hidden">
-              <table className="w-full text-xs">
-                <thead className="bg-gray-50 text-gray-600 font-medium">
-                  <tr>
-                    {['Scheduled Date', 'OT', 'Start Time', 'End Time', 'Status'].map(h => (
-                      <th key={h} className="px-4 py-2 text-left font-semibold">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {PREVIEW_ROWS.map((row, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-4 py-2">{row.date}</td>
-                      <td className="px-4 py-2">{row.ot}</td>
-                      <td className="px-4 py-2">{row.start}</td>
-                      <td className="px-4 py-2">{row.end}</td>
-                      <td className="px-4 py-2">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          row.status === 'Confirmed' ? 'bg-blue-100 text-blue-700' :
-                          row.status === 'Finalised' ? 'bg-indigo-100 text-indigo-700' :
-                          'bg-gray-100 text-gray-600'
-                        }`}>{row.status}</span>
-                      </td>
+              {loadingPreview ? (
+                <div className="flex items-center justify-center gap-2 py-6 text-gray-400 text-xs">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading schedule…
+                </div>
+              ) : previewRows.length === 0 ? (
+                <div className="py-6 text-center text-gray-400 text-xs">
+                  {selectedDate ? 'No surgeries booked for this date.' : 'Select a date to see booked slots.'}
+                </div>
+              ) : (
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50 text-gray-600 font-medium">
+                    <tr>
+                      {['Scheduled Date', 'OT', 'Start Time', 'End Time', 'Status'].map(h => (
+                        <th key={h} className="px-4 py-2 text-left font-semibold">{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {previewRows.map((row, i) => (
+                      <tr key={i} className="hover:bg-gray-50">
+                        <td className="px-4 py-2 whitespace-nowrap">{row.date}</td>
+                        <td className="px-4 py-2 whitespace-nowrap">{row.ot}</td>
+                        <td className="px-4 py-2 whitespace-nowrap">{row.start}</td>
+                        <td className="px-4 py-2 whitespace-nowrap">{row.end}</td>
+                        <td className="px-4 py-2">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            row.status === 'Confirmed'    ? 'bg-blue-100 text-blue-700'    :
+                            row.status === 'Finalised'   ? 'bg-indigo-100 text-indigo-700':
+                            row.status === 'OTPrepared'  ? 'bg-emerald-100 text-emerald-700':
+                            row.status === 'SurgeryDone' ? 'bg-green-100 text-green-700'  :
+                            row.status === 'Cancelled'   ? 'bg-red-100 text-red-700'      :
+                            'bg-amber-100 text-amber-700'
+                          }`}>{row.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </div>

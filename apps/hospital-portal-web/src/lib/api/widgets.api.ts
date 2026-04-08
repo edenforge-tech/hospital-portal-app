@@ -839,6 +839,46 @@ export const getSurgeons = async (): Promise<Surgeon[]> => {
   }
 };
 
+export interface Nurse {
+  id: string;
+  name: string;
+}
+
+export const getNurses = async (): Promise<Nurse[]> => {
+  try {
+    const response = await getApi().get('/users/nurses');
+    const nurses = response.data || [];
+    return nurses.map((u: any) => ({
+      id: u.id,
+      name: u.name || `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim(),
+    }));
+  } catch (error: any) {
+    console.warn('Failed to fetch nurses from API:', error.message);
+    return [];
+  }
+};
+
+export interface OtTheater {
+  id: string;
+  name: string;
+  code?: string;
+}
+
+export const getOtTheaters = async (branchId: string): Promise<OtTheater[]> => {
+  try {
+    const response = await getApi().get('/otbooking/theaters', { params: { branchId } });
+    const theaters = response.data || [];
+    return theaters.map((t: any) => ({
+      id: t.id,
+      name: t.name || t.theaterName || t.theater_name || '',
+      code: t.code || t.theaterCode || undefined,
+    }));
+  } catch (error: any) {
+    console.warn('Failed to fetch OT theaters from API:', error.message);
+    return [];
+  }
+};
+
 export const getSurgeryAvailability = async (surgeonId: string, month: string): Promise<SurgerySlot[]> => {
   // TODO: Replace with /surgery/availability endpoint
   // For now, generate dummy availability

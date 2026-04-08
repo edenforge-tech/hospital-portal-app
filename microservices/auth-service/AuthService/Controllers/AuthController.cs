@@ -209,6 +209,19 @@ namespace AuthService.Controllers
                 var accessToken = _jwtService.GenerateToken(user, roles.ToList(), permissions);
                 var refreshToken = _jwtService.GenerateRefreshToken();
 
+                // Resolve branchId — EF may read a stale PascalCase column for SQL-seeded users;
+                // fall back to user_branches table which is always correctly seeded.
+                var resolvedBranchId = user.BranchId;
+                if (resolvedBranchId == null)
+                {
+                    var defaultBranch = await _context.UserBranches
+                        .Where(ub => ub.UserId == user.Id && ub.TenantId == tenantId && ub.Status == "active")
+                        .OrderByDescending(ub => ub.IsDefault)
+                        .ThenBy(ub => ub.AssignedAt)
+                        .FirstOrDefaultAsync();
+                    resolvedBranchId = defaultBranch?.BranchId;
+                }
+
                 // Log successful login
                 await LogAudit(user.Id, tenantId, "user_login", "User", user.Id.ToString(), "SUCCESS", null, null);
 
@@ -227,7 +240,8 @@ namespace AuthService.Controllers
                         FirstName = user.FirstName,
                         LastName = user.LastName,
                         UserType = user.UserType,
-                        TenantId = user.TenantId
+                        TenantId = user.TenantId,
+                        BranchId = resolvedBranchId
                     },
                     Roles = roles.ToList(),
                     Permissions = permissions,
@@ -690,6 +704,16 @@ namespace AuthService.Controllers
             
             var roles = await _userManager.GetRolesAsync(user);
             var permissions = await _permissionService.GetUserPermissionsAsync(user.Id, user.TenantId);
+            var otpResolvedBranchId = user.BranchId;
+            if (otpResolvedBranchId == null)
+            {
+                var otpDefaultBranch = await _context.UserBranches
+                    .Where(ub => ub.UserId == user.Id && ub.TenantId == user.TenantId && ub.Status == "active")
+                    .OrderByDescending(ub => ub.IsDefault)
+                    .ThenBy(ub => ub.AssignedAt)
+                    .FirstOrDefaultAsync();
+                otpResolvedBranchId = otpDefaultBranch?.BranchId;
+            }
             return Ok(new LoginResponse { 
                 Success = true, 
                 AccessToken = _jwtService.GenerateToken(user, roles.ToList(), permissions), 
@@ -701,7 +725,8 @@ namespace AuthService.Controllers
                     FirstName = user.FirstName, 
                     LastName = user.LastName, 
                     UserType = user.UserType, 
-                    TenantId = user.TenantId 
+                    TenantId = user.TenantId,
+                    BranchId = otpResolvedBranchId
                 }, 
                 Roles = roles.ToList(), 
                 Permissions = permissions 
@@ -735,7 +760,17 @@ namespace AuthService.Controllers
             user.LastLoginAt = DateTime.UtcNow; await _userManager.UpdateAsync(user);
             var roles = await _userManager.GetRolesAsync(user);
             var permissions = await _permissionService.GetUserPermissionsAsync(user.Id, user.TenantId);
-            return Ok(new LoginResponse { Success = true, AccessToken = _jwtService.GenerateToken(user, roles.ToList(), permissions), RefreshToken = _jwtService.GenerateRefreshToken(), ExpiresIn = 3600, User = new UserDto { Id = user.Id, Email = user.Email, FirstName = user.FirstName, LastName = user.LastName, TenantId = user.TenantId }, Roles = roles.ToList(), Permissions = permissions });
+            var mfaResolvedBranchId = user.BranchId;
+            if (mfaResolvedBranchId == null)
+            {
+                var mfaDefaultBranch = await _context.UserBranches
+                    .Where(ub => ub.UserId == user.Id && ub.TenantId == user.TenantId && ub.Status == "active")
+                    .OrderByDescending(ub => ub.IsDefault)
+                    .ThenBy(ub => ub.AssignedAt)
+                    .FirstOrDefaultAsync();
+                mfaResolvedBranchId = mfaDefaultBranch?.BranchId;
+            }
+            return Ok(new LoginResponse { Success = true, AccessToken = _jwtService.GenerateToken(user, roles.ToList(), permissions), RefreshToken = _jwtService.GenerateRefreshToken(), ExpiresIn = 3600, User = new UserDto { Id = user.Id, Email = user.Email, FirstName = user.FirstName, LastName = user.LastName, TenantId = user.TenantId, BranchId = mfaResolvedBranchId }, Roles = roles.ToList(), Permissions = permissions });
         }
     }
 

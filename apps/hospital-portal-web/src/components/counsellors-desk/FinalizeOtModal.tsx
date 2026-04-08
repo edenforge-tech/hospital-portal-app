@@ -393,10 +393,22 @@ export function FinalizeOtModal({ isOpen, onClose, scheduleId, onStatusChange }:
   // (the backend UpdateOtDetailsRequest expects DateTime? / TimeSpan?)
   const buildSavePayload = () => {
     const date = scheduleDate || detail?.scheduleDate; // "YYYY-MM-DD"
+    // Strip empty-string Guid fields — backend expects Guid? (null), not ""
+    const nullifyEmpty = (v: string | undefined) => (v && v.trim() !== '' ? v : undefined);
+    // TimeSpan needs "HH:MM:SS" format
+    const toTimeSpan = (t: string | undefined) =>
+      t && /^\d{1,2}:\d{2}$/.test(t) ? `${t}:00` : t || undefined;
     return {
       ...form,
-      startTime: form.startTime && date ? `${date}T${form.startTime}:00` : undefined,
-      endTime:   form.endTime   && date ? `${date}T${form.endTime}:00`   : undefined,
+      doctorId:      nullifyEmpty(form.doctorId),
+      theatreId:     nullifyEmpty(form.theatreId),
+      startTime:     form.startTime && date ? `${date}T${form.startTime}:00` : undefined,
+      endTime:       form.endTime   && date ? `${date}T${form.endTime}:00`   : undefined,
+      reportingTime: toTimeSpan(form.reportingTime),
+      // Don't send empty strings for optional text fields either
+      anesthetistName: nullifyEmpty(form.anesthetistName),
+      iolPower:        nullifyEmpty(form.iolPower),
+      cancelReason:    nullifyEmpty(form.cancelReason),
     };
   };
 
@@ -556,8 +568,8 @@ export function FinalizeOtModal({ isOpen, onClose, scheduleId, onStatusChange }:
                     label="Package Name"
                     value={form.packageName ?? ''}
                     onChange={(v) => set('packageName', v)}
-                    placeholder="e.g. Phaco Standard"
-                    readOnly={isLocked}
+                    placeholder={!detail?.packageName ? 'No package selected' : 'e.g. Phaco Standard'}
+                    readOnly={isLocked || !detail?.packageName}
                   />
                   <SelectInput
                     label="Surgeon"

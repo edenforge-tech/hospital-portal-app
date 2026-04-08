@@ -17,23 +17,26 @@ BEGIN
     
     -- Insert 3 test patients
     INSERT INTO patient (
-        id, tenant_id, medical_record_number, first_name, last_name, 
-        date_of_birth, gender, email, contact_number, blood_group,
+        id, tenant_id, medical_record_number, first_name, last_name,
+        date_of_birth, gender, email, contact_number, blood_group, address,
         created_at, updated_at, status, deleted_at
     ) VALUES
     (
         v_patient_id1, v_tenant_id, 'MRN001', 'Ramesh', 'Kumar',
         '1980-05-15'::DATE, 'Male', 'ramesh.kumar@test.com', '9876543210', 'O+',
+        '12, MG Road, Hyderabad, Telangana - 500001',
         NOW(), NOW(), 'Active', NULL
     ),
     (
         v_patient_id2, v_tenant_id, 'MRN002', 'Priya', 'Sharma',
         '1992-08-22'::DATE, 'Female', 'priya.sharma@test.com', '9876543211', 'B+',
+        '45, Park Street, Chennai, Tamil Nadu - 600001',
         NOW(), NOW(), 'Active', NULL
     ),
     (
         v_patient_id3, v_tenant_id, 'MRN003', 'Amit', 'Patel',
         '1975-12-10'::DATE, 'Male', 'amit.patel@test.com', '9876543212', 'A+',
+        '78, Station Road, Mumbai, Maharashtra - 400001',
         NOW(), NOW(), 'Active', NULL
     )
     ON CONFLICT (id) DO NOTHING;

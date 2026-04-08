@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCachedAuthStore } from '@/lib/permission-cache';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -66,6 +66,7 @@ import {
   UserPlus,
   Monitor,
   Siren,
+  PhoneCall,
 } from 'lucide-react';
 
 interface MenuItem {
@@ -77,6 +78,8 @@ interface MenuItem {
   isParent?: boolean;
   isChild?: boolean;
   isExpandable?: boolean;
+  exact?: boolean;
+  badge?: React.ReactNode;
   subItems?: MenuItem[];
 }
 
@@ -213,6 +216,13 @@ export default function Sidebar() {
               requiredPermission: null,
               isChild: true,
             },
+            {
+              label: 'Follow-up Center',
+              href: '/dashboard/counsellors-desk/surgery-followup',
+              icon: <PhoneCall className="h-4 w-4" strokeWidth={2.5} />,
+              requiredPermission: null,
+              isChild: true,
+            },
           ],
         },
         {
@@ -228,6 +238,21 @@ export default function Sidebar() {
               icon: <Tent className="h-4 w-4" strokeWidth={2.5} />,
               requiredPermission: null,
               isChild: true,
+            },
+            {
+              label: 'Operation Theatre',
+              href: '/dashboard/ip-management/operation-theatre',
+              icon: <Stethoscope className="h-4 w-4" strokeWidth={2.5} />,
+              requiredPermission: null,
+              isChild: true,
+            },
+            {
+              label: 'IP Management',
+              href: '/dashboard/ip-management',
+              icon: <CreditCard className="h-4 w-4" strokeWidth={2.5} />,
+              requiredPermission: null,
+              isChild: true,
+              exact: true,
             },
           ],
         },
@@ -666,8 +691,8 @@ export default function Sidebar() {
     }
   ];
 
-  const isActive = (href: string) => {
-    if (href === '/dashboard') {
+  const isActive = (href: string, exact?: boolean) => {
+    if (href === '/dashboard' || exact) {
       return pathname === href;
     }
     return pathname?.startsWith(href);
@@ -783,7 +808,7 @@ export default function Sidebar() {
                               <span>{item.label}</span>
                             </div>
                             {item.subItems.map((subItem) => {
-                              const subActive = isActive(subItem.href);
+                              const subActive = isActive(subItem.href, subItem.exact);
                               return (
                                 <Link
                                   key={subItem.href}
@@ -911,7 +936,7 @@ export default function Sidebar() {
                                 {item.label}
                               </div>
                               {item.subItems.map((subItem) => {
-                                const subActive = isActive(subItem.href);
+                                const subActive = isActive(subItem.href, subItem.exact);
                                 return (
                                   <Link
                                     key={subItem.href}
@@ -960,7 +985,7 @@ export default function Sidebar() {
                           }`} />
                         </button>
                         {isExpanded && item.subItems.map((subItem) => {
-                          const subActive = isActive(subItem.href);
+                          const subActive = isActive(subItem.href, subItem.exact);
                           return (
                             <Link
                               key={subItem.href}
@@ -1021,7 +1046,8 @@ export default function Sidebar() {
                         <span className={`font-bold ${active ? 'text-teal-600' : 'text-gray-600'}`}>
                           {item.icon}
                         </span>
-                        <span className="font-bold text-sm">{item.label}</span>
+                        <span className="font-bold text-sm flex-1">{item.label}</span>
+                        {item.badge}
                       </Link>
                     </div>
                   );

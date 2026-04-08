@@ -1636,6 +1636,58 @@ namespace AuthService.Controllers
         }
 
         /// <summary>
+        /// Get nurses for IP admission assignment
+        /// </summary>
+        [HttpGet("nurses")]
+        [RequirePermission("user.view")]
+        public async Task<IActionResult> GetNurses()
+        {
+            if (!TryGetTenantId(out var tenantId)) return BadRequest(new { message = "TenantId missing" });
+
+            try
+            {
+                var nurses = await (
+                    from ur in _context.UserRoles
+                    join u in _userManager.Users on ur.UserId equals u.Id
+                    join r in _context.Roles on ur.RoleId equals r.Id
+                    where u.TenantId == tenantId
+                          && u.DeletedAt == null
+                          && ur.IsActive
+                          && (r.NormalizedName!.Contains("NURSE")
+                              || r.NormalizedName!.Contains("NURSING"))
+                    select new
+                    {
+                        id = u.Id,
+                        name = (u.FirstName ?? "") + " " + (u.LastName ?? ""),
+                        jobTitle = r.Name,
+                    }
+                ).Distinct().ToListAsync();
+
+                if (!nurses.Any())
+                {
+                    nurses = await _userManager.Users
+                        .Where(u => u.TenantId == tenantId
+                                    && u.DeletedAt == null
+                                    && u.UserType == "Nurse")
+                        .Select(u => new
+                        {
+                            id = u.Id,
+                            name = (u.FirstName ?? "") + " " + (u.LastName ?? ""),
+                            jobTitle = u.UserType,
+                        })
+                        .ToListAsync();
+                }
+
+                return Ok(nurses);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching nurses for tenant {TenantId}", tenantId);
+                return StatusCode(500, "Error fetching nurses");
+            }
+        }
+
+        /// <summary>
         /// Get doctor availability status
         /// </summary>
         [HttpGet("doctors/availability")]

@@ -242,6 +242,10 @@ namespace AuthService.Context
         public DbSet<OtFinalizeSchedule> OtFinalizeSchedules { get; set; }
         public DbSet<OtFinalizeAuditLog> OtFinalizeAuditLogs { get; set; }
 
+        // Follow-up Center: Read-only projections of ip-management-service tables (no migration — tables exist via mig81/85)
+        public DbSet<PatientJourneyReadOnly> PatientJourneys { get; set; }
+        public DbSet<DischargeSummaryReadOnly> DischargeSummaries { get; set; }
+
         // Module 3.6: Insurance Pre-Auth Workflow (Feb 23, 2026)
         public DbSet<InsurancePreAuthorization> InsurancePreAuthorizations { get; set; }
         public DbSet<InsuranceApprovalWorkflow> InsuranceApprovalWorkflows { get; set; }
@@ -2706,6 +2710,59 @@ namespace AuthService.Context
                 entity.HasIndex(e => e.TranscriptId);
                 entity.HasIndex(e => e.CreatedByUserId);
                 entity.HasIndex(e => e.CreatedAt);
+            });
+
+            // ========================================
+            // FOLLOW-UP CENTER: Read-only ip-management views
+            // Tables created by migrations 81 (patient_journey) and 85 (discharge_summary)
+            // ========================================
+
+            builder.Entity<PatientJourneyReadOnly>(entity =>
+            {
+                entity.ToTable("patient_journey");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+                entity.Property(e => e.PatientId).HasColumnName("patient_id");
+                entity.Property(e => e.BranchId).HasColumnName("branch_id");
+                entity.Property(e => e.Uhid).HasColumnName("uhid").HasMaxLength(50);
+                entity.Property(e => e.ClinicalState).HasColumnName("clinical_state").HasMaxLength(30);
+                entity.Property(e => e.IsDischarged).HasColumnName("is_discharged");
+                entity.Property(e => e.DischargedAt).HasColumnName("discharged_at");
+                entity.Property(e => e.ProcedureName).HasColumnName("procedure_name").HasMaxLength(300);
+                entity.Property(e => e.PrimarySurgeonId).HasColumnName("primary_surgeon_id");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                entity.HasOne(e => e.Patient).WithMany().HasForeignKey(e => e.PatientId);
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.PatientId);
+                entity.HasIndex(e => e.IsDischarged);
+            });
+
+            builder.Entity<DischargeSummaryReadOnly>(entity =>
+            {
+                entity.ToTable("discharge_summary");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+                entity.Property(e => e.PatientJourneyId).HasColumnName("patient_journey_id");
+                entity.Property(e => e.DischargeDate).HasColumnName("discharge_date").HasColumnType("date");
+                entity.Property(e => e.ConditionAtDischarge).HasColumnName("condition_at_discharge").HasMaxLength(20);
+                entity.Property(e => e.ProceduresPerformed).HasColumnName("procedures_performed").HasColumnType("jsonb");
+                entity.Property(e => e.SummaryStatus).HasColumnName("summary_status").HasMaxLength(20);
+                entity.Property(e => e.FinalBillAmount).HasColumnName("final_bill_amount").HasColumnType("decimal(12,2)");
+                entity.Property(e => e.FinalizedAt).HasColumnName("finalized_at");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+                entity.HasIndex(e => e.PatientJourneyId);
+            });
+
+            // ─── Explicit table-name overrides: DB uses singular names ───────────────
+            builder.Entity<PostOpCareSchedule>().ToTable("post_op_care_schedule");
+            builder.Entity<PostOpVisit>(entity =>
+            {
+                entity.ToTable("post_op_visit");
+                // DB uses schedule_id; the model class attr says post_op_care_schedule_id
+                entity.Property(e => e.PostOpCareScheduleId).HasColumnName("schedule_id");
             });
         }
 

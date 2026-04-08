@@ -440,19 +440,6 @@ namespace AuthService.Services
         {
             var targetDate = request.Date.Date;
 
-            // Guard: prevent double-preparation for the same date
-            var alreadyPrepared = await _db.OtFinalizeSchedules
-                .AnyAsync(s =>
-                    s.TenantId == tenantId &&
-                    s.DeletedAt == null &&
-                    s.Status == OtFinalizeStatus.OTPrepared &&
-                    s.StartTime.HasValue &&
-                    s.StartTime.Value.Date == targetDate);
-
-            if (alreadyPrepared)
-                throw new InvalidOperationException(
-                    $"OT list for {targetDate:yyyy-MM-dd} has already been prepared. Use 'Reopen' to make changes.");
-
             var scheduleIds = request.Items.Select(i => i.ScheduleId).ToList();
 
             var entities = await _db.OtFinalizeSchedules
@@ -470,6 +457,51 @@ namespace AuthService.Services
             if (notFinalised.Any())
                 throw new InvalidOperationException(
                     $"Cannot prepare — the following records are not Finalised: {string.Join(", ", notFinalised)}");
+
+            // Build a new-time map for items that carry a time override
+            var newTimeMap = request.Items
+                .Where(i => i.NewStartTime.HasValue)
+                .ToDictionary(i => i.ScheduleId, i => i.NewStartTime!.Value);
+
+            // Apply start-time overrides before conflict check so the comparison uses final times
+            foreach (var entity in entities)
+            {
+                if (newTimeMap.TryGetValue(entity.Id, out var newTime))
+                    entity.StartTime = targetDate.Add(newTime.TimeOfDay);
+            }
+
+            // Guard: block only when a submitted record's exact start time is already occupied by
+            // an OTPrepared record that is NOT part of this batch (i.e. a genuine slot collision).
+            // Pull all OTPrepared records for this date into memory, then compare in-process
+            // to avoid EF Core DateTime translation issues with Npgsql.
+            var targetDateStart = targetDate;
+            var targetDateEnd   = targetDate.AddDays(1);
+
+            var existingPrepared = await _db.OtFinalizeSchedules
+                .Where(s =>
+                    s.TenantId == tenantId &&
+                    s.DeletedAt == null &&
+                    s.Status == OtFinalizeStatus.OTPrepared &&
+                    !scheduleIds.Contains(s.Id) &&
+                    s.StartTime.HasValue &&
+                    s.StartTime.Value >= targetDateStart &&
+                    s.StartTime.Value < targetDateEnd)
+                .Select(s => s.StartTime!.Value)
+                .ToListAsync();
+
+            if (existingPrepared.Any())
+            {
+                // Compare by time-of-day (HH:mm) to detect slot collisions
+                var occupiedSlots = new HashSet<TimeSpan>(existingPrepared.Select(t => t.TimeOfDay));
+
+                var conflictingIds = entities
+                    .Where(s => s.StartTime.HasValue && occupiedSlots.Contains(s.StartTime.Value.TimeOfDay))
+                    .Select(s => s.Id)
+                    .ToList();
+
+                if (conflictingIds.Any())
+                    throw new OtPrepareConflictException(conflictingIds);
+            }
 
             var preparedAt  = DateTime.UtcNow;
             var preparedBy  = request.PreparedBy ?? userId.ToString();
@@ -513,6 +545,56 @@ namespace AuthService.Services
                 .ToListAsync();
 
             return results.Select(ToResponse).ToList();
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // MARK SURGERY DONE (called by IP Management via internal HTTP)
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <inheritdoc />
+        public async Task<OtScheduleResponse?> MarkSurgeryDoneAsync(
+            Guid id, Guid tenantId, string actorUserId)
+        {
+            var entity = await _db.OtFinalizeSchedules
+                .FirstOrDefaultAsync(s => s.Id == id &&
+                                          s.TenantId == tenantId &&
+                                          s.DeletedAt == null);
+
+            if (entity == null)
+            {
+                _logger.LogWarning(
+                    "MarkSurgeryDone: OT record {Id} not found for tenant {TenantId}.", id, tenantId);
+                return null;
+            }
+
+            // Idempotent — already done
+            if (entity.Status == OtFinalizeStatus.SurgeryDone)
+                return ToResponse(entity);
+
+            // Cancelled records are not updated (surgery was never performed on them)
+            if (entity.Status == OtFinalizeStatus.Cancelled)
+            {
+                _logger.LogWarning(
+                    "MarkSurgeryDone: OT record {Id} is Cancelled — skipping SurgeryDone transition.", id);
+                return ToResponse(entity);
+            }
+
+            var oldStatus = entity.Status;
+            entity.Status          = OtFinalizeStatus.SurgeryDone;
+            entity.IsLocked        = false; // unlock so staff can view/edit post-discharge if needed
+            entity.Version++;
+            entity.UpdatedAt       = DateTime.UtcNow;
+            entity.UpdatedByUserId = Guid.TryParse(actorUserId, out var uid) ? uid : entity.UpdatedByUserId;
+
+            await AddAuditAsync(entity.Id, "MarkSurgeryDone", oldStatus, entity.Status,
+                                null, Snapshot(entity), actorUserId);
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "MarkSurgeryDone: OT record {Id} transitioned {Old} → SurgeryDone by {Actor}.",
+                id, oldStatus, actorUserId);
+
+            return ToResponse(entity);
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -598,6 +680,19 @@ namespace AuthService.Services
             CanReopen  = e.Status == OtFinalizeStatus.OTPrepared || e.Status == OtFinalizeStatus.Cancelled,
             PackageName = e.PackageName,
             PackageRate = e.PackageRate,
+            // Reporting time — surfaced in list view
+            ReportingTime = e.ReportingTime,
+            // Derive checklist health from slot assignment completeness
+            ChecklistSummary =
+                (string.IsNullOrEmpty(e.DoctorName) && string.IsNullOrEmpty(e.TheatreName))
+                    ? "Missing"
+                    : (!string.IsNullOrEmpty(e.DoctorName) && !string.IsNullOrEmpty(e.TheatreName) && e.StartTime.HasValue)
+                        ? "AllClear"
+                        : "Pending",
+            // Convenience date string — avoids frontend having to parse StartTime ISO string
+            ScheduleDate = e.StartTime.HasValue
+                ? e.StartTime.Value.ToString("yyyy-MM-dd")
+                : null,
         };
 
         private static OtScheduleDetailResponse ToDetailResponse(
@@ -769,7 +864,7 @@ namespace AuthService.Services
                         resp.SurgeryName = session.RecommendedSurgery;
                     if (string.IsNullOrEmpty(resp.AnesthesiaType) && !string.IsNullOrEmpty(session.AnesthesiaTypeChoice))
                         resp.AnesthesiaType = session.AnesthesiaTypeChoice;
-                    if (!resp.PackageRate.HasValue && session.PackageAmount.HasValue)
+                    if ((!resp.PackageRate.HasValue || resp.PackageRate == 0) && session.PackageAmount.HasValue)
                         resp.PackageRate = session.PackageAmount;
                     if (string.IsNullOrEmpty(resp.IolPower) && !string.IsNullOrEmpty(session.IolPower))
                         resp.IolPower = session.IolPower;
@@ -786,6 +881,7 @@ namespace AuthService.Services
             {
                 if (string.IsNullOrEmpty(fallbackResp.Uhid))
                     fallbackResp.Uhid = fp.HealthId ?? fp.MedicalRecordNumber;
+                fallbackResp.Gender                       = fp.Gender;
                 fallbackResp.ContactNumber                = fp.ContactNumber;
                 fallbackResp.BloodGroup                   = fp.BloodGroup;
                 fallbackResp.DateOfBirth                  = fp.DateOfBirth;
@@ -794,6 +890,50 @@ namespace AuthService.Services
                 fallbackResp.EmergencyContactRelationship = fp.EmergencyContactRelationship;
                 fallbackResp.Address                      = fp.Address;
             }
+
+            // No counselling_session_id link — try to recover package info from patient's
+            // most recent agreed counselling session (handles legacy OT records created before
+            // the session link was implemented).
+            if (!fallbackResp.PackageRate.HasValue || fallbackResp.PackageRate == 0)
+            {
+                var latestSession = await _db.CounselingSession
+                    .AsNoTracking()
+                    .Where(s => s.PatientId == entity.PatientId
+                             && s.PatientAgreedToSurgery == true
+                             && s.TenantId == entity.TenantId)
+                    .OrderByDescending(s => s.UpdatedAt)
+                    .FirstOrDefaultAsync();
+
+                if (latestSession != null)
+                {
+                    // Use the persisted package_amount column first
+                    if (latestSession.PackageAmount.HasValue && latestSession.PackageAmount > 0)
+                        fallbackResp.PackageRate = latestSession.PackageAmount;
+
+                    // Parse the counsellor blob for packageName and rate fallback
+                    if (!string.IsNullOrEmpty(latestSession.PackageAddonsJson))
+                    {
+                        try
+                        {
+                            var blob = System.Text.Json.JsonDocument.Parse(latestSession.PackageAddonsJson).RootElement;
+
+                            // Package name — prefer blob's packageName field
+                            if (string.IsNullOrEmpty(fallbackResp.PackageName) &&
+                                blob.TryGetProperty("packageName", out var pnElem) &&
+                                pnElem.ValueKind == System.Text.Json.JsonValueKind.String)
+                                fallbackResp.PackageName = pnElem.GetString();
+
+                            // Rate — use blob's rate field when package_amount column was null
+                            if ((!fallbackResp.PackageRate.HasValue || fallbackResp.PackageRate == 0) &&
+                                blob.TryGetProperty("rate", out var rateElem) &&
+                                rateElem.ValueKind == System.Text.Json.JsonValueKind.Number)
+                                fallbackResp.PackageRate = rateElem.GetDecimal();
+                        }
+                        catch { /* ignore malformed JSON */ }
+                    }
+                }
+            }
+
             return fallbackResp;
         }
 

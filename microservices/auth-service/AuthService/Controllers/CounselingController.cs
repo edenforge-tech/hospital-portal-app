@@ -136,7 +136,17 @@ namespace AuthService.Controllers
                 
                 if (session == null)
                     return NotFound(new { message = "Session not found" });
-                
+
+                // Check whether the linked OT record has been marked SurgeryDone.
+                // This overrides the counselling-queue status so the session page
+                // can show a read-only "Surgery Completed" banner immediately.
+                var hasSurgeryDone = await _context.OtFinalizeSchedules.AnyAsync(o =>
+                    o.CounsellingSessionId == id &&
+                    o.Status == OtFinalizeStatus.SurgeryDone &&
+                    o.DeletedAt == null);
+                if (hasSurgeryDone)
+                    session.OtStatus = OtFinalizeStatus.SurgeryDone;
+
                 return Ok(session);
             }
             catch (Exception ex)
@@ -228,6 +238,41 @@ namespace AuthService.Controllers
             {
                 _logger.LogError(ex, "Error updating counseling session {SessionId}", id);
                 return StatusCode(500, new { message = "Error updating session", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Persists the counselor's current workflow step for a session.
+        /// Called every time the counselor advances to the next step so the
+        /// position is remembered across page refreshes.
+        /// Body: { "stage": 3 }  (1-based step number, 1–6)
+        /// </summary>
+        [HttpPut("sessions/{id}/advance-stage")]
+        [RequirePermission("counseling_sessions.update")]
+        public async Task<IActionResult> AdvanceStage(Guid id, [FromBody] AdvanceStageRequest request)
+        {
+            try
+            {
+                if (request.Stage < 1 || request.Stage > 6)
+                    return BadRequest(new { message = "Stage must be between 1 and 6." });
+
+                var tenantId = GetTenantId();
+                var currentUserId = GetCurrentUserId();
+
+                var updateRequest = new AuthService.Models.Counselor.UpdateCounselingSessionRequest
+                {
+                    CurrentStage = request.Stage.ToString()
+                };
+
+                var result = await _counselingService.UpdateSessionAsync(tenantId, id, updateRequest, currentUserId);
+                return result.Success
+                    ? Ok(new { success = true, currentStage = request.Stage.ToString() })
+                    : NotFound(new { message = "Session not found" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error advancing stage for session {SessionId}", id);
+                return StatusCode(500, new { message = "Error advancing stage", error = ex.Message });
             }
         }
 
@@ -398,6 +443,19 @@ namespace AuthService.Controllers
                 var fromDate = hasFrom ? fd.Date          : (DateTime?)null;
                 var toDate   = hasTo   ? td.Date.AddDays(1) : (DateTime?)null;
 
+                // Pre-fetch the set of counselling session IDs whose OT record is SurgeryDone.
+                // Using a separate query + HashSet avoids duplicate rows that a LEFT JOIN would
+                // produce when a session has more than one ot_finalize_schedule record.
+                var surgeryDoneSessionIds = new HashSet<Guid>(
+                    await _context.OtFinalizeSchedules
+                        .Where(o => o.TenantId == tenantId &&
+                                    o.DeletedAt == null &&
+                                    o.Status == OtFinalizeStatus.SurgeryDone &&
+                                    o.CounsellingSessionId.HasValue)
+                        .Select(o => o.CounsellingSessionId!.Value)
+                        .Distinct()
+                        .ToListAsync());
+
                 var rawItems = await (
                     from q in _context.CounselorQueue
                     join s in _context.CounselingSession on q.SessionId equals s.Id
@@ -466,7 +524,9 @@ namespace AuthService.Controllers
                             "Called"        => "Processed",
                             "InProgress"    => "Processed",
                             "AddOnSurgery"  => "AddOnSurgery",
-                            "Completed"     => item.PatientAgreedToSurgery == true ? "Done" : "RepeatCounselling",
+                            "Completed"     => surgeryDoneSessionIds.Contains(item.SessionId)
+                                ? "SurgeryDone"
+                                : item.PatientAgreedToSurgery == true ? "Done" : "RepeatCounselling",
                             _               => "Pending"
                         };
 
@@ -1369,6 +1429,375 @@ namespace AuthService.Controllers
         }
 
         // ============================================================================
+        // FOLLOW-UP CENTER  — Phase F
+        // Active Follow-ups, Cold Leads, Post-Surgery tracking
+        // ============================================================================
+
+        /// <summary>GET /api/Counseling/followups/active — patients with pending intention awaiting surgery decision.</summary>
+        [HttpGet("followups/active")]
+        [RequirePermission("counseling_sessions.read")]
+        public async Task<IActionResult> GetActiveFollowups(
+            [FromQuery] Guid? branchId,
+            [FromQuery] string? intention,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            try
+            {
+                var tenantId = GetTenantId();
+                var today    = DateTime.UtcNow.Date;
+
+                // Active follow-up intentions = not declined / referred elsewhere
+                var activeIntentions = new[] { "WillingWeek", "WillingMonth", "WillingQuarter",
+                                               "WillingCallToConfirm", "Undecided",
+                                               "WaitingFinancial", "WaitingFear" };
+
+                var query = _context.CounselingSession
+                    .Where(s => s.TenantId == tenantId
+                             && s.DeletedAt == null
+                             && activeIntentions.Contains(s.PatientIntention ?? "")
+                             && (branchId == null || s.BranchId == branchId)
+                             && (intention == null || s.PatientIntention == intention));
+
+                var total = await query.CountAsync();
+                var sessions = await query
+                    .OrderBy(s => s.LastContactDate == null ? 0 : 1)
+                    .ThenBy(s => s.LastContactDate)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var patientIds = sessions.Select(s => s.PatientId).Distinct().ToList();
+                var patients = await _context.Patients
+                    .Where(p => patientIds.Contains(p.Id) && p.TenantId == tenantId)
+                    .ToDictionaryAsync(p => p.Id);
+
+                var items = sessions.Select(s =>
+                {
+                    patients.TryGetValue(s.PatientId, out var pt);
+                    return new
+                    {
+                        sessionId           = s.Id,
+                        patientId           = s.PatientId,
+                        patientName         = pt != null ? (pt.FirstName + " " + pt.LastName).Trim() : "Unknown",
+                        uhid                = pt?.MedicalRecordNumber,
+                        phone               = pt?.ContactNumber,
+                        branchId            = s.BranchId,
+                        recommendedSurgery  = s.RecommendedSurgery,
+                        patientIntention    = s.PatientIntention,
+                        sessionDate         = s.SessionDate,
+                        lastContactDate     = s.LastContactDate,
+                        contactAttemptCount = s.ContactAttemptCount,
+                        lastContactOutcome  = s.LastContactOutcome,
+                        escalationStatus    = s.EscalationStatus,
+                        overdueSinceDate    = s.OverdueSinceDate,
+                        alertLevel          = s.EscalationStatus == "SupervisorAlert" ? "Critical"
+                                            : s.EscalationStatus == "Escalated" ? "High"
+                                            : s.EscalationStatus == "Overdue"   ? "Medium"
+                                            : s.LastContactDate == null          ? "Medium"
+                                            : "Normal"
+                    };
+                }).ToList();
+
+                return Ok(new { total, page, pageSize, items });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving active follow-ups");
+                return StatusCode(500, new { message = "Error retrieving active follow-ups", error = ex.Message });
+            }
+        }
+
+        /// <summary>GET /api/Counseling/followups/cold-leads — patients who declined or were referred elsewhere.</summary>
+        [HttpGet("followups/cold-leads")]
+        [RequirePermission("counseling_sessions.read")]
+        public async Task<IActionResult> GetColdLeads(
+            [FromQuery] Guid? branchId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            try
+            {
+                var tenantId = GetTenantId();
+                var coldIntentions = new[] { "Declined", "ReferredElsewhere" };
+
+                var query = _context.CounselingSession
+                    .Where(s => s.TenantId == tenantId
+                             && s.DeletedAt == null
+                             && coldIntentions.Contains(s.PatientIntention ?? "")
+                             && (branchId == null || s.BranchId == branchId));
+
+                var total = await query.CountAsync();
+                var sessions = await query
+                    .OrderByDescending(s => s.UpdatedAt ?? s.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var patientIds = sessions.Select(s => s.PatientId).Distinct().ToList();
+                var patients = await _context.Patients
+                    .Where(p => patientIds.Contains(p.Id) && p.TenantId == tenantId)
+                    .ToDictionaryAsync(p => p.Id);
+
+                var items = sessions.Select(s =>
+                {
+                    patients.TryGetValue(s.PatientId, out var pt);
+                    return new
+                    {
+                        sessionId           = s.Id,
+                        patientId           = s.PatientId,
+                        patientName         = pt != null ? (pt.FirstName + " " + pt.LastName).Trim() : "Unknown",
+                        uhid                = pt?.MedicalRecordNumber,
+                        phone               = pt?.ContactNumber,
+                        branchId            = s.BranchId,
+                        recommendedSurgery  = s.RecommendedSurgery,
+                        patientIntention    = s.PatientIntention,
+                        sessionDate         = s.SessionDate,
+                        lastContactDate     = s.LastContactDate,
+                        contactAttemptCount = s.ContactAttemptCount,
+                        lastContactOutcome  = s.LastContactOutcome,
+                        additionalNotes     = s.AdditionalNotes
+                    };
+                }).ToList();
+
+                return Ok(new { total, page, pageSize, items });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving cold leads");
+                return StatusCode(500, new { message = "Error retrieving cold leads", error = ex.Message });
+            }
+        }
+
+        /// <summary>GET /api/Counseling/followups/post-surgery — patients discharged from ward for wellness follow-up.</summary>
+        [HttpGet("followups/post-surgery")]
+        [RequirePermission("counseling_sessions.read")]
+        public async Task<IActionResult> GetPostSurgeryFollowups(
+            [FromQuery] Guid? branchId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            try
+            {
+                var tenantId = GetTenantId();
+
+                var journeyQuery = _context.PatientJourneys
+                    .Include(j => j.Patient)
+                    .Where(j => j.TenantId == tenantId
+                             && j.IsDischarged == true
+                             && j.DeletedAt == null
+                             && (branchId == null || j.BranchId == branchId));
+
+                var total = await journeyQuery.CountAsync();
+                var journeys = await journeyQuery
+                    .OrderByDescending(j => j.DischargedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var journeyIds = journeys.Select(j => j.Id).ToList();
+
+                var discharges = await _context.DischargeSummaries
+                    .Where(d => journeyIds.Contains(d.PatientJourneyId) && d.DeletedAt == null)
+                    .ToDictionaryAsync(d => d.PatientJourneyId);
+
+                // Pending post-op visit count per patient via care schedule join
+                var patientIds = journeys.Select(j => j.PatientId).Distinct().ToList();
+                var scheduleIds = await _context.PostOpCareSchedules
+                    .Where(s => patientIds.Contains(s.PatientId)
+                             && s.TenantId == tenantId
+                             && s.DeletedAt == null)
+                    .Select(s => new { s.Id, s.PatientId })
+                    .ToListAsync();
+
+                var schedulePatientMap = scheduleIds.ToDictionary(s => s.Id, s => s.PatientId);
+                var scheduleIdList = scheduleIds.Select(s => s.Id).ToList();
+
+                var incompleteVisits = await _context.PostOpVisits
+                    .Where(v => scheduleIdList.Contains(v.PostOpCareScheduleId)
+                             && !v.Completed
+                             && v.DeletedAt == null)
+                    .Select(v => v.PostOpCareScheduleId)
+                    .ToListAsync();
+
+                var pendingVisits = incompleteVisits
+                    .Where(sid => schedulePatientMap.ContainsKey(sid))
+                    .GroupBy(sid => schedulePatientMap[sid])
+                    .ToDictionary(g => g.Key, g => g.Count());
+
+                // Latest counseling session per patient (for Log Contact modal)
+                var latestSessions = await _context.CounselingSession
+                    .Where(s => patientIds.Contains(s.PatientId) && s.TenantId == tenantId && s.DeletedAt == null)
+                    .GroupBy(s => s.PatientId)
+                    .Select(g => new { PatientId = g.Key, SessionId = g.OrderByDescending(s => s.CreatedAt).First().Id })
+                    .ToDictionaryAsync(x => x.PatientId, x => x.SessionId);
+
+                var items = journeys.Select(j =>
+                {
+                    discharges.TryGetValue(j.Id, out var ds);
+                    pendingVisits.TryGetValue(j.PatientId, out var visitCount);
+                    latestSessions.TryGetValue(j.PatientId, out var latestSessionId);
+                    return new
+                    {
+                        journeyId              = j.Id,
+                        patientId              = j.PatientId,
+                        patientName            = j.Patient != null ? (j.Patient.FirstName + " " + j.Patient.LastName).Trim() : "Unknown",
+                        uhid                   = j.Uhid ?? j.Patient?.MedicalRecordNumber,
+                        phone                  = j.Patient != null ? j.Patient.ContactNumber : null,
+                        branchId               = j.BranchId,
+                        sessionId              = latestSessionId == Guid.Empty ? (Guid?)null : latestSessionId,
+                        surgeryType            = j.ProcedureName,
+                        dischargedAt           = j.DischargedAt,
+                        daysSinceDischarge     = j.DischargedAt.HasValue
+                                                    ? (int)(DateTime.UtcNow - j.DischargedAt.Value).TotalDays
+                                                    : (int?)null,
+                        conditionAtDischarge   = ds?.ConditionAtDischarge,
+                        dischargeDate          = ds?.DischargeDate,
+                        pendingPostOpVisits    = visitCount
+                    };
+                }).ToList();
+
+                return Ok(new { total, page, pageSize, items });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving post-surgery follow-ups");
+                return StatusCode(500, new { message = "Error retrieving post-surgery follow-ups", error = ex.Message });
+            }
+        }
+
+        /// <summary>POST /api/Counseling/sessions/{id}/re-queue — re-queue a patient to the counselor waiting list after call.</summary>
+        [HttpPost("sessions/{id}/re-queue")]
+        [RequirePermission("counseling_sessions.update")]
+        public async Task<IActionResult> ReQueueSession(Guid id, [FromBody] ReQueueSessionRequest request)
+        {
+            try
+            {
+                var tenantId = GetTenantId();
+                var userId   = GetCurrentUserId();
+
+                var session = await _context.CounselingSession
+                    .FirstOrDefaultAsync(s => s.Id == id && s.TenantId == tenantId && s.DeletedAt == null);
+
+                if (session == null)
+                    return NotFound(new { message = "Session not found" });
+
+                // Update patient intention to the new agreed intention
+                if (!string.IsNullOrEmpty(request.NewIntention))
+                    session.PatientIntention = request.NewIntention;
+
+                // Determine next queue position
+                var maxPosition = await _context.CounselorQueue
+                    .Where(q => q.TenantId == tenantId
+                             && q.BranchId == session.BranchId
+                             && q.Status == "Waiting"
+                             && q.DeletedAt == null)
+                    .MaxAsync(q => (int?)q.QueuePosition) ?? 0;
+
+                var tokenNumber = $"FU-{DateTime.UtcNow:yyMMdd}-{(maxPosition + 1):D3}";
+
+                var queueItem = new CounselorQueueItem
+                {
+                    Id               = Guid.NewGuid(),
+                    TenantId         = tenantId,
+                    BranchId         = session.BranchId ?? Guid.Empty,
+                    SessionId        = session.Id,
+                    PatientId        = session.PatientId,
+                    TokenNumber      = tokenNumber,
+                    QueueType        = "RepeatCounselling",
+                    QueuePosition    = maxPosition + 1,
+                    PriorityScore    = 60.00m,
+                    UrgencyLevel     = "Normal",
+                    Status           = "Waiting",
+                    AddedToQueueAt   = DateTime.UtcNow,
+                    CreatedAt        = DateTime.UtcNow,
+                    UpdatedAt        = DateTime.UtcNow
+                };
+
+                _context.CounselorQueue.Add(queueItem);
+
+                session.UpdatedAt       = DateTime.UtcNow;
+                session.UpdatedByUserId = userId;
+                if (!string.IsNullOrEmpty(request.Notes))
+                    session.AdditionalNotes = (session.AdditionalNotes ?? "") + $"\n[Re-queue {DateTime.UtcNow:yyyy-MM-dd}] {request.Notes}";
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success     = true,
+                    tokenNumber = tokenNumber,
+                    queueItemId = queueItem.Id,
+                    message     = "Patient re-queued to counselor waiting list"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error re-queuing session {Id}", id);
+                return StatusCode(500, new { message = "Error re-queuing patient", error = ex.Message });
+            }
+        }
+
+        /// <summary>POST /api/Counseling/patients/{patientId}/reminders — log a sent reminder (SMS/WhatsApp/Email) for a patient.</summary>
+        [HttpPost("patients/{patientId}/reminders")]
+        [RequirePermission("counseling_sessions.update")]
+        public async Task<IActionResult> SendReminder(Guid patientId, [FromBody] SendReminderRequest request)
+        {
+            try
+            {
+                var tenantId = GetTenantId();
+                var userId   = GetCurrentUserId();
+
+                // Resolve to latest session so the log is attached to something meaningful
+                var session = await _context.CounselingSession
+                    .Where(s => s.PatientId == patientId && s.TenantId == tenantId && s.DeletedAt == null)
+                    .OrderByDescending(s => s.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                // Build comm-log entry regardless of whether a session exists
+                if (session != null)
+                {
+                    var log = new CounselorCommunicationLog
+                    {
+                        Id                = Guid.NewGuid(),
+                        TenantId          = tenantId,
+                        SessionId         = session.Id,
+                        PatientId         = patientId,
+                        CounselorId       = userId,
+                        Channel           = request.Channel,
+                        Direction         = "Outbound",
+                        CommunicationAt   = DateTime.UtcNow,
+                        Outcome           = "Sent",
+                        MessageBody       = request.Message,
+                        NextAction        = request.MessageType,
+                        Status            = "active",
+                        CreatedAt         = DateTime.UtcNow,
+                        UpdatedAt         = DateTime.UtcNow,
+                        CreatedByUserId   = userId,
+                        UpdatedByUserId   = userId,
+                    };
+                    _context.CounselorCommunicationLogs.Add(log);
+                    await _context.SaveChangesAsync();
+                }
+
+                return Ok(new
+                {
+                    success         = true,
+                    loggedToSession = session != null,
+                    channel         = request.Channel,
+                    messageType     = request.MessageType,
+                    sentAt          = DateTime.UtcNow,
+                    message         = $"Reminder logged via {request.Channel}"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending reminder for patient {PatientId}", patientId);
+                return StatusCode(500, new { message = "Error sending reminder", error = ex.Message });
+            }
+        }
+
+        // ============================================================================
         // ANALYTICS SUMMARY  — Phase E
         // ============================================================================
 
@@ -1800,6 +2229,10 @@ namespace AuthService.Controllers
                 await _otFinalizeService.PrepareOtListAsync(request, tenantId, userId);
                 return Ok(new { message = "OT list prepared and locked successfully" });
             }
+            catch (OtPrepareConflictException ex)
+            {
+                return Conflict(new { message = ex.Message, conflictingScheduleIds = ex.ConflictingScheduleIds });
+            }
             catch (InvalidOperationException ex)
             {
                 return Conflict(new { message = ex.Message });
@@ -1874,6 +2307,13 @@ namespace AuthService.Controllers
     public class CancelSessionRequest
     {
         public string Reason { get; set; } = null!;
+    }
+
+    // Helper DTO for advance-stage request
+    public class AdvanceStageRequest
+    {
+        [System.ComponentModel.DataAnnotations.Range(1, 6)]
+        public int Stage { get; set; }
     }
 
     // Cost Estimate Sharing DTOs

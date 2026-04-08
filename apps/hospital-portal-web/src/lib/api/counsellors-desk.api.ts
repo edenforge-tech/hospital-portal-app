@@ -84,6 +84,39 @@ const MOCK_WARD_PATIENTS: WardPatient[] = [
   { id: 'w8', slNo: 8, mrNo: 'MR008', patientName: 'Mohan Lal', diagnosis: 'ARMD', procedureName: 'Intravitreal Injection', surgeon: 'Dr. Sharma', package: 'Injection Pkg', status: 'Expected', room: '—', admissionTime: '—', remarks: 'Day care procedure' },
 ];
 
+// ─── OT Record Mapper ───────────────────────────────────────────────────────
+// Shared by getFinalizeList, getOtList, and onStatusChange callbacks so every
+// path through the app that receives an OtScheduleResponse consistently maps
+// field aliases (eye→eyes, doctorName→surgeon, theatreName→theaterName) and
+// formats time strings. After the backend change, r.scheduleDate is always
+// populated from StartTime at the server; the fallback handles legacy records.
+
+function fmtOtTime(v?: string | null): string {
+  if (!v) return '';
+  if (v.includes('T')) return new Date(v).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const [h, m] = v.split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) return v;
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')} ${suffix}`;
+}
+
+export function mapOtRecord(r: any): FinalizeSurgeryRecord {
+  return {
+    ...r,
+    id:               r.id,
+    eyes:             r.eyes ?? r.eye ?? '',
+    surgeon:          r.surgeon ?? r.doctorName ?? '',
+    theaterName:      r.theaterName ?? r.theatreName ?? '',
+    // Backend now sends scheduleDate ("yyyy-MM-dd") directly; fallback extracts
+    // it from the raw ISO startTime before fmtOtTime reformats it.
+    scheduleDate:     r.scheduleDate ?? (r.startTime?.includes('T') ? (r.startTime as string).slice(0, 10) : ''),
+    startTime:        fmtOtTime(r.startTime),
+    reportingTime:    fmtOtTime(r.reportingTime),
+    checklistSummary: r.checklistSummary ?? undefined,
+  } as FinalizeSurgeryRecord;
+}
+
 // ─── API Object ─────────────────────────────────────────────────────────────
 
 export const counsellorsDeskApi = {
@@ -193,6 +226,7 @@ export const counsellorsDeskApi = {
         schedule?: ScheduleData | string;
         patientRemarks?: string;
         doctorNotes?: string;
+        rate?: number | string;
         wantToSeeDoctor?: boolean;
         interestedToUpgrade?: boolean;
         notRequiredPreAuth?: boolean;
@@ -236,9 +270,11 @@ export const counsellorsDeskApi = {
 
       // Map queue status → WaitingListStatus.
       // Completed + patientAgreedToSurgery=true → Done; Completed without agreement → RepeatCounselling.
+      // If the linked OT record is SurgeryDone, override immediately — surgery trumps everything.
       const rawQueueStatus: string = raw.queueStatus?.status ?? '';
       const status: WaitingListStatus =
-        rawQueueStatus === 'Waiting'       ? 'Pending'
+        raw.otStatus === 'SurgeryDone' ? 'SurgeryDone'
+        : rawQueueStatus === 'Waiting'       ? 'Pending'
         : rawQueueStatus === 'Called' || rawQueueStatus === 'InProgress' ? 'Processed'
         : rawQueueStatus === 'AddOnSurgery' ? 'AddOnSurgery'
         : rawQueueStatus === 'Completed'
@@ -268,7 +304,9 @@ export const counsellorsDeskApi = {
         company: cd.insuranceCompany ?? '',
         freeSurgeryReason: '',
         packageName: cd.packageName ?? '',
-        packageRate: raw.packageAmount ?? '',
+        // Prefer DB package_amount column; fall back to blob's rate field for sessions
+        // saved before package_amount was reliably persisted (e.g. rate only in JSON blob).
+        packageRate: raw.packageAmount ?? (cd.rate ? Number(cd.rate) || '' : ''),
         decision: restoredDecision as ('' | import('@/types/counsellors-desk').DecisionType),
         schedule: restoredSchedule,
         counsellorNotes: raw.additionalNotes ?? '',
@@ -382,16 +420,7 @@ export const counsellorsDeskApi = {
   async getFinalizeList(filters?: { date?: string; uhid?: string; name?: string; status?: string }): Promise<FinalizeSurgeryRecord[]> {
     const response = await getApi().get('/Counseling/ot-schedule', { params: filters });
     const raw: any[] = Array.isArray(response.data) ? response.data : [];
-    return raw.map(r => ({
-      ...r,
-      id:          r.id,
-      eyes:        r.eyes ?? r.eye ?? '',
-      surgeon:     r.surgeon ?? r.doctorName ?? '',
-      theaterName: r.theaterName ?? r.theatreName ?? '',
-      startTime:   r.startTime
-        ? new Date(r.startTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
-        : '',
-    } as FinalizeSurgeryRecord));
+    return raw.map(mapOtRecord);
   },
 
   async upsertOtSchedule(data: Partial<FinalizeSurgeryRecord> & { patientId: string; counsellingSessionId?: string }): Promise<FinalizeSurgeryRecord> {
@@ -437,7 +466,8 @@ export const counsellorsDeskApi = {
 
   async getOtList(date: string): Promise<FinalizeSurgeryRecord[]> {
     const response = await getApi().get('/Counseling/ot-list', { params: { date } });
-    return response.data ?? [];
+    const raw: any[] = Array.isArray(response.data) ? response.data : [];
+    return raw.map(mapOtRecord);
   },
 
   async getOtScheduleDetail(id: string): Promise<OtScheduleDetail> {
@@ -476,6 +506,7 @@ export const counsellorsDeskApi = {
       // Patient demographics (backend field names → frontend type names)
       contactNumber:                r.contactNumber,
       bloodGroup:                   r.bloodGroup,
+      gender:                       r.gender,
       dob:                          r.dateOfBirth,
       emergencyContactName:         r.emergencyContactName,
       emergencyContactPhone:        r.emergencyContactPhone,
@@ -611,5 +642,99 @@ export const counsellorsDeskApi = {
 
   async saveInvestigations(sessionId: string, investigations: InvestigationItem[]): Promise<void> {
     await getApi().post(`/Counseling/sessions/${sessionId}/investigations`, { investigations });
+  },
+
+  // ============================================================================
+  // FOLLOW-UP CENTER ENDPOINTS
+  // ============================================================================
+
+  async getActiveFollowups(params?: {
+    branchId?: string;
+    intention?: string;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const res = await getApi().get('/Counseling/followups/active', { params });
+    return res.data as import('@/types/counsellors-desk').FollowupPagedResponse<
+      import('@/types/counsellors-desk').ActiveFollowupRecord
+    >;
+  },
+
+  async getColdLeads(params?: { branchId?: string; page?: number; pageSize?: number }) {
+    const res = await getApi().get('/Counseling/followups/cold-leads', { params });
+    return res.data as import('@/types/counsellors-desk').FollowupPagedResponse<
+      import('@/types/counsellors-desk').ColdLeadRecord
+    >;
+  },
+
+  async getPostSurgeryFollowups(params?: { branchId?: string; page?: number; pageSize?: number }) {
+    const res = await getApi().get('/Counseling/followups/post-surgery', { params });
+    return res.data as import('@/types/counsellors-desk').FollowupPagedResponse<
+      import('@/types/counsellors-desk').PostSurgeryFollowupRecord
+    >;
+  },
+
+  async reQueueSession(sessionId: string, payload: import('@/types/counsellors-desk').ReQueuePayload) {
+    const res = await getApi().post(`/Counseling/sessions/${sessionId}/re-queue`, payload);
+    return res.data as { success: boolean; tokenNumber: string; queueItemId: string; message: string };
+  },
+
+  async logCommunication(
+    sessionId: string,
+    payload: {
+      channel: string;
+      direction?: string;
+      communicationAt?: string;
+      outcome: string;
+      callDurationMinutes?: number;
+      messageBody?: string;
+      responseSummary?: string;
+      nextAction?: string;
+      nextActionDate?: string;
+    }
+  ) {
+    const res = await getApi().post(`/Counseling/sessions/${sessionId}/communication-logs`, {
+      ...payload,
+      direction: payload.direction ?? 'Outbound',
+    });
+    return res.data;
+  },
+
+  async scheduleCallback(
+    sessionId: string,
+    payload: {
+      callbackDate: string;
+      callbackReason?: string;
+      preferredChannel?: string;
+      callbackType?: string;
+    }
+  ) {
+    const res = await getApi().post(`/Counseling/sessions/${sessionId}/callbacks`, {
+      callbackType: payload.callbackType ?? 'General',
+      callbackDate: payload.callbackDate,
+      channel: payload.preferredChannel ?? 'Phone',
+      callbackNotes: payload.callbackReason,
+    });
+    return res.data;
+  },
+
+  async getSessionCommHistory(sessionId: string) {
+    const res = await getApi().get(`/Counseling/sessions/${sessionId}/communication-logs`);
+    return res.data as Array<{
+      id: string;
+      channel: string;
+      direction: string;
+      outcome: string | null;
+      communicationAt: string;
+      messageBody: string | null;
+      nextAction: string | null;
+      nextActionDate: string | null;
+      callDurationMinutes: number | null;
+    }>;
+  },
+
+  async sendReminder(patientId: string, payload: import('@/types/counsellors-desk').SendReminderPayload) {
+    const res = await getApi().post(`/Counseling/patients/${patientId}/reminders`, payload);
+    return res.data as { success: boolean; loggedToSession: boolean; channel: string; sentAt: string; message: string };
   },
 };

@@ -26,32 +26,12 @@ public class UserDepartmentAccessController : ControllerBase
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<List<UserDepartmentAccessDto>>> GetUserDepartmentAccess(Guid userId)
+    public async Task<ActionResult<List<DepartmentAccessDto>>> GetUserDepartmentAccess(Guid userId)
     {
         try
         {
-            // Get all departments for this user
             var departments = await _service.GetUserDepartmentsAsync(userId);
-
-            // Convert to UserDepartmentAccessDto format
-            var assignments = departments.Select(d => new UserDepartmentAccessDto
-            {
-                UserId = userId,
-                DepartmentId = d.DepartmentId,
-                DepartmentName = d.DepartmentName,
-                AccessType = d.AccessType,
-                IsPrimary = d.IsPrimary,
-                GrantedAt = d.GrantedAt,
-                Status = d.Status,
-                CanView = d.CanView,
-                CanCreate = d.CanCreate,
-                CanEdit = d.CanEdit,
-                CanDelete = d.CanDelete,
-                CanApprove = d.CanApprove,
-                CanExport = d.CanExport
-            }).ToList();
-
-            return Ok(assignments);
+            return Ok(departments);
         }
         catch (Exception ex)
         {

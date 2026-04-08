@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, Clock, ChevronDown, ChevronUp, User, Search, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -129,11 +129,27 @@ export default function CounsellingSessionPage() {
   const [historyEntries, setHistoryEntries] = useState<SessionAuditEntry[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const historyBtnRef = useRef<HTMLButtonElement>(null);
+  // Tracks whether this session had surgery done — used to skip lock/unlock and enforce read-only
+  const isSurgeryDoneRef = useRef(false);
   // OT record for this session — fetched at load when Done, needed to call editOtScheduleSlot on re-save
   const [existingOtScheduleId, setExistingOtScheduleId] = useState<string | null>(null);
 
   // Track dirty state
   const markDirty = () => setIsDirty(true);
+
+  // Computed grand total: variant price (or override) + IOL + imaging + lab.
+  // Used as fallback for packageAmount when package_amount was never persisted to DB.
+  const computedGrandTotal = useMemo(() => {
+    const summaryVariant = catalog ? flattenCatalog(catalog).find(v => v.id === selectedVariantId) : null;
+    const displayPrice = summaryVariant
+      ? (savedOverrides.length > 0 ? savedOverrides[0].overriddenPrice : summaryVariant.price)
+      : 0;
+    const iolPrice = iolOptions.find(i => i.id === selectedIolId)?.price ?? 0;
+    const allInv = Array.from(selectedInvestigations.values());
+    const imagingTotal = allInv.filter(i => i.testType === 'Imaging' || i.testType === 'Scan').reduce((s, i) => s + i.price, 0);
+    const labTotal    = allInv.filter(i => i.testType !== 'Imaging' && i.testType !== 'Scan').reduce((s, i) => s + i.price, 0);
+    return displayPrice + iolPrice + imagingTotal + labTotal;
+  }, [catalog, selectedVariantId, savedOverrides, iolOptions, selectedIolId, selectedInvestigations]);
 
   useEffect(() => {
     const load = async () => {
@@ -257,8 +273,13 @@ export default function CounsellingSessionPage() {
         if (data.status === 'Pending') {
           counsellorsDeskApi.startSession(sessionId);
         }
-        // GAP 2: acquire session lock
-        counsellingAzureApi.lock(sessionId);
+        // GAP 2: acquire session lock — skip for SurgeryDone (permanently read-only)
+        if ((data.status as string) !== 'SurgeryDone') {
+          isSurgeryDoneRef.current = false;
+          counsellingAzureApi.lock(sessionId);
+        } else {
+          isSurgeryDoneRef.current = true;
+        }
         // Load existing price overrides for this session
         try {
           const overrides = await counsellingAzureApi.getPriceOverrides(sessionId);
@@ -379,9 +400,9 @@ export default function CounsellingSessionPage() {
     }).catch(() => { /* non-critical */ });
   }, []);
 
-  // GAP 2: release lock on unmount
+  // GAP 2: release lock on unmount — skip for SurgeryDone (no lock was acquired)
   useEffect(() => {
-    return () => { counsellingAzureApi.unlock(sessionId); };
+    return () => { if (!isSurgeryDoneRef.current) counsellingAzureApi.unlock(sessionId); };
   }, [sessionId]);
 
   const handleBack = () => {
@@ -536,7 +557,12 @@ export default function CounsellingSessionPage() {
         surgeryTentativeTimeSlot: schedule?.surgeryStartTime || undefined,
         surgeryTentativeEye: selectedEye || undefined,
         // ── Package financials ────────────────────────────────────────────────────
-        packageAmount: typeof packageRate === 'number' ? packageRate : undefined,
+        // Prefer the explicitly-set packageRate; fall back to the live grand total
+        // (variant price + IOL + investigations) so newly-created or legacy sessions
+        // without a persisted package_amount always record the quoted amount.
+        packageAmount: (typeof packageRate === 'number' && packageRate > 0)
+          ? packageRate
+          : (computedGrandTotal > 0 ? computedGrandTotal : undefined),
         // ── Session notes ─────────────────────────────────────────────────────────
         additionalNotes: counsellorNotes || undefined,
         // ── PatientType — only send values the backend accepts ────────────────────
@@ -586,7 +612,11 @@ export default function CounsellingSessionPage() {
       // Snapshot the selected package + payment details to Azure
       // variantId and eye are packed inside the JSON blob so we can restore them on load
       counsellingAzureApi.save(sessionId, {
-        packageDetails: JSON.stringify({ name: packageName, rate: packageRate, paymentType, insuranceCompany, variantId: selectedVariantId, eye: selectedEye }),
+        packageDetails: JSON.stringify({
+          name: packageName,
+          rate: (typeof packageRate === 'number' && packageRate > 0) ? packageRate : (computedGrandTotal || undefined),
+          paymentType, insuranceCompany, variantId: selectedVariantId, eye: selectedEye,
+        }),
         paymentType: paymentType || undefined,
         insuranceCompany: insuranceCompany || undefined,
       });
@@ -765,8 +795,10 @@ export default function CounsellingSessionPage() {
   // price override triggers add-on surgery, decision change works via updated state machine.
   const isDoneState = queueStatus === 'Done';
   const isRepeatState = queueStatus === 'RepeatCounselling';
+  const isSurgeryDoneState = queueStatus === 'SurgeryDone';
   // Read-only while in RepeatCounselling state — counsellor must click "Start Session" first
-  const isReadOnly = isRepeatState;
+  // Also read-only when surgery is done — session is permanently closed
+  const isReadOnly = isRepeatState || isSurgeryDoneState;
 
   // GAP 1: status badge config
   const STATUS_BADGE = ({
@@ -775,6 +807,7 @@ export default function CounsellingSessionPage() {
     Done:              { label: 'Done',                cls: 'bg-green-400 text-green-900' },
     AddOnSurgery:      { label: 'Add-On Surgery',      cls: 'bg-purple-400 text-purple-900' },
     RepeatCounselling: { label: 'Repeat Counselling',  cls: 'bg-orange-400 text-orange-900' },
+    SurgeryDone:       { label: 'Surgery Done',         cls: 'bg-teal-400 text-teal-900' },
   } as Record<WaitingListStatus, { label: string; cls: string }>)[queueStatus]
     ?? { label: queueStatus, cls: 'bg-gray-300 text-gray-900' };
 
@@ -841,6 +874,14 @@ export default function CounsellingSessionPage() {
       {/* Main Tabs */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col flex-1 min-h-0">
           <div className="flex-1 min-h-0 p-5 flex flex-col overflow-hidden">
+            {/* Surgery Done read-only banner — replaces Done banner when surgery is completed */}
+            {isSurgeryDoneState && (
+              <div className="mb-4 flex items-center gap-3 px-4 py-2.5 bg-teal-50 border border-teal-200 rounded-xl text-sm text-teal-800">
+                <span>🏥</span>
+                <span className="flex-1">Surgery <strong>completed</strong>. This session is <strong>read-only</strong> — re-evaluation is not available after surgery.</span>
+              </div>
+            )}
+
             {/* GAP 11: Done-state edit-mode banner */}
             {isDoneState && (
               <div className="mb-4 flex items-center gap-3 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800">

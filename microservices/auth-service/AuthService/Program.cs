@@ -501,6 +501,46 @@ async Task SeedBasicDataForTestingAsync(AppDbContext context)
             {
                 Console.WriteLine($"✓ Sub-departments already exist ({subDeptCount} found), skipping seeding");
             }
+
+            // ── Bootstrap: ensure admin user has a primary department assignment ──────
+            var adminGuid = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd");
+            var adminDeptEntity = await context.Departments
+                .FirstOrDefaultAsync(d => d.TenantId == testTenantId && d.DepartmentCode == "STD_ADMIN" && d.DeletedAt == null);
+
+            if (adminDeptEntity != null)
+            {
+                var hasAdminDeptAccess = await context.UserDepartments
+                    .AnyAsync(ud => ud.UserId == adminGuid && ud.DepartmentId == adminDeptEntity.Id && ud.DeletedAt == null);
+
+                if (!hasAdminDeptAccess)
+                {
+                    context.UserDepartments.Add(new UserDepartment
+                    {
+                        Id           = Guid.NewGuid(),
+                        TenantId     = testTenantId,
+                        BranchId     = null,
+                        UserId       = adminGuid,
+                        DepartmentId = adminDeptEntity.Id,
+                        AccessType   = "Primary",
+                        CanView      = true,
+                        CanCreate    = true,
+                        CanEdit      = true,
+                        CanDelete    = true,
+                        CanApprove   = true,
+                        CanExport    = true,
+                        IsActive     = true,
+                        Status       = "active",
+                        CreatedAt    = DateTime.UtcNow,
+                        UpdatedAt    = DateTime.UtcNow
+                    });
+                    await context.SaveChangesAsync();
+                    Console.WriteLine("✓ Admin user assigned to STD_ADMIN department");
+                }
+                else
+                {
+                    Console.WriteLine("✓ Admin department assignment already exists, skipping");
+                }
+            }
         }
     } // Closes if (firstTenant != null) block from line ~104
     else
