@@ -214,7 +214,7 @@ export default function IOLCalculator({
       {/* Biometry Input Summary */}
       <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
         <h4 className="text-sm font-bold text-blue-900 mb-4">Biometry Data - {selectedEye}</h4>
-        <div className="grid grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div className="bg-white rounded-md p-3 border border-blue-200">
             <p className="text-xs font-semibold text-blue-700 mb-1">Axial Length</p>
             <p className="text-lg font-bold text-blue-900">{eyeData.AL.toFixed(2)} mm</p>

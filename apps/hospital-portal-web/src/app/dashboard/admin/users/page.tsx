@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { usersApi, rolesApi, departmentsApi, branchesApi, permissionsApi } from '@/lib/api';
 import Link from 'next/link';
+import { useConfirmation } from '@/components/common/ConfirmationDialog';
 import UserForm from '@/components/admin/UserForm';
 import UserDepartmentAccessModal from '@/components/admin/UserDepartmentAccessModal';
 import BranchAssignmentModal from '@/components/admin/BranchAssignmentModal';
@@ -37,6 +38,7 @@ interface UserRow {
 }
 
 export default function UsersPage() {
+  const { showConfirmation, ConfirmationComponent } = useConfirmation();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -214,34 +216,37 @@ export default function UsersPage() {
     setShowMfaResetModal(true);
   };
 
-  const handleResetPassword = async (user: UserRow) => {
+  const handleResetPassword = (user: UserRow) => {
     const displayName = user.userName || `${user.firstName} ${user.lastName}`;
-    if (!confirm(`Send password reset email to ${displayName} (${user.email})?`)) return;
-    
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5073/api';
-      const token = localStorage.getItem('token');
-      const tenantId = localStorage.getItem('tenantId');
+    showConfirmation({
+      title: 'Send Password Reset',
+      message: `Send password reset email to ${displayName} (${user.email})?`,
+      variant: 'info',
+      confirmText: 'Send Email',
+      onConfirm: async () => {
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5073/api';
+          const token = localStorage.getItem('token');
+          const tenantId = localStorage.getItem('tenantId');
 
-      const response = await fetch(`${apiUrl}/users/${user.id}/reset-password`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-Tenant-ID': tenantId || ''
+          const response = await fetch(`${apiUrl}/users/${user.id}/reset-password`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'X-Tenant-ID': tenantId || ''
+            }
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to reset password');
+          }
+        } catch (err: any) {
+          console.error('Error resetting password:', err);
+          setError(err.message || 'Failed to reset password');
         }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to reset password');
-      }
-
-      const result = await response.json();
-      alert(result.message || 'Password reset email sent successfully');
-    } catch (err: any) {
-      console.error('Error resetting password:', err);
-      setError(err.message || 'Failed to reset password');
-    }
+      },
+    });
   };
 
   // Apply filters
@@ -274,6 +279,7 @@ export default function UsersPage() {
 
   return (
     <div className="flex flex-col">
+      <ConfirmationComponent />
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold">User Management</h1>

@@ -206,7 +206,7 @@ export default function GonioscopyAssessment({
           <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
             <h4 className="text-sm font-bold text-blue-900 mb-2">Shaffer Grading System</h4>
-            <div className="grid grid-cols-5 gap-2 text-xs">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 text-xs">
               <div className="bg-red-100 border border-red-300 rounded px-2 py-1">
                 <strong>Grade 0:</strong> Closed (0°)
               </div>
@@ -244,7 +244,7 @@ export default function GonioscopyAssessment({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {/* Angle Grade */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-2">Angle Grade</label>

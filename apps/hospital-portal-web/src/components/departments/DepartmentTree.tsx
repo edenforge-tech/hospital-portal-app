@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Tree, TreeNode } from 'react-organizational-chart';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { Building2, Users, ChevronDown, ChevronRight, MoreVertical } from 'lucide-react';
+import { useConfirmation } from '@/components/common/ConfirmationDialog';
 
 interface Department {
   id: string;
@@ -200,6 +201,7 @@ export const DepartmentTree: React.FC<DepartmentTreeProps> = ({
   onViewStaff,
   onEdit
 }) => {
+  const { showConfirmation, ConfirmationComponent } = useConfirmation();
   const [isDragging, setIsDragging] = useState(false);
   
   const tree = buildTree(departments);
@@ -219,19 +221,20 @@ export const DepartmentTree: React.FC<DepartmentTreeProps> = ({
     if (department.parentDepartmentId === newParentId) return;
     
     // Confirm move
-    const confirmed = window.confirm(
-      `Move "${department.departmentName}" to ${
-        newParentId ? departments.find(d => d.id === newParentId)?.departmentName : 'root level'
-      }?`
-    );
-    
-    if (confirmed) {
-      try {
-        await onMove(departmentId, newParentId);
-      } catch (error: any) {
-        alert(error.message || 'Failed to move department. This may create a circular reference.');
-      }
-    }
+    const targetName = newParentId ? departments.find(d => d.id === newParentId)?.departmentName : 'root level';
+    showConfirmation({
+      title: 'Move Department',
+      message: `Move "${department.departmentName}" to ${targetName}?`,
+      variant: 'info',
+      confirmText: 'Move',
+      onConfirm: async () => {
+        try {
+          await onMove(departmentId, newParentId);
+        } catch (error: any) {
+          alert(error.message || 'Failed to move department. This may create a circular reference.');
+        }
+      },
+    });
   };
   
   if (departments.length === 0) {
@@ -249,6 +252,7 @@ export const DepartmentTree: React.FC<DepartmentTreeProps> = ({
       onDragStart={() => setIsDragging(true)}
       onDragEnd={handleDragEnd}
     >
+      <ConfirmationComponent />
       <div className={`overflow-auto p-8 ${isDragging ? 'bg-blue-50' : ''}`}>
         <Tree
           lineWidth="2px"

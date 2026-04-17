@@ -332,7 +332,7 @@ export default function CounsellorWaitingListPage() {
     <div className="space-y-4 pb-6">
 
       {/* ── STAT WIDGETS ─────────────────────────────────── */}
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {STAT_CARDS.map(card => (
           <div
             key={card.label}
@@ -413,7 +413,7 @@ export default function CounsellorWaitingListPage() {
         </div>
 
         {showFilters && (
-          <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-4 gap-3">
+          <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             <div>
               <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1.5">
                 <Calendar className="h-3 w-3" /> From Date

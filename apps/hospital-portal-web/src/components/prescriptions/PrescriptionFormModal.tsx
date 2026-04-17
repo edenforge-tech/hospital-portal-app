@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { MedicationSearchCombobox } from './MedicationSearchCombobox';
 import { prescriptionApi } from '@/lib/api/prescriptions.api';
+import { useConfirmation } from '@/components/common/ConfirmationDialog';
 
 interface Patient {
   id: string;
@@ -103,6 +104,8 @@ export function PrescriptionFormModal({ patients, onClose, onSuccess }: Props) {
   const [allergyWarnings, setAllergyWarnings] = useState<string[]>([]);
   const [isCheckingInteractions, setIsCheckingInteractions] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const { showConfirmation, ConfirmationComponent } = useConfirmation();
 
   const checkDrugInteractions = async () => {
     if (medications.length < 2 && !selectedPatient) return;
@@ -197,9 +200,46 @@ export function PrescriptionFormModal({ patients, onClose, onSuccess }: Props) {
     }
 
     if (allergyWarnings.length > 0) {
-      if (!confirm(`ALLERGY WARNING: Patient is allergic to ${allergyWarnings.join(', ')}. Continue anyway?`)) {
-        return;
-      }
+      showConfirmation({
+        title: 'Allergy Warning',
+        message: `Patient is allergic to ${allergyWarnings.join(', ')}. Continue anyway?`,
+        variant: 'danger',
+        confirmText: 'Continue Anyway',
+        onConfirm: async () => {
+          setLoading(true);
+          try {
+            const response = await prescriptionApi.create({
+              patientId: selectedPatient.id,
+              diagnosis,
+              instructions,
+              treatmentDurationDays: parseInt(durationDays) || undefined,
+              followUpDate: followUpDate || undefined,
+              medications: medications.map((m) => ({
+                medicationName: m.medicationName,
+                genericName: m.genericName,
+                dosage: m.dosage,
+                form: m.form,
+                route: m.route,
+                frequency: m.frequency,
+                durationDays: m.durationDays,
+                quantity: m.quantity,
+                instructions: m.instructions,
+                isCritical: m.isCritical,
+              })),
+            });
+
+            toast.success('Prescription created successfully');
+            onSuccess(response.data);
+          } catch (error: any) {
+            console.error('Error creating prescription:', error);
+            const errorMessage = error.response?.data?.message || 'Failed to create prescription';
+            toast.error(errorMessage);
+          } finally {
+            setLoading(false);
+          }
+        },
+      });
+      return;
     }
 
     setLoading(true);
@@ -241,6 +281,7 @@ export function PrescriptionFormModal({ patients, onClose, onSuccess }: Props) {
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <ConfirmationComponent />
         <DialogHeader>
           <DialogTitle>New Prescription</DialogTitle>
         </DialogHeader>

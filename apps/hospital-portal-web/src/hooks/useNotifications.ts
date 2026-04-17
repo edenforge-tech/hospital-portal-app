@@ -318,7 +318,12 @@ export function useNotifications() {
         setIsConnected(true);
         toast.success('Connected to live updates', { duration: 2000 });
       })
-      .catch((err) => {
+      .catch((err: Error) => {
+        // Silently ignore 404 — the notifications hub is not yet deployed on this environment
+        const msg = err?.message ?? '';
+        if (msg.includes('404') || msg.includes('Not Found')) {
+          return;
+        }
         console.error('SignalR Connection Error:', err);
         reconnectAttempts.current++;
         if (reconnectAttempts.current < maxReconnectAttempts) {

@@ -36,10 +36,10 @@ export default function WidgetGalleryPage() {
             📋 Post-Operative Care (2 widgets)
           </h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-lg shadow-lg p-4 h-[600px]">
+            <div className="bg-white rounded-lg shadow-lg p-4 h-[400px] lg:h-[500px] xl:h-[600px]">
               <PostOpFollowUpWidget patientId={mockPatientId} sessionId={mockSessionId} />
             </div>
-            <div className="bg-white rounded-lg shadow-lg p-4 h-[600px]">
+            <div className="bg-white rounded-lg shadow-lg p-4 h-[400px] lg:h-[500px] xl:h-[600px]">
               <MedicationScheduleWidget patientId={mockPatientId} sessionId={mockSessionId} />
             </div>
           </div>
@@ -51,10 +51,10 @@ export default function WidgetGalleryPage() {
             📚 Patient Education (2 widgets)
           </h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-lg shadow-lg p-4 h-[500px]">
+            <div className="bg-white rounded-lg shadow-lg p-4 h-[350px] lg:h-[420px] xl:h-[500px]">
               <EducationLibraryWidget patientId={mockPatientId} sessionId={mockSessionId} />
             </div>
-            <div className="bg-white rounded-lg shadow-lg p-4 h-[500px]">
+            <div className="bg-white rounded-lg shadow-lg p-4 h-[350px] lg:h-[420px] xl:h-[500px]">
               <AppointmentReminderWidget patientId={mockPatientId} sessionId={mockSessionId} />
             </div>
           </div>
@@ -66,16 +66,16 @@ export default function WidgetGalleryPage() {
             🏥 Enhanced Clinical (4 widgets)
           </h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-lg shadow-lg p-4 h-[500px]">
+            <div className="bg-white rounded-lg shadow-lg p-4 h-[350px] lg:h-[420px] xl:h-[500px]">
               <VitalsMonitoringWidget patientId={mockPatientId} sessionId={mockSessionId} />
             </div>
-            <div className="bg-white rounded-lg shadow-lg p-4 h-[500px]">
+            <div className="bg-white rounded-lg shadow-lg p-4 h-[350px] lg:h-[420px] xl:h-[500px]">
               <MedicalHistoryTimelineWidget patientId={mockPatientId} sessionId={mockSessionId} />
             </div>
-            <div className="bg-white rounded-lg shadow-lg p-4 h-[500px]">
+            <div className="bg-white rounded-lg shadow-lg p-4 h-[350px] lg:h-[420px] xl:h-[500px]">
               <LabTestIntegrationWidget patientId={mockPatientId} sessionId={mockSessionId} />
             </div>
-            <div className="bg-white rounded-lg shadow-lg p-4 h-[500px]">
+            <div className="bg-white rounded-lg shadow-lg p-4 h-[350px] lg:h-[420px] xl:h-[500px]">
               <ImagingViewerWidget patientId={mockPatientId} sessionId={mockSessionId} />
             </div>
           </div>
@@ -87,16 +87,16 @@ export default function WidgetGalleryPage() {
             💰 Financial & Admin (4 widgets)
           </h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-lg shadow-lg p-4 h-[600px]">
+            <div className="bg-white rounded-lg shadow-lg p-4 h-[400px] lg:h-[500px] xl:h-[600px]">
               <InsuranceClaimTrackingWidget patientId={mockPatientId} sessionId={mockSessionId} />
             </div>
-            <div className="bg-white rounded-lg shadow-lg p-4 h-[600px]">
+            <div className="bg-white rounded-lg shadow-lg p-4 h-[400px] lg:h-[500px] xl:h-[600px]">
               <BillingPaymentPlanWidget patientId={mockPatientId} sessionId={mockSessionId} />
             </div>
-            <div className="bg-white rounded-lg shadow-lg p-4 h-[500px]">
+            <div className="bg-white rounded-lg shadow-lg p-4 h-[350px] lg:h-[420px] xl:h-[500px]">
               <ReferralManagementWidget patientId={mockPatientId} sessionId={mockSessionId} />
             </div>
-            <div className="bg-white rounded-lg shadow-lg p-4 h-[600px]">
+            <div className="bg-white rounded-lg shadow-lg p-4 h-[400px] lg:h-[500px] xl:h-[600px]">
               <PatientFeedbackWidget patientId={mockPatientId} sessionId={mockSessionId} />
             </div>
           </div>
@@ -108,13 +108,13 @@ export default function WidgetGalleryPage() {
             🚀 Advanced Features (3 widgets)
           </h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-lg shadow-lg p-4 h-[600px]">
+            <div className="bg-white rounded-lg shadow-lg p-4 h-[400px] lg:h-[500px] xl:h-[600px]">
               <TelemedicineConsultationWidget patientId={mockPatientId} sessionId={mockSessionId} />
             </div>
-            <div className="bg-white rounded-lg shadow-lg p-4 h-[600px]">
+            <div className="bg-white rounded-lg shadow-lg p-4 h-[400px] lg:h-[500px] xl:h-[600px]">
               <TreatmentPlanComparisonWidget patientId={mockPatientId} sessionId={mockSessionId} />
             </div>
-            <div className="bg-white rounded-lg shadow-lg p-4 h-[500px]">
+            <div className="bg-white rounded-lg shadow-lg p-4 h-[350px] lg:h-[420px] xl:h-[500px]">
               <SmartWorkflowAssistantWidget patientId={mockPatientId} sessionId={mockSessionId} />
             </div>
           </div>

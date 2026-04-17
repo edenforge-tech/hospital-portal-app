@@ -60,7 +60,7 @@ export function CounselorStats({
   return (
     <div className={cn('space-y-4', className)}>
       {/* Today's Stats Cards */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Completed Sessions */}
         <div className="bg-white border border-gray-200 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-1">

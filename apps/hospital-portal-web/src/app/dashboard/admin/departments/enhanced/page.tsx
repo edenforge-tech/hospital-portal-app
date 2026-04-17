@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/lib/auth-store';
 import { departmentsEnhancedApi, Department, DepartmentFilters } from '@/lib/api/departments-enhanced.api';
+import { useDeleteConfirmation } from '@/components/common/ConfirmationDialog';
 import DepartmentCapacityManager from '@/components/departments/DepartmentCapacityManager';
 import DepartmentServiceManager from '@/components/departments/DepartmentServiceManager';
 import DepartmentStaffAssignments from '@/components/departments/DepartmentStaffAssignments';
@@ -28,6 +29,7 @@ import {
 } from 'lucide-react';
 
 export default function EnhancedDepartmentsPage() {
+  const { confirmDelete, ConfirmationComponent } = useDeleteConfirmation();
   const { user } = useAuthStore();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,16 +72,14 @@ export default function EnhancedDepartmentsPage() {
   };
 
   const handleDeleteDepartment = async (department: Department) => {
-    if (!window.confirm(`Are you sure you want to delete ${department.departmentName}?`)) {
-      return;
-    }
-
-    try {
-      await departmentsEnhancedApi.delete(department.id);
-      await loadDepartments();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete department');
-    }
+    confirmDelete(department.departmentName, async () => {
+      try {
+        await departmentsEnhancedApi.delete(department.id);
+        await loadDepartments();
+      } catch (err: any) {
+        setError(err.response?.data?.message || 'Failed to delete department');
+      }
+    });
   };
 
   const handleExportData = async (department: Department) => {
@@ -137,6 +137,7 @@ export default function EnhancedDepartmentsPage() {
 
   return (
     <div className="p-6">
+      <ConfirmationComponent />
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

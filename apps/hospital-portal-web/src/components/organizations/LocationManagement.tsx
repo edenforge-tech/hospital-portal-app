@@ -55,6 +55,7 @@ import {
   organizationsEnhancedApi 
 } from '@/lib/api/organizations-enhanced.api';
 import { LocationFormModal } from './LocationFormModal';
+import { useDeleteConfirmation } from '@/components/common/ConfirmationDialog';
 
 interface LocationManagementProps {
   locations: Location[];
@@ -67,6 +68,7 @@ export const LocationManagement: React.FC<LocationManagementProps> = ({
   organizations,
   onLocationUpdate
 }) => {
+  const { confirmDelete, ConfirmationComponent } = useDeleteConfirmation();
   // State Management
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [showFormModal, setShowFormModal] = useState(false);
@@ -119,14 +121,14 @@ export const LocationManagement: React.FC<LocationManagementProps> = ({
         setShowFormModal(true);
         break;
       case 'delete':
-        if (confirm(`Are you sure you want to delete the location "${location.name}"?`)) {
+        confirmDelete(location.name, async () => {
           try {
             await organizationsEnhancedApi.deleteLocation(location.id);
             await onLocationUpdate();
           } catch (error) {
             console.error('Error deleting location:', error);
           }
-        }
+        });
         break;
       case 'view':
         setSelectedLocation(location);
@@ -195,6 +197,7 @@ export const LocationManagement: React.FC<LocationManagementProps> = ({
 
   return (
     <div className="space-y-6">
+      <ConfirmationComponent />
       {/* Header Section */}
       <div className="flex items-center justify-between">
         <div>

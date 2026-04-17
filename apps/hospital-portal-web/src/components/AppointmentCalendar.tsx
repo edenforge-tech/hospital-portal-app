@@ -199,9 +199,9 @@ export function AppointmentCalendar() {
 
       {/* Calendar View */}
       {viewMode === 'day' && (
-        <div className="grid grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Time Slots */}
-          <div className="col-span-8">
+          <div className="lg:col-span-8">
             <Card className="p-0 overflow-hidden">
               <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
                 <h3 className="font-semibold text-gray-900">Schedule</h3>
@@ -274,7 +274,7 @@ export function AppointmentCalendar() {
           </div>
 
           {/* Appointment Details Sidebar */}
-          <div className="col-span-4">
+          <div className="lg:col-span-4">
             <Card className="sticky top-6">
               {selectedAppointment ? (
                 <div className="p-6 space-y-6">
@@ -380,7 +380,7 @@ export function AppointmentCalendar() {
       )}
 
       {/* Stats Footer */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <div>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { 
   Package, 
   Search, 
@@ -50,8 +51,10 @@ import {
   PieChart,
   Grid,
   List,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Shield
 } from 'lucide-react';
+import { inventoryDashboardApi, type InventoryDashboardSummary } from '@/lib/api/inventory-service.api';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -556,6 +559,13 @@ export default function InventoryManagement() {
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [procurementSummary, setProcurementSummary] = useState<InventoryDashboardSummary | null>(null);
+
+  useEffect(() => {
+    inventoryDashboardApi.getSummary()
+      .then(setProcurementSummary)
+      .catch(() => { /* graceful — no summary shown */ });
+  }, []);
 
   const dashboardMetrics: DashboardMetric[] = [
     { id: '1', name: 'Total Items', value: '2,391', icon: Package, color: 'blue' },
@@ -648,6 +658,39 @@ export default function InventoryManagement() {
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="space-y-8">
+            {/* Procurement Overview — live data */}
+            {procurementSummary && (
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-indigo-500" />
+                    Procurement Overview
+                  </h3>
+                  <div className="flex gap-2">
+                    <Link href="/admin/inventory/requisitions" className="text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 font-medium">Requisitions →</Link>
+                    <span className="text-gray-300 dark:text-gray-600">|</span>
+                    <Link href="/admin/inventory/po" className="text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 font-medium">Purchase Orders →</Link>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                  {[
+                    { label: 'Pending Requisitions', value: procurementSummary.pendingRequisitions, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/20', icon: ClipboardList },
+                    { label: 'Open RFQs', value: procurementSummary.openRfqs, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20', icon: FileText },
+                    { label: 'Pending POs', value: procurementSummary.pendingPoCount, color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-50 dark:bg-purple-900/20', icon: ShoppingCart },
+                    { label: 'Low Stock Items', value: procurementSummary.lowStockCount, color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/20', icon: AlertTriangle },
+                    { label: 'This Month Spend', value: `₹${procurementSummary.thisMonthPoSpend.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, color: 'text-green-600 dark:text-green-400', bg: 'bg-green-50 dark:bg-green-900/20', icon: DollarSign },
+                    { label: 'On-Time Delivery', value: `${procurementSummary.onTimeDeliveryRate}%`, color: procurementSummary.onTimeDeliveryRate >= 80 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400', bg: procurementSummary.onTimeDeliveryRate >= 80 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20', icon: Truck },
+                  ].map((stat) => (
+                    <div key={stat.label} className={`rounded-lg p-4 ${stat.bg}`}>
+                      <stat.icon className={`w-5 h-5 mb-2 ${stat.color}`} />
+                      <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{stat.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
               {dashboardMetrics.map((metric) => (

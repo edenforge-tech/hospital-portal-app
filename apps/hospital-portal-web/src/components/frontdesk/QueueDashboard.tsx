@@ -5,6 +5,7 @@ import type { ReactElement } from 'react';
 import { getApi } from '@/lib/api';
 import { Phone, Clock, UserX, ArrowRight, AlertCircle, Users, Activity } from 'lucide-react';
 import { HubConnectionBuilder, LogLevel, HubConnection } from '@microsoft/signalr';
+import { useConfirmation } from '@/components/common/ConfirmationDialog';
 
 interface QueueItem {
   id: string;
@@ -56,6 +57,8 @@ export default function QueueDashboard() {
   const [transferToQueue, setTransferToQueue] = useState<'Optometry' | 'Doctor' | 'Billing' | 'Pharmacy'>('Doctor');
   const [connection, setConnection] = useState<HubConnection | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+
+  const { showConfirmation, ConfirmationComponent } = useConfirmation();
 
   // SignalR connection for real-time updates
   useEffect(() => {
@@ -174,15 +177,17 @@ export default function QueueDashboard() {
 
   // Mark patient as absent
   const handleMarkAbsent = async (item: QueueItem) => {
-    if (!confirm(`Mark ${item.patientName} (${item.tokenNumber}) as absent?`)) return;
-    
-    try {
-      const api = getApi();
-      await api.post(`/queue/${item.id}/mark-absent`);
-      fetchQueueData();
-    } catch (error) {
-      console.error('Failed to mark absent:', error);
-    }
+    showConfirmation({
+      title: 'Mark Absent',
+      message: `Mark ${item.patientName} (${item.tokenNumber}) as absent?`,
+      variant: 'warning',
+      confirmText: 'Mark Absent',
+      onConfirm: async () => {
+        const api = getApi();
+        await api.post(`/queue/${item.id}/mark-absent`);
+        fetchQueueData();
+      },
+    });
   };
 
   // Transfer to another queue
@@ -332,6 +337,7 @@ export default function QueueDashboard() {
 
   return (
     <div className="max-w-[1600px] mx-auto">
+      <ConfirmationComponent />
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-slate-900 mb-1">Queue Management</h1>
@@ -339,7 +345,7 @@ export default function QueueDashboard() {
       </div>
 
       {/* Overall Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-lg border border-slate-200 p-4">
             <div className="flex items-center justify-between">
               <div>

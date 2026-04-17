@@ -20,6 +20,7 @@ import {
 import { getSurgeons, Surgeon, getNurses, Nurse, getOtTheaters, OtTheater } from '@/lib/api/widgets.api';
 import { useAuthStore } from '@/lib/auth-store';
 import { StatusBadge } from '@/components/counsellors-desk/StatusBadge';
+import { ConfirmationDialog } from '@/components/common/ConfirmationDialog';
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
@@ -50,16 +51,34 @@ interface OtDetailsModalProps {
 }
 
 /** Multi-select chip component used for assistant surgeons and scrub nurses */
-function ChipSelect({ label, options, selected, loading, onChange }: {
+function ChipSelect({ label, options, selected, loading, onChange, readOnly }: {
   label: string;
   options: { id: string; name: string }[];
   selected: string[];
   loading: boolean;
   onChange: (names: string[]) => void;
+  readOnly?: boolean;
 }) {
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  if (readOnly) {
+    return (
+      <div>
+        <p className="text-xs font-medium text-gray-500 mb-1.5">{label}</p>
+        <div className="flex flex-wrap gap-1.5 min-h-[32px]">
+          {selected.length === 0 ? (
+            <span className="text-sm text-gray-400">—</span>
+          ) : selected.map(name => (
+            <span key={name} className="inline-flex items-center px-2.5 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700 text-xs font-medium">
+              {name}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -124,7 +143,7 @@ function ChipSelect({ label, options, selected, loading, onChange }: {
 }
 
 /** Single-select searchable dropdown component */
-function SearchableSelect({ label, options, searchValue, onSearchChange, onSelect, loading, placeholder }: {
+function SearchableSelect({ label, options, searchValue, onSearchChange, onSelect, loading, placeholder, readOnly }: {
   label: string;
   options: { id: string; name: string; sub?: string }[];
   searchValue: string;
@@ -132,9 +151,21 @@ function SearchableSelect({ label, options, searchValue, onSearchChange, onSelec
   onSelect: (id: string, name: string) => void;
   loading?: boolean;
   placeholder?: string;
+  readOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  if (readOnly) {
+    return (
+      <div>
+        <p className="text-xs font-medium text-gray-500 mb-1">{label}</p>
+        <div className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800">
+          {searchValue || <span className="text-gray-400">—</span>}
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -548,45 +579,6 @@ function OtDetailsModal({ journey, onClose, onSaved }: OtDetailsModalProps) {
           <button type="submit" form="ot-details-form" disabled={saving}
             className="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-60">
             {saving ? 'Saving…' : 'Save OT Details'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Surgery Confirm Modal ─────────────────────────────────────────────────────
-
-function SurgeryConfirmModal({ message, onConfirm, onCancel, loading }: {
-  message: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-  loading?: boolean;
-}) {
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 text-center px-8 py-8 space-y-4">
-        <div className="flex items-center justify-center">
-          <div className="w-14 h-14 rounded-full border-4 border-cyan-200 bg-cyan-50 flex items-center justify-center">
-            <Info className="h-7 w-7 text-cyan-500" />
-          </div>
-        </div>
-        <h2 className="text-base font-bold text-gray-900">Update Surgery</h2>
-        <p className="text-sm text-gray-600">{message}</p>
-        <div className="flex justify-center gap-3 pt-1">
-          <button
-            onClick={onConfirm}
-            disabled={loading}
-            className="px-7 py-2 text-sm font-semibold bg-gray-800 hover:bg-gray-900 text-white rounded-lg disabled:opacity-60 min-w-[72px]"
-          >
-            {loading ? '…' : 'Yes'}
-          </button>
-          <button
-            onClick={onCancel}
-            disabled={loading}
-            className="px-7 py-2 text-sm font-semibold border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-60 min-w-[72px]"
-          >
-            No
           </button>
         </div>
       </div>
@@ -1501,13 +1493,13 @@ function IntraOpMultiSelect({ label, presets, value, onChange, notesPlaceholder,
         className={`min-h-[38px] w-full border rounded-lg px-2.5 py-1.5 flex flex-wrap gap-1.5 items-center transition-colors ${
           readOnly ? 'bg-gray-50 cursor-default' : 'bg-white cursor-pointer'
         } ${
-          open ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-300 hover:border-gray-400'
+          open ? 'border-blue-500 ring-2 ring-blue-100' : readOnly ? 'border-gray-200' : 'border-gray-300 hover:border-gray-400'
         }`}
       >
         {loading ? (
           <span className="text-xs text-gray-400">Loading…</span>
         ) : value.selected.length === 0 ? (
-          <span className="text-xs text-gray-400 select-none">Click to select…</span>
+          <span className="text-xs text-gray-400 select-none">{readOnly ? '—' : 'Click to select…'}</span>
         ) : (
           value.selected.map(opt => (
             <span key={opt} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium">
@@ -1592,7 +1584,7 @@ function IntraOpMultiSelect({ label, presets, value, onChange, notesPlaceholder,
         value={value.notes}
         onChange={e => onChange({ ...value, notes: e.target.value })}
         placeholder={notesPlaceholder ?? 'Additional notes…'}
-        className="mt-1.5 w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-xs text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none disabled:opacity-60"
+        className="mt-1.5 w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-xs text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
       />
     </div>
   );
@@ -1819,7 +1811,7 @@ function SurgeryDetailModal({ journey, onClose, onSaved, onOpenConfirm, onOpenRe
           </div>
 
           {/* OT form */}
-          <form id="surgery-detail-form" onSubmit={handleSave} className={`space-y-5${isReadOnly ? ' pointer-events-none select-none opacity-60' : ''}`}>
+          <form id="surgery-detail-form" onSubmit={handleSave} className="space-y-5">
             {/* Surgical Team */}
             <div>
               <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Surgical Team</p>
@@ -1834,31 +1826,40 @@ function SurgeryDetailModal({ journey, onClose, onSaved, onOpenConfirm, onOpenRe
                   loading={staffLoading}
                   placeholder="Search surgeon…"
                 />
-                <div ref={anaRef} className="relative">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Anaesthetist</label>
-                  <input
-                    type="text"
-                    value={anaesthetistSearch}
-                    onChange={e => { setAnaesthetistSearch(e.target.value); setForm(f => ({ ...f, anaesthetistName: e.target.value })); setAnaDropOpen(true); }}
-                    onFocus={() => setAnaDropOpen(true)}
-                    placeholder={staffLoading ? 'Loading…' : 'Search anaesthetist…'}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  {anaDropOpen && filteredAnaesthetists.length > 0 && (
-                    <div className="absolute left-0 top-full mt-1 z-40 w-full bg-white rounded-xl shadow-lg border border-gray-100 py-1 max-h-40 overflow-y-auto">
-                      {filteredAnaesthetists.map(s => (
-                        <button key={s.id} type="button"
-                          onMouseDown={e => { e.preventDefault(); setAnaesthetistSearch(s.name); setForm(f => ({ ...f, anaesthetistName: s.name })); setAnaDropOpen(false); }}
-                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-blue-50 text-left">
-                          <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-semibold text-[10px] shrink-0">
-                            {s.name.charAt(0)}
-                          </div>
-                          {s.name}
-                        </button>
-                      ))}
+                {isReadOnly ? (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-1">Anaesthetist</p>
+                    <div className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800">
+                      {anaesthetistSearch || form.anaesthetistName || <span className="text-gray-400">—</span>}
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div ref={anaRef} className="relative">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Anaesthetist</label>
+                    <input
+                      type="text"
+                      value={anaesthetistSearch}
+                      onChange={e => { setAnaesthetistSearch(e.target.value); setForm(f => ({ ...f, anaesthetistName: e.target.value })); setAnaDropOpen(true); }}
+                      onFocus={() => setAnaDropOpen(true)}
+                      placeholder={staffLoading ? 'Loading…' : 'Search anaesthetist…'}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {anaDropOpen && filteredAnaesthetists.length > 0 && (
+                      <div className="absolute left-0 top-full mt-1 z-40 w-full bg-white rounded-xl shadow-lg border border-gray-100 py-1 max-h-40 overflow-y-auto">
+                        {filteredAnaesthetists.map(s => (
+                          <button key={s.id} type="button"
+                            onMouseDown={e => { e.preventDefault(); setAnaesthetistSearch(s.name); setForm(f => ({ ...f, anaesthetistName: s.name })); setAnaDropOpen(false); }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-blue-50 text-left">
+                            <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-semibold text-[10px] shrink-0">
+                              {s.name.charAt(0)}
+                            </div>
+                            {s.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <SearchableSelect
                   label="Operation Theatre"
                   options={otTheaters.map(t => ({ id: t.id, name: t.name }))}
@@ -1869,10 +1870,10 @@ function SurgeryDetailModal({ journey, onClose, onSaved, onOpenConfirm, onOpenRe
                   placeholder="Search or type OT room…"
                 />
                 <div className="sm:col-span-2">
-                  <ChipSelect label="Assistant Surgeon(s)" options={surgeons} selected={assistants} loading={staffLoading} onChange={setAssistants} />
+                  <ChipSelect label="Assistant Surgeon(s)" options={surgeons} selected={assistants} loading={staffLoading} onChange={setAssistants} readOnly={isReadOnly} />
                 </div>
                 <div className="sm:col-span-2">
-                  <ChipSelect label="Scrub Nurse(s)" options={nurses} selected={scrubNurses} loading={staffLoading} onChange={setScrubNurses} />
+                  <ChipSelect label="Scrub Nurse(s)" options={nurses} selected={scrubNurses} loading={staffLoading} onChange={setScrubNurses} readOnly={isReadOnly} />
                 </div>
               </div>
             </div>
@@ -1881,18 +1882,24 @@ function SurgeryDetailModal({ journey, onClose, onSaved, onOpenConfirm, onOpenRe
             <div>
               <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Anaesthesia</p>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Anaesthesia Type</label>
-                <div className="flex flex-wrap gap-2">
-                  {(['Local', 'General', 'Spinal', 'Topical', 'Retrobulbar', 'Peribulbar'] as const).map(t => (
-                    <label key={t} className={`flex items-center px-3 py-1.5 rounded-lg border text-xs cursor-pointer transition-all ${
-                      form.anaesthesiaType === t ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                    }`}>
-                      <input type="radio" name="sdm-anaesthesiaType" checked={form.anaesthesiaType === t}
-                        onChange={() => setForm(f => ({ ...f, anaesthesiaType: t }))} className="hidden" />
-                      {t}
-                    </label>
-                  ))}
-                </div>
+                <p className="text-xs font-medium text-gray-500 mb-2">Anaesthesia Type</p>
+                {isReadOnly ? (
+                  <span className="inline-block px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 text-xs font-medium">
+                    {form.anaesthesiaType || '—'}
+                  </span>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {(['Local', 'General', 'Spinal', 'Topical', 'Retrobulbar', 'Peribulbar'] as const).map(t => (
+                      <label key={t} className={`flex items-center px-3 py-1.5 rounded-lg border text-xs cursor-pointer transition-all ${
+                        form.anaesthesiaType === t ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                      }`}>
+                        <input type="radio" name="sdm-anaesthesiaType" checked={form.anaesthesiaType === t}
+                          onChange={() => setForm(f => ({ ...f, anaesthesiaType: t }))} className="hidden" />
+                        {t}
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1915,34 +1922,53 @@ function SurgeryDetailModal({ journey, onClose, onSaved, onOpenConfirm, onOpenRe
                   }}
                   loading={staffLoading}
                   placeholder="Search IOL model…"
+                  readOnly={isReadOnly}
                 />
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">IOL Power</label>
-                  {iolPowerOptions.length > 0 ? (
-                    <select
-                      value={form.iolPower ?? ''}
-                      onChange={e => setForm(f => ({ ...f, iolPower: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                      <option value="">Select power…</option>
-                      {iolPowerOptions.map(p => (
-                        <option key={p} value={p}>{p}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input type="text" value={form.iolPower ?? ''}
-                      onChange={e => setForm(f => ({ ...f, iolPower: e.target.value }))}
-                      placeholder="e.g. +21.0D"
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  )}
-                </div>
-                <div className="flex items-center gap-2 pt-5">
-                  <input type="checkbox" id="sdm-iolIssuedFromIp" checked={form.iolIssuedFromIp ?? false}
-                    onChange={e => setForm(f => ({ ...f, iolIssuedFromIp: e.target.checked }))}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                  <label htmlFor="sdm-iolIssuedFromIp" className="text-xs font-medium text-gray-700 cursor-pointer">
-                    IOL Issued From IP Store
-                  </label>
-                </div>
+                {isReadOnly ? (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-1">IOL Power</p>
+                    <div className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800">{form.iolPower || '—'}</div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">IOL Power</label>
+                    {iolPowerOptions.length > 0 ? (
+                      <select
+                        value={form.iolPower ?? ''}
+                        onChange={e => setForm(f => ({ ...f, iolPower: e.target.value }))}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                        <option value="">Select power…</option>
+                        {iolPowerOptions.map(p => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input type="text" value={form.iolPower ?? ''}
+                        onChange={e => setForm(f => ({ ...f, iolPower: e.target.value }))}
+                        placeholder="e.g. +21.0D"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    )}
+                  </div>
+                )}
+                {isReadOnly ? (
+                  <div className="pt-5">
+                    <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${form.iolIssuedFromIp ? 'text-blue-700' : 'text-gray-400'}`}>
+                      <span className={`shrink-0 w-4 h-4 rounded border flex items-center justify-center ${form.iolIssuedFromIp ? 'bg-blue-600 border-blue-600' : 'border-gray-300'}`}>
+                        {form.iolIssuedFromIp && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 8"><path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </span>
+                      IOL Issued From IP Store
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 pt-5">
+                    <input type="checkbox" id="sdm-iolIssuedFromIp" checked={form.iolIssuedFromIp ?? false}
+                      onChange={e => setForm(f => ({ ...f, iolIssuedFromIp: e.target.checked }))}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <label htmlFor="sdm-iolIssuedFromIp" className="text-xs font-medium text-gray-700 cursor-pointer">
+                      IOL Issued From IP Store
+                    </label>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1987,51 +2013,64 @@ function SurgeryDetailModal({ journey, onClose, onSaved, onOpenConfirm, onOpenRe
                     readOnly={isReadOnly}
                     loading={presetsLoading}
                   />
-                  {/* Blood Loss & IV Fluid — quick-select + free number input */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Blood Loss (mL)</label>
-                      <div className="flex flex-wrap gap-1 mb-1.5">
-                        {[0, 50, 100, 250].map(v => (
-                          <button key={v} type="button" disabled={isReadOnly}
-                            onClick={() => setIntraOpForm(f => ({ ...f, bloodLossMl: String(v) }))}
-                            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                              intraOpForm.bloodLossMl === String(v)
-                                ? 'bg-blue-600 text-white border-blue-600'
-                                : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
-                            } disabled:opacity-50 disabled:cursor-not-allowed`}>
-                            {v}
-                          </button>
-                        ))}
+                  {/* Blood Loss & IV Fluid */}
+                  {isReadOnly ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 mb-1.5">Blood Loss (mL)</p>
+                        <div className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800">{intraOpForm.bloodLossMl || '—'}</div>
                       </div>
-                      <input type="number" min={0} disabled={isReadOnly}
-                        value={intraOpForm.bloodLossMl}
-                        onChange={e => setIntraOpForm(f => ({ ...f, bloodLossMl: e.target.value }))}
-                        placeholder="Enter mL"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">IV Fluid (mL)</label>
-                      <div className="flex flex-wrap gap-1 mb-1.5">
-                        {[100, 250, 500, 1000].map(v => (
-                          <button key={v} type="button" disabled={isReadOnly}
-                            onClick={() => setIntraOpForm(f => ({ ...f, ivFluidMl: String(v) }))}
-                            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                              intraOpForm.ivFluidMl === String(v)
-                                ? 'bg-blue-600 text-white border-blue-600'
-                                : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
-                            } disabled:opacity-50 disabled:cursor-not-allowed`}>
-                            {v}
-                          </button>
-                        ))}
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 mb-1.5">IV Fluid (mL)</p>
+                        <div className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800">{intraOpForm.ivFluidMl || '—'}</div>
                       </div>
-                      <input type="number" min={0} disabled={isReadOnly}
-                        value={intraOpForm.ivFluidMl}
-                        onChange={e => setIntraOpForm(f => ({ ...f, ivFluidMl: e.target.value }))}
-                        placeholder="Enter mL"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50" />
                     </div>
-                  </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Blood Loss (mL)</label>
+                        <div className="flex flex-wrap gap-1 mb-1.5">
+                          {[0, 50, 100, 250].map(v => (
+                            <button key={v} type="button"
+                              onClick={() => setIntraOpForm(f => ({ ...f, bloodLossMl: String(v) }))}
+                              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                                intraOpForm.bloodLossMl === String(v)
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                              }`}>
+                              {v}
+                            </button>
+                          ))}
+                        </div>
+                        <input type="number" min={0}
+                          value={intraOpForm.bloodLossMl}
+                          onChange={e => setIntraOpForm(f => ({ ...f, bloodLossMl: e.target.value }))}
+                          placeholder="Enter mL"
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">IV Fluid (mL)</label>
+                        <div className="flex flex-wrap gap-1 mb-1.5">
+                          {[100, 250, 500, 1000].map(v => (
+                            <button key={v} type="button"
+                              onClick={() => setIntraOpForm(f => ({ ...f, ivFluidMl: String(v) }))}
+                              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                                intraOpForm.ivFluidMl === String(v)
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                              }`}>
+                              {v}
+                            </button>
+                          ))}
+                        </div>
+                        <input type="number" min={0}
+                          value={intraOpForm.ivFluidMl}
+                          onChange={e => setIntraOpForm(f => ({ ...f, ivFluidMl: e.target.value }))}
+                          placeholder="Enter mL"
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -2201,7 +2240,7 @@ function ExpandedPanel({ journey, onSaved, onViewDetails }: ExpandedPanelProps) 
               </button>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <button
               onClick={() => setNurseChecklist(true)}
               className="group flex flex-col items-start p-4 bg-white border border-gray-200 rounded-xl hover:border-cyan-300 hover:shadow-md transition-all text-left"
@@ -2524,14 +2563,17 @@ export default function OperationTheatrePage() {
   return (
     <div className="space-y-4">
       {formatHeads && <FormatHeadsModal onClose={() => setFormatHeads(false)} />}
-      {confirmModal && (
-        <SurgeryConfirmModal
-          message={confirmModal.message}
-          loading={actionLoading}
-          onConfirm={handleConfirmAction}
-          onCancel={() => setConfirmModal(null)}
-        />
-      )}
+      <ConfirmationDialog
+        isOpen={!!confirmModal}
+        title="Update Surgery"
+        message={confirmModal?.message ?? ''}
+        variant="info"
+        confirmText="Yes"
+        cancelText="No"
+        isLoading={actionLoading}
+        onConfirm={handleConfirmAction}
+        onClose={() => setConfirmModal(null)}
+      />
       {returnJourney && (
         <ReturnPatientModal
           journey={returnJourney}

@@ -272,9 +272,10 @@ export default function LoginPage() {
   };
 
   return (
-    <main id="main-content" className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
-        <div className="text-center mb-8">
+    <main id="main-content" className="min-h-screen flex flex-col items-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8">
+      <div className="my-auto w-full max-w-md flex flex-col gap-4">
+      <div className="bg-white rounded-lg shadow-2xl p-4 sm:p-8 w-full">
+        <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-indigo-600">Eye Hospital</h1>
           <p className="text-gray-600 mt-2">Hospital Management System</p>
         </div>
@@ -462,16 +463,15 @@ export default function LoginPage() {
           </form>
         )}
 
-        {!mfaRequired && (
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-700">
-              <strong>Demo Credentials:</strong><br/>
-              Email: admin@test.com<br/>
-              Password: Admin123!<br/>
-              Tenant: India Eye Hospital Network
-            </p>
-          </div>
-        )}
+      </div>
+
+      {!mfaRequired && (
+        <div className="w-full px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-700">
+            <strong>Demo Credentials:</strong> admin@test.com · Admin123! · India Eye Hospital Network
+          </p>
+        </div>
+      )}
       </div>
     </main>
   );

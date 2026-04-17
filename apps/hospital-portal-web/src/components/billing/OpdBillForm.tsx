@@ -419,7 +419,7 @@ export default function OpdBillForm({ patientId, patientName, appointmentId, onC
         {/* Bill Items Table */}
         <div>
           <h3 className="text-lg font-semibold text-gray-900 mb-3">Billable Items</h3>
-          <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="border border-gray-200 rounded-lg overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>

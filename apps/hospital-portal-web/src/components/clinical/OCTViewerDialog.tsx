@@ -240,7 +240,7 @@ export default function OCTViewerDialog({
       </div>
 
       {/* Viewport */}
-      <div className="relative w-full h-full max-w-6xl max-h-screen p-20">
+      <div className="relative w-full h-full max-w-6xl max-h-screen p-4 md:p-8 lg:p-20">
         <div className="relative w-full h-full bg-black rounded-lg overflow-hidden">
           {isLoading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center">

@@ -34,7 +34,7 @@ export default function DashboardStats() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="bg-white p-4 rounded shadow animate-pulse">
             <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
@@ -47,7 +47,7 @@ export default function DashboardStats() {
 
   if (!stats) {
     return (
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded shadow">
           <div className="text-sm text-gray-500">Staff</div>
           <div className="text-2xl font-bold">—</div>
@@ -71,7 +71,7 @@ export default function DashboardStats() {
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded shadow border-l-4 border-blue-500">
           <div className="text-sm text-gray-500">Total Staff</div>
           <div className="text-2xl font-bold text-blue-600">{stats.totalStaff}</div>
@@ -146,7 +146,7 @@ export default function DashboardStats() {
       {stats.branchStats.length > 0 && (
         <div className="bg-white p-6 rounded shadow">
           <h3 className="text-lg font-semibold mb-4">Staff by Branch</h3>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {stats.branchStats.map((branch, idx) => (
               <div key={idx} className="border rounded p-4">
                 <div className="text-sm text-gray-600">{branch.name}</div>

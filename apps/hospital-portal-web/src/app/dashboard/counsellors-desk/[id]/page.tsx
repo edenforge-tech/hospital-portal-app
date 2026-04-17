@@ -11,6 +11,7 @@ import { sanitizeVariantName } from '@/lib/utils/sanitize-names';
 import type { FullCatalogResponse, IolMasterDto, FlatVariantDto } from '@/lib/api/service-catalog.api';
 import { useAuthStore } from '@/lib/auth-store';
 import { usersApi } from '@/lib/api';
+import { useConfirmation } from '@/components/common/ConfirmationDialog';
 import { ScheduleSurgeryModal } from '@/components/counsellors-desk/ScheduleSurgeryModal';
 import { SessionHistoryModal } from '@/components/counsellors-desk/SessionHistoryModal';
 import type { CounsellingSession, ScheduleData, WaitingListStatus, SessionAuditEntry, DecisionType, MasterCatalogItem, InvestigationItem, CombinedPaymentType } from '@/types/counsellors-desk';
@@ -48,6 +49,7 @@ export default function CounsellingSessionPage() {
   const params = useParams();
   const router = useRouter();
   const sessionId = params.id as string;
+  const { showConfirmation, ConfirmationComponent } = useConfirmation();
 
   const [session, setSession] = useState<CounsellingSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -406,20 +408,37 @@ export default function CounsellingSessionPage() {
   }, [sessionId]);
 
   const handleBack = () => {
-    if (isDirty && !window.confirm('You have unsaved changes. Are you sure you want to leave?')) return;
+    if (isDirty) {
+      showConfirmation({
+        title: 'Unsaved Changes',
+        message: 'You have unsaved changes. Are you sure you want to leave?',
+        variant: 'warning',
+        confirmText: 'Leave',
+        cancelText: 'Stay',
+        onConfirm: () => router.back(),
+      });
+      return;
+    }
     router.back();
   };
 
   // Done → Processed: re-opens the session so the counsellor can change the procedure
-  const handleReEvaluate = async () => {
-    if (!window.confirm('Changing the procedure will restart the counselling process (Done → In Progress). Continue?')) return;
-    try {
-      await counsellingAzureApi.reEvaluate(sessionId);
-      setQueueStatus('Processed');
-      toast.success('Session reopened for re-evaluation');
-    } catch {
-      toast.error('Failed to re-open session');
-    }
+  const handleReEvaluate = () => {
+    showConfirmation({
+      title: 'Re-evaluate Session',
+      message: 'Changing the procedure will restart the counselling process (Done → In Progress). Continue?',
+      variant: 'warning',
+      confirmText: 'Continue',
+      onConfirm: async () => {
+        try {
+          await counsellingAzureApi.reEvaluate(sessionId);
+          setQueueStatus('Processed');
+          toast.success('Session reopened for re-evaluation');
+        } catch {
+          toast.error('Failed to re-open session');
+        }
+      },
+    });
   };
 
   // RepeatCounselling → Processed: counsellor explicitly starts a fresh counselling round.
@@ -820,6 +839,7 @@ export default function CounsellingSessionPage() {
 
   return (
     <div className="flex flex-col" style={{ height: 'calc(100vh - 120px)' }}>
+      <ConfirmationComponent />
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-4 mb-4 shadow">
         <div className="flex items-start justify-between">
@@ -925,9 +945,9 @@ export default function CounsellingSessionPage() {
                 </div>
               </div>
             )}
-            <div className="flex gap-5 flex-1 min-h-0 overflow-hidden">
+            <div className="flex flex-col lg:flex-row gap-5 flex-1 min-h-0 lg:overflow-hidden overflow-y-auto">
               {/* LEFT: Surgery Selection */}
-              <div className="w-1/3 flex-shrink-0 flex flex-col gap-3 overflow-y-auto scrollbar-hide pb-4">
+              <div className="w-full lg:w-1/3 flex-shrink-0 flex flex-col gap-3 lg:overflow-y-auto scrollbar-hide pb-4">
                 <div className={`bg-gray-50 rounded-xl border border-gray-200 flex flex-col overflow-hidden ${procExpanded ? 'min-h-[360px]' : 'flex-shrink-0'}`}>
                   {/* Collapsible header */}
                   <button

@@ -169,7 +169,7 @@ export default function AntiVEGFManagement({
       {/* Pre-Injection Assessment */}
       <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-6">
         <h4 className="text-lg font-bold text-yellow-900 mb-4">Pre-Injection Assessment</h4>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">
               VA OD (Pre)
@@ -236,7 +236,7 @@ export default function AntiVEGFManagement({
       {/* Post-Injection Assessment */}
       <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6">
         <h4 className="text-lg font-bold text-green-900 mb-4">Post-Injection Assessment (1 week)</h4>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">
               VA OD (Post)

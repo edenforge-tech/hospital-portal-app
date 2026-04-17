@@ -54,6 +54,7 @@ import {
   organizationsEnhancedApi 
 } from '@/lib/api/organizations-enhanced.api';
 import { DepartmentAssignmentFormModal } from './DepartmentAssignmentFormModal';
+import { useDeleteConfirmation } from '@/components/common/ConfirmationDialog';
 
 interface DepartmentAssignmentsProps {
   organizations: Organization[];
@@ -64,6 +65,7 @@ export const DepartmentAssignments: React.FC<DepartmentAssignmentsProps> = ({
   organizations,
   onAssignmentUpdate
 }) => {
+  const { confirmDelete, ConfirmationComponent } = useDeleteConfirmation();
   // State Management
   const [assignments, setAssignments] = useState<DepartmentAssignment[]>([]);
   const [selectedAssignment, setSelectedAssignment] = useState<DepartmentAssignment | null>(null);
@@ -213,14 +215,14 @@ export const DepartmentAssignments: React.FC<DepartmentAssignmentsProps> = ({
         setShowFormModal(true);
         break;
       case 'delete':
-        if (confirm(`Are you sure you want to remove the assignment for "${assignment.departmentName}"?`)) {
+        confirmDelete(assignment.departmentName, async () => {
           try {
             // In a real implementation, call API to delete assignment
             await onAssignmentUpdate();
           } catch (error) {
             console.error('Error deleting assignment:', error);
           }
-        }
+        });
         break;
       case 'view':
         setSelectedAssignment(assignment);
@@ -297,6 +299,7 @@ export const DepartmentAssignments: React.FC<DepartmentAssignmentsProps> = ({
 
   return (
     <div className="space-y-6">
+      <ConfirmationComponent />
       {/* Header Section */}
       <div className="flex items-center justify-between">
         <div>

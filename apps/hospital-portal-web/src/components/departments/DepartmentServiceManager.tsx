@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { departmentsEnhancedApi, Department, DepartmentService, ServiceFilters } from '@/lib/api/departments-enhanced.api';
+import { useDeleteConfirmation } from '@/components/common/ConfirmationDialog';
 import { 
   Activity, 
   Clock, 
@@ -50,6 +51,7 @@ interface ServiceFormData {
 }
 
 export default function DepartmentServiceManager({ department, onUpdate }: DepartmentServiceManagerProps) {
+  const { confirmDelete, ConfirmationComponent } = useDeleteConfirmation();
   const [services, setServices] = useState<DepartmentService[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,16 +96,14 @@ export default function DepartmentServiceManager({ department, onUpdate }: Depar
   };
 
   const handleDeleteService = async (service: DepartmentService) => {
-    if (!window.confirm(`Are you sure you want to delete ${service.serviceName}?`)) {
-      return;
-    }
-
-    try {
-      await departmentsEnhancedApi.deleteService(department.id, service.id);
-      await loadServices();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete service');
-    }
+    confirmDelete(service.serviceName, async () => {
+      try {
+        await departmentsEnhancedApi.deleteService(department.id, service.id);
+        await loadServices();
+      } catch (err: any) {
+        setError(err.response?.data?.message || 'Failed to delete service');
+      }
+    });
   };
 
   const handleToggleServiceStatus = async (service: DepartmentService) => {
@@ -145,6 +145,7 @@ export default function DepartmentServiceManager({ department, onUpdate }: Depar
 
   return (
     <div className="space-y-6">
+      <ConfirmationComponent />
       {/* Error Display */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">

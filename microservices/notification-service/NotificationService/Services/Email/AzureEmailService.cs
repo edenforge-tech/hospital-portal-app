@@ -334,4 +334,69 @@ This is an automated message. Please do not reply to this email.";
             return (false, null, $"Failed to send email: {ex.Message}");
         }
     }
+
+    public async Task<(bool Success, string? MessageId, string? Error)> SendPurchaseReturnEventAsync(
+        string toEmail,
+        string vendorName,
+        string returnNumber,
+        string eventType,
+        decimal netAmount,
+        DateTime eventAt,
+        string? creditNoteNumber = null,
+        decimal? creditNoteAmount = null,
+        string? cancellationReason = null)
+    {
+        var (subject, headerColor, eventLabel, extraRow) = eventType switch
+        {
+            "SentToVendor"       => ("#1a73e8", "#1a73e8", "Return Sent to Vendor",   string.Empty),
+            "CreditNoteReceived" => ("#2e7d32", "#2e7d32", "Credit Note Received",
+                creditNoteNumber != null
+                    ? $"<tr><td style='padding:6px 0;color:#555;'>Credit Note #</td><td style='padding:6px 0;font-weight:600;'>{creditNoteNumber}</td></tr>" +
+                      $"<tr><td style='padding:6px 0;color:#555;'>Credit Note Amount</td><td style='padding:6px 0;font-weight:600;'>₹{creditNoteAmount:N2}</td></tr>"
+                    : string.Empty),
+            "Settled"            => ("#1565c0", "#1565c0", "Return Settled",          string.Empty),
+            "Cancelled"          => ("#b71c1c", "#b71c1c", "Return Cancelled",
+                !string.IsNullOrEmpty(cancellationReason)
+                    ? $"<tr><td style='padding:6px 0;color:#555;'>Reason</td><td style='padding:6px 0;font-weight:600;'>{cancellationReason}</td></tr>"
+                    : string.Empty),
+            _                    => ("#555555", "#555555", eventType,                 string.Empty),
+        };
+
+        var htmlBody = $@"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='utf-8' />
+  <style>
+    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+    .header {{ background: {headerColor}; color: #fff; padding: 18px 24px; border-radius: 8px 8px 0 0; }}
+    .content {{ background: #f9f9f9; padding: 28px; border-radius: 0 0 8px 8px; }}
+    table {{ width: 100%; border-collapse: collapse; }}
+    .footer {{ text-align: center; margin-top: 24px; color: #888; font-size: 12px; }}
+  </style>
+</head>
+<body>
+  <div class=""container"">
+    <div class=""header""><h2 style=""margin:0;"">{eventLabel} — Hospital Portal</h2></div>
+    <div class=""content"">
+      <p>Dear <strong>{vendorName}</strong>,</p>
+      <p>This is an automated notification regarding purchase return <strong>{returnNumber}</strong>.</p>
+      <table>
+        <tr><td style='padding:6px 0;color:#555;'>Return #</td><td style='padding:6px 0;font-weight:600;'>{returnNumber}</td></tr>
+        <tr><td style='padding:6px 0;color:#555;'>Event</td><td style='padding:6px 0;font-weight:600;'>{eventLabel}</td></tr>
+        <tr><td style='padding:6px 0;color:#555;'>Net Return Amount</td><td style='padding:6px 0;font-weight:600;'>₹{netAmount:N2}</td></tr>
+        <tr><td style='padding:6px 0;color:#555;'>Date / Time</td><td style='padding:6px 0;'>{eventAt:dd MMM yyyy HH:mm} UTC</td></tr>
+        {extraRow}
+      </table>
+      <p style='margin-top:20px;font-size:13px;color:#666;'>If you have any questions, please contact the hospital procurement team.</p>
+    </div>
+    <div class=""footer""><p>© 2026 Hospital Portal. All rights reserved.</p></div>
+  </div>
+</body>
+</html>";
+
+        var plainText = $"Purchase Return {returnNumber} — {eventLabel}\nVendor: {vendorName}\nNet Amount: ₹{netAmount:N2}\nDate: {eventAt:dd MMM yyyy HH:mm} UTC";
+
+        return await SendEmailAsync(toEmail, $"{eventLabel}: Return {returnNumber}", htmlBody, plainText);
+    }
 }

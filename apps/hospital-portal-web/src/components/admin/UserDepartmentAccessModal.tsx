@@ -6,6 +6,7 @@ import { X, CheckCircle, Trash2, Building2, Shield, AlertTriangle, CheckCircle2,
 import { userDepartmentAccessApi, DepartmentAccessDto } from '@/lib/api/user-department-access.api';
 import { departmentsApi } from '@/lib/api';
 import GranularPermissionSelector, { GranularPermissions } from './GranularPermissionSelector';
+import { useConfirmation } from '@/components/common/ConfirmationDialog';
 
 interface UserDepartmentAccessModalProps {
   userId: string;
@@ -32,6 +33,8 @@ export default function UserDepartmentAccessModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const { showConfirmation, ConfirmationComponent } = useConfirmation();
   
   // Form state
   const [selectedDepartments, setSelectedDepartments] = useState<Department[]>([]);
@@ -276,6 +279,7 @@ export default function UserDepartmentAccessModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+      <ConfirmationComponent />
       <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
         {/* Modern Healthcare Header */}
         <div className="bg-gradient-to-r from-blue-600 to-teal-600 px-6 py-5">
@@ -628,9 +632,13 @@ export default function UserDepartmentAccessModal({
                             )}
                             <button
                               onClick={() => {
-                                if (confirm(`⚠️ Revoke access to "${dept.departmentName}"?\n\nThis will remove all permissions and access to this department. This action cannot be undone.`)) {
-                                  handleRevoke(dept.departmentId);
-                                }
+                                  showConfirmation({
+                                    title: 'Revoke Access',
+                                    message: `Revoke access to "${dept.departmentName}"? This will remove all permissions and access to this department. This action cannot be undone.`,
+                                    variant: 'danger',
+                                    confirmText: 'Revoke Access',
+                                    onConfirm: async () => { handleRevoke(dept.departmentId); },
+                                  });
                               }}
                               disabled={saving}
                               className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg transition-all disabled:opacity-50 border border-rose-200"

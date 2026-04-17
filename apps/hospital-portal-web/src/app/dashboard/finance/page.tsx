@@ -233,7 +233,7 @@ export default function FinancePage() {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
             <div className="flex items-center justify-between">
               <div>

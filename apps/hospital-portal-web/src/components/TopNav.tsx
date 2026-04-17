@@ -4,8 +4,13 @@ import { useAuthStore } from '@/lib/auth-store';
 import LiveActivityFeed from '@/components/LiveActivityFeed';
 import { usePathname } from 'next/navigation';
 import { AudioRecorderPanel } from '@/components/counselor/AudioRecorderPanel';
+import { Menu } from 'lucide-react';
 
-export default function TopNav() {
+interface TopNavProps {
+  onMenuClick?: () => void;
+}
+
+export default function TopNav({ onMenuClick }: TopNavProps) {
   const { user, logout } = useAuthStore();
   const pathname = usePathname();
 
@@ -16,7 +21,14 @@ export default function TopNav() {
   return (
     <div className="bg-white px-4 py-3 flex items-center justify-between">
       <div className="flex items-center space-x-4">
-        {/* Breadcrumb or page title can go here if needed */}
+        {/* Hamburger — visible only below 1024px (tablet/mobile) */}
+        <button
+          onClick={onMenuClick}
+          className="lg:hidden p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg"
+          aria-label="Toggle navigation menu"
+        >
+          <Menu size={22} />
+        </button>
       </div>
 
       <div className="flex items-center space-x-4">

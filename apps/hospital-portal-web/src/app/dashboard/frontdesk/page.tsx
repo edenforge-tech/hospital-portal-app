@@ -108,7 +108,7 @@ export default function FrontDeskDashboard() {
                 placeholder="Search patient (UHID, Name, Phone)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 w-80 rounded-lg border-0 focus:ring-2 focus:ring-white text-sm"
+                className="pl-10 pr-4 py-2 w-full max-w-xs rounded-lg border-0 focus:ring-2 focus:ring-white text-sm"
               />
             </div>
             <button
@@ -252,7 +252,7 @@ export default function FrontDeskDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white rounded-lg shadow-sm p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
             <button
               onClick={() => setIsNewPatientModalOpen(true)}
               className="p-4 border-2 border-slate-200 rounded-lg hover:border-emerald-500 hover:bg-emerald-50 transition text-left group"

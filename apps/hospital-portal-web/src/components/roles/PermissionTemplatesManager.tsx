@@ -38,6 +38,7 @@ import {
   Role, 
   rolesPermissionsEnhancedApi 
 } from '@/lib/api/roles-permissions-enhanced.api';
+import { useDeleteConfirmation } from '@/components/common/ConfirmationDialog';
 
 interface PermissionTemplatesManagerProps {
   templates: PermissionTemplate[];
@@ -57,6 +58,8 @@ export const PermissionTemplatesManager: React.FC<PermissionTemplatesManagerProp
   const [selectedTemplate, setSelectedTemplate] = useState<PermissionTemplate | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState('templates');
+
+  const { confirmDelete, ConfirmationComponent } = useDeleteConfirmation();
 
   // Filter templates
   const filteredTemplates = templates.filter(template => {
@@ -105,7 +108,7 @@ export const PermissionTemplatesManager: React.FC<PermissionTemplatesManagerProp
       return;
     }
 
-    if (confirm(`Delete template "${template.name}"?`)) {
+    confirmDelete(template.name, async () => {
       try {
         // Note: Delete endpoint would need to be implemented
         alert('Delete functionality would be implemented here');
@@ -113,7 +116,7 @@ export const PermissionTemplatesManager: React.FC<PermissionTemplatesManagerProp
       } catch (error) {
         console.error('Error deleting template:', error);
       }
-    }
+    });
   };
 
   const getComplianceBadgeColor = (level: string) => {

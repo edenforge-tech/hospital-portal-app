@@ -20,4 +20,15 @@ public interface IEmailService
         string userName,
         string resetByAdmin,
         DateTime resetAt);
+
+    Task<(bool Success, string? MessageId, string? Error)> SendPurchaseReturnEventAsync(
+        string toEmail,
+        string vendorName,
+        string returnNumber,
+        string eventType,
+        decimal netAmount,
+        DateTime eventAt,
+        string? creditNoteNumber = null,
+        decimal? creditNoteAmount = null,
+        string? cancellationReason = null);
 }

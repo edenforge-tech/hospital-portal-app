@@ -171,7 +171,7 @@ export default function OPDReports() {
 
         {/* Filters */}
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Report Type</label>
               <select
@@ -206,7 +206,7 @@ export default function OPDReports() {
         </div>
 
         {/* Overall Stats Cards */}
-        <div className="grid grid-cols-4 gap-6 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
           <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200">
             <div className="flex items-center justify-between">
               <div>

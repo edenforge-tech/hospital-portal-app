@@ -262,6 +262,17 @@ public class ResendEmailService : IEmailService
 </body>
 </html>";
     }
+
+    // Purchase return event emails are only supported via AzureEmailService.
+    // ResendEmailService is a legacy fallback; delegate to a minimal implementation.
+    public Task<(bool Success, string? MessageId, string? Error)> SendPurchaseReturnEventAsync(
+        string toEmail, string vendorName, string returnNumber, string eventType,
+        decimal netAmount, DateTime eventAt,
+        string? creditNoteNumber = null, decimal? creditNoteAmount = null, string? cancellationReason = null)
+    {
+        _logger.LogWarning("SendPurchaseReturnEventAsync called on ResendEmailService (legacy) — not implemented.");
+        return Task.FromResult<(bool, string?, string?)>((false, null, "Not implemented in legacy email provider."));
+    }
 }
 
 // Response model for Resend API

@@ -206,7 +206,7 @@ function DoctorDeskPageContent() {
           </div>
           <div className="flex-1">
             <h2 className="text-2xl font-bold text-blue-900 mb-3">{patientData.name}</h2>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <p className="text-xs text-blue-600 font-semibold mb-1">MRN</p>
                 <p className="text-sm text-blue-900 font-mono">{patientData.mrn}</p>

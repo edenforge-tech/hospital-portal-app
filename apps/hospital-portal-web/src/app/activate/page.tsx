@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Mail, Lock, Shield, CheckCircle, Smartphone, Briefcase } from 'lucide-react';
 import { getApi } from '@/lib/api';
 
 type Step = 'verify-code' | 'set-password' | 'professional-info' | 'accept-terms' | 'setup-mfa' | 'complete';
 
-export default function ActivatePage() {
+function ActivatePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [step, setStep] = useState<Step>('verify-code');
@@ -842,5 +842,13 @@ export default function ActivatePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ActivatePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>}>
+      <ActivatePageContent />
+    </Suspense>
   );
 }

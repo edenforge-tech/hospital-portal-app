@@ -297,7 +297,7 @@ export default function QueueManagementPage() {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -373,7 +373,7 @@ export default function QueueManagementPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {departmentQueues.map(dept => (
               <div key={dept.department} className="p-4 border rounded-lg">
                 <h4 className="font-medium text-sm mb-2">{dept.department}</h4>

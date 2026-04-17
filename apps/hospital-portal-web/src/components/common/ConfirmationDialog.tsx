@@ -15,6 +15,37 @@ interface ConfirmationDialogProps {
   isLoading?: boolean;
 }
 
+const VARIANT_CONFIG = {
+  danger: {
+    bar: 'bg-rose-500',
+    iconBg: 'bg-rose-50',
+    iconColor: 'text-rose-500',
+    icon: AlertTriangle,
+    confirmBg: 'bg-rose-600 hover:bg-rose-700 focus-visible:ring-rose-500',
+  },
+  warning: {
+    bar: 'bg-amber-500',
+    iconBg: 'bg-amber-50',
+    iconColor: 'text-amber-500',
+    icon: AlertCircle,
+    confirmBg: 'bg-amber-600 hover:bg-amber-700 focus-visible:ring-amber-500',
+  },
+  info: {
+    bar: 'bg-blue-500',
+    iconBg: 'bg-blue-50',
+    iconColor: 'text-blue-500',
+    icon: Info,
+    confirmBg: 'bg-blue-600 hover:bg-blue-700 focus-visible:ring-blue-500',
+  },
+  success: {
+    bar: 'bg-emerald-500',
+    iconBg: 'bg-emerald-50',
+    iconColor: 'text-emerald-500',
+    icon: CheckCircle,
+    confirmBg: 'bg-emerald-600 hover:bg-emerald-700 focus-visible:ring-emerald-500',
+  },
+} as const;
+
 /**
  * Confirmation Dialog Component
  * Displays a modal dialog for confirming destructive or important actions
@@ -45,134 +76,85 @@ export function ConfirmationDialog({
   };
 
   const handleCancel = () => {
-    if (!isProcessing) {
-      onClose();
-    }
+    if (!isProcessing) onClose();
   };
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget && !isProcessing) {
-      onClose();
-    }
-  };
-
-  // Variant styling
-  const variantConfig = {
-    danger: {
-      icon: AlertTriangle,
-      iconBg: 'bg-red-100',
-      iconColor: 'text-red-600',
-      confirmBg: 'bg-red-600 hover:bg-red-700',
-      confirmText: 'text-white',
-    },
-    warning: {
-      icon: AlertCircle,
-      iconBg: 'bg-yellow-100',
-      iconColor: 'text-yellow-600',
-      confirmBg: 'bg-yellow-600 hover:bg-yellow-700',
-      confirmText: 'text-white',
-    },
-    info: {
-      icon: Info,
-      iconBg: 'bg-blue-100',
-      iconColor: 'text-blue-600',
-      confirmBg: 'bg-blue-600 hover:bg-blue-700',
-      confirmText: 'text-white',
-    },
-    success: {
-      icon: CheckCircle,
-      iconBg: 'bg-green-100',
-      iconColor: 'text-green-600',
-      confirmBg: 'bg-green-600 hover:bg-green-700',
-      confirmText: 'text-white',
-    },
-  };
-
-  const config = variantConfig[variant];
-  const Icon = config.icon;
+  const cfg = VARIANT_CONFIG[variant];
+  const Icon = cfg.icon;
+  const busy = isProcessing || isLoading;
 
   if (!isOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity"
-      onClick={handleBackdropClick}
-      aria-labelledby="confirmation-dialog-title"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="confirm-dialog-title"
     >
+      {/* Backdrop */}
       <div
-        className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={handleCancel}
+      />
+
+      {/* Card */}
+      <div
+        className="relative z-10 w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-start justify-between">
-            <div className="flex items-start space-x-3">
-              <div className={`p-2 ${config.iconBg} rounded-lg flex-shrink-0`}>
-                <Icon className={`h-6 w-6 ${config.iconColor}`} />
-              </div>
-              <div>
-                <h3
-                  id="confirmation-dialog-title"
-                  className="text-lg font-semibold text-gray-900"
-                >
-                  {title}
-                </h3>
-              </div>
-            </div>
-            <button
-              onClick={handleCancel}
-              disabled={isProcessing}
-              className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
-              aria-label="Close dialog"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
+        {/* Accent bar */}
+        <div className={`h-1 w-full ${cfg.bar}`} />
 
-        {/* Content */}
-        <div className="p-6">
-          <div className="text-sm text-gray-700">
+        {/* Close button */}
+        <button
+          onClick={handleCancel}
+          disabled={busy}
+          className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-40"
+          aria-label="Close"
+        >
+          <X size={15} />
+        </button>
+
+        {/* Body */}
+        <div className="px-6 pt-7 pb-6 flex flex-col items-center text-center">
+          {/* Icon */}
+          <div className={`w-14 h-14 rounded-2xl ${cfg.iconBg} flex items-center justify-center mb-4`}>
+            <Icon size={28} className={cfg.iconColor} />
+          </div>
+
+          {/* Title */}
+          <h3
+            id="confirm-dialog-title"
+            className="text-base font-bold text-gray-900 mb-1.5"
+          >
+            {title}
+          </h3>
+
+          {/* Message */}
+          <div className="text-sm text-gray-500 leading-relaxed">
             {typeof message === 'string' ? <p>{message}</p> : message}
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t border-gray-200 bg-gray-50 flex items-center justify-end space-x-3 rounded-b-lg">
+        {/* Actions */}
+        <div className="px-6 pb-6 flex gap-3">
           <button
             onClick={handleCancel}
-            disabled={isProcessing}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={busy}
+            className="flex-1 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {cancelText}
           </button>
           <button
             onClick={handleConfirm}
-            disabled={isProcessing || isLoading}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${config.confirmBg} ${config.confirmText}`}
+            disabled={busy}
+            className={`flex-1 py-2.5 text-sm font-semibold text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${cfg.confirmBg}`}
           >
-            {(isProcessing || isLoading) && (
-              <svg
-                className="animate-spin h-4 w-4"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
+            {busy && (
+              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
             )}
             {confirmText}

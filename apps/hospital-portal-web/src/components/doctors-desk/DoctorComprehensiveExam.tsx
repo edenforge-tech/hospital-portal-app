@@ -18,6 +18,7 @@ import OptometrySummaryPanel from './OptometrySummaryPanel';
 import ResumeDraftModal from './ResumeDraftModal';
 import { useAuthStore } from '@/lib/auth-store';
 import { useAutoSave } from '@/hooks/useAutoSave';
+import { useConfirmation } from '@/components/common/ConfirmationDialog';
 import { examinationDraftApi as draftApi } from '@/lib/api/examinationDraft.api';
 import { 
   examinationDraftApi, 
@@ -59,6 +60,7 @@ export default function DoctorComprehensiveExam({
   canEdit,
 }: DoctorComprehensiveExamProps) {
   const { user } = useAuthStore();
+  const { showConfirmation, ConfirmationComponent } = useConfirmation();
   const [activeSection, setActiveSection] = useState('medical-history');
   const [isLoadingOptometry, setIsLoadingOptometry] = useState(false);
   const [isLoadingDraft, setIsLoadingDraft] = useState(true);
@@ -517,10 +519,16 @@ export default function DoctorComprehensiveExam({
       // Ask if user wants to print prescription
       if (medicationsData?.prescriptionItems?.length > 0) {
         setTimeout(() => {
-          const shouldPrint = window.confirm('Do you want to print the prescription now?');
-          if (shouldPrint && savedExamination.id) {
-            handlePrintPrescription(savedExamination.id);
-          }
+          showConfirmation({
+            title: 'Print Prescription',
+            message: 'Do you want to print the prescription now?',
+            variant: 'info',
+            confirmText: 'Print',
+            cancelText: 'Skip',
+            onConfirm: () => {
+              if (savedExamination.id) handlePrintPrescription(savedExamination.id);
+            },
+          });
         }, 500);
       }
     } catch (error: any) {
@@ -570,6 +578,7 @@ export default function DoctorComprehensiveExam({
 
   return (
     <div className="bg-white border-2 border-gray-200 rounded-lg overflow-hidden">
+      <ConfirmationComponent />
       {/* Loading State */}
       {isLoadingOptometry && (
         <div className="p-6 bg-blue-50 border-b-2 border-blue-200">

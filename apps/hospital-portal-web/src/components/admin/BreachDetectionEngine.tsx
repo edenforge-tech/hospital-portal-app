@@ -233,7 +233,7 @@ export default function BreachDetectionEngine() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 mb-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Triggered By</p>
                     <p className="text-sm font-medium">{alert.triggeredBy}</p>
@@ -300,7 +300,7 @@ export default function BreachDetectionEngine() {
                   </div>
                   <p className="text-sm text-gray-600 mb-3">{rule.description}</p>
 
-                  <div className="grid grid-cols-3 gap-4 mb-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
                     <div>
                       <p className="text-xs text-gray-500 mb-2 font-semibold">Conditions</p>
                       <ul className="space-y-1">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, Download, Calendar, AlertCircle } from 'lucide-react';
+import { useDeleteConfirmation } from '@/components/common/ConfirmationDialog';
 
 interface ImageGalleryProps {
   orderId: string;
@@ -60,6 +61,8 @@ export default function ImageGallery({ orderId, onImageSelect }: ImageGalleryPro
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<ImagingImage | null>(null);
   const [showLightbox, setShowLightbox] = useState(false);
+
+  const { confirmDelete, ConfirmationComponent } = useDeleteConfirmation();
 
   useEffect(() => {
     fetchImages();
@@ -210,27 +213,20 @@ export default function ImageGallery({ orderId, onImageSelect }: ImageGalleryPro
 
   const handleDelete = async (image: ImagingImage, e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    if (!confirm(`Are you sure you want to delete ${image.fileName}?`)) {
-      return;
-    }
 
-    try {
+    confirmDelete(image.fileName, async () => {
       const api = (await import('@/lib/api')).getApi();
       await api.delete(`/Imaging/images/${image.id}`);
-      
+
       // Remove from local state
       setImages((prev) => prev.filter((img) => img.id !== image.id));
-      
+
       // Close lightbox if this image was selected
       if (selectedImage?.id === image.id) {
         setShowLightbox(false);
         setSelectedImage(null);
       }
-    } catch (err: any) {
-      console.error('Delete failed:', err);
-      alert(`Failed to delete image: ${err.response?.data?.message || err.message}`);
-    }
+    });
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -290,6 +286,7 @@ export default function ImageGallery({ orderId, onImageSelect }: ImageGalleryPro
 
   return (
     <>
+      <ConfirmationComponent />
       {/* Show info banner if using demo/fallback data */}
       {error && images.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">

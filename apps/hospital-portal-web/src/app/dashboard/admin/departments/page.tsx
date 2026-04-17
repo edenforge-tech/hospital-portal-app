@@ -7,6 +7,7 @@ import { departmentsApi, Department, DepartmentFilters } from '@/lib/api/departm
 import { branchesApi } from '@/lib/api/branches.api';
 import { usersApi } from '@/lib/api/users.api';
 import { useRouter } from 'next/navigation';
+import { useDeleteConfirmation } from '@/components/common/ConfirmationDialog';
 import { SearchFilter } from '@/components/ui/SearchFilter';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -51,6 +52,7 @@ const getDepartmentIcon = (type: string) => {
 };
 
 export default function DepartmentsPage() {
+  const { confirmDelete, ConfirmationComponent } = useDeleteConfirmation();
   const { user } = useAuthStore();
   const router = useRouter();
 
@@ -274,17 +276,15 @@ export default function DepartmentsPage() {
     setShowDetails(true);
   };
 
-  const handleDelete = async (department: Department) => {
-    if (!confirm(`Are you sure you want to delete department "${department.departmentName}"?`)) {
-      return;
-    }
-
-    try {
-      await departmentsApi.delete(department.id);
-      await loadDepartments();
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete department');
-    }
+  const handleDelete = (department: Department) => {
+    confirmDelete(department.departmentName, async () => {
+      try {
+        await departmentsApi.delete(department.id);
+        await loadDepartments();
+      } catch (err: any) {
+        console.error(err.response?.data?.message || 'Failed to delete department');
+      }
+    });
   };
 
   const handleFormClose = async (saved: boolean) => {
@@ -351,6 +351,7 @@ export default function DepartmentsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
+      <ConfirmationComponent />
       <div className="mx-auto max-w-full">
         {/* Clean Header */}
         <div className="mb-6 flex items-center justify-between">

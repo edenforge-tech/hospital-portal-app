@@ -67,6 +67,7 @@ import {
   Monitor,
   Siren,
   PhoneCall,
+  RotateCcw,
 } from 'lucide-react';
 
 interface MenuItem {
@@ -89,7 +90,13 @@ interface MenuSection {
   items: MenuItem[];
 }
 
-export default function Sidebar() {
+interface SidebarProps {
+  isMobileOpen?: boolean;
+  onClose?: () => void;
+  drawerOnly?: boolean;
+}
+
+export default function Sidebar({ isMobileOpen = false, onClose, drawerOnly = false }: SidebarProps) {
   const { roles, hasPermission, logout } = useCachedAuthStore();
   const pathname = usePathname();
   const [openSection, setOpenSection] = useState<string | null>('Dashboard');
@@ -366,9 +373,32 @@ export default function Sidebar() {
         },
         {
           label: 'Inventory Management',
-          href: '/dashboard/operations/stores',
+          href: '/admin/inventory',
           icon: <Package className="h-4 w-4" strokeWidth={2.5} />,
-          requiredPermission: 'OPERATIONS:STORES:VIEW'
+          requiredPermission: 'OPERATIONS:STORES:VIEW',
+          isExpandable: true,
+          subItems: [
+            { label: 'Dashboard',        href: '/admin/inventory',               icon: <LayoutDashboard className="h-4 w-4" strokeWidth={2.5} />, isChild: true },
+            { label: 'Vendors',          href: '/admin/inventory/vendors',       icon: <Truck className="h-4 w-4" strokeWidth={2.5} />,          isChild: true },
+            { label: 'Invoices',         href: '/admin/inventory/invoices',      icon: <Receipt className="h-4 w-4" strokeWidth={2.5} />,        isChild: true },
+            { label: 'GRN',              href: '/admin/inventory/grn',           icon: <Package className="h-4 w-4" strokeWidth={2.5} />,        isChild: true },
+            { label: 'Purchase Query',   href: '/admin/inventory/purchase-query', icon: <ClipboardList className="h-4 w-4" strokeWidth={2.5} />,  isChild: true },
+            { label: 'Stock',            href: '/admin/inventory/stock',         icon: <Layers className="h-4 w-4" strokeWidth={2.5} />,         isChild: true },
+            { label: 'Transfers',        href: '/admin/inventory/transfers',     icon: <ArrowRightLeft className="h-4 w-4" strokeWidth={2.5} />, isChild: true },
+            { label: 'Items',            href: '/admin/inventory/items',         icon: <Grid className="h-4 w-4" strokeWidth={2.5} />,           isChild: true },
+            { label: 'Stores',           href: '/admin/inventory/stores',        icon: <Building className="h-4 w-4" strokeWidth={2.5} />,       isChild: true },
+            { label: 'Pharmacy Bills',   href: '/admin/inventory/pharmacy',      icon: <Pill className="h-4 w-4" strokeWidth={2.5} />,           isChild: true },
+            { label: 'Surgery OT',       href: '/admin/inventory/surgery',       icon: <Activity className="h-4 w-4" strokeWidth={2.5} />,       isChild: true },
+            { label: 'Requisitions',     href: '/admin/inventory/requisitions',  icon: <ClipboardList className="h-4 w-4" strokeWidth={2.5} />,  isChild: true },
+            { label: 'Purchase Returns', href: '/admin/inventory/returns',       icon: <RotateCcw className="h-4 w-4" strokeWidth={2.5} />,      isChild: true },
+            { label: 'RFQ',              href: '/admin/inventory/rfq',           icon: <FileText className="h-4 w-4" strokeWidth={2.5} />,        isChild: true },
+            { label: 'Purchase Orders',  href: '/admin/inventory/po',            icon: <ShoppingCart className="h-4 w-4" strokeWidth={2.5} />,    isChild: true },
+            { label: 'Procurement Policy', href: '/admin/inventory/procurement/policies', icon: <Shield className="h-4 w-4" strokeWidth={2.5} />, isChild: true },
+            { label: 'Auto-Reorder',     href: '/admin/inventory/reorder',       icon: <Bell className="h-4 w-4" strokeWidth={2.5} />,           isChild: true },
+            { label: 'Expiry Alerts',    href: '/admin/inventory/expiry',        icon: <AlertTriangle className="h-4 w-4" strokeWidth={2.5} />,   isChild: true },
+            { label: 'Vendor Performance', href: '/admin/inventory/vendor-performance', icon: <TrendingUp className="h-4 w-4" strokeWidth={2.5} />, isChild: true },
+            { label: 'GST Reports',      href: '/admin/inventory/reports',       icon: <BarChart className="h-4 w-4" strokeWidth={2.5} />,       isChild: true },
+          ]
         },
         {
           label: 'Asset Management',
@@ -699,7 +729,10 @@ export default function Sidebar() {
   };
 
   return (
-    <nav className={`hidden md:flex ${isCollapsed ? 'md:w-20 lg:w-20' : 'md:w-64 lg:w-72'} bg-white shadow-sm overflow-y-auto flex-col h-full font-sans transition-all duration-300`} aria-label="Main navigation">
+    <>
+    {/* Desktop sidebar — hidden below lg (1024px) */}
+    {!drawerOnly && (
+    <nav className={`hidden lg:flex ${isCollapsed ? 'lg:w-20' : 'lg:w-64 xl:w-72'} bg-white shadow-sm overflow-y-auto flex-col h-full font-sans transition-all duration-300`} aria-label="Main navigation">
       {/* Header */}
       <div className={`${isCollapsed ? 'p-4' : 'p-6'} border-b border-gray-200`}>
         {isCollapsed ? (
@@ -1079,5 +1112,155 @@ export default function Sidebar() {
         </button>
       </div>
     </nav>
+    )}
+
+    {/* Mobile / tablet slide-in drawer — visible only when isMobileOpen=true, on screens < lg */}
+    {isMobileOpen && (
+      <>
+        {/* Backdrop overlay */}
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+        {/* Drawer panel */}
+        <nav
+          className="fixed inset-y-0 left-0 z-50 w-72 bg-white shadow-xl flex flex-col h-full font-sans overflow-y-auto lg:hidden"
+          aria-label="Mobile navigation"
+        >
+          {/* Drawer header */}
+          <div className="p-6 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-teal-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Building2 className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="font-semibold text-lg text-gray-900">Hospital Portal</h1>
+                <p className="text-gray-500 text-xs">Healthcare Excellence</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-md hover:bg-gray-100 transition-colors"
+              aria-label="Close menu"
+            >
+              <Menu className="h-5 w-5 text-gray-600" />
+            </button>
+          </div>
+
+          {/* Drawer nav items — same structure as desktop, never collapsed */}
+          <div className="flex-1 overflow-y-auto py-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            {menuSections.map((section) => {
+              const visibleItems = section.items.filter(item =>
+                !item.requiredPermission || hasPermission(item.requiredPermission)
+              );
+              if (visibleItems.length === 0) return null;
+              const isOpen = openSection === section.title;
+              return (
+                <div key={section.title} className="mb-1">
+                  <button
+                    onClick={() => toggleSection(section.title)}
+                    className="w-full flex items-center justify-between px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-gray-800 font-bold group-hover:text-gray-900">{section.icon}</span>
+                      <span className="text-base font-bold text-gray-800">{section.title}</span>
+                    </div>
+                    <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {isOpen && (
+                    <div className="space-y-0.5">
+                      {visibleItems.map((item) => {
+                        if (item.isSection) {
+                          return (
+                            <div key={item.label} className="ml-4 mr-2">
+                              <div className="flex items-center gap-2.5 px-3 py-2.5 mt-3 mb-1 rounded-md bg-gray-50 border-l-2 border-gray-300">
+                                <span className="text-gray-600 font-bold">{item.icon}</span>
+                                <span className="text-sm font-bold text-gray-700">{item.label}</span>
+                              </div>
+                            </div>
+                          );
+                        }
+                        const active = isActive(item.href);
+                        if (item.isExpandable && item.subItems) {
+                          const isExpanded = expandedItems.includes(item.label);
+                          return (
+                            <div key={item.label} className="mx-2">
+                              <button
+                                onClick={() => toggleSubmenu(item.label)}
+                                className={`w-full flex items-center justify-between pl-4 pr-4 py-2.5 rounded-md transition-all duration-150 ${
+                                  active ? 'bg-teal-50 text-teal-700' : 'text-gray-800 hover:bg-teal-50/50 hover:text-teal-600'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className={`font-bold ${active ? 'text-teal-600' : 'text-gray-600'}`}>{item.icon}</span>
+                                  <span className="font-bold text-sm">{item.label}</span>
+                                </div>
+                                <ChevronRight className={`h-3.5 w-3.5 text-gray-500 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
+                              </button>
+                              {isExpanded && item.subItems.map((subItem) => {
+                                const subActive = isActive(subItem.href, subItem.exact);
+                                return (
+                                  <Link
+                                    key={subItem.href}
+                                    href={subItem.href}
+                                    onClick={onClose}
+                                    className={`flex items-center gap-3 pl-12 pr-4 py-2.5 rounded-md transition-all duration-150 ${
+                                      subActive ? 'bg-teal-50 text-teal-700 border-r-4 border-teal-600' : 'text-gray-700 hover:bg-teal-50/50 hover:text-teal-600'
+                                    }`}
+                                  >
+                                    <span className={`font-bold ${subActive ? 'text-teal-600' : 'text-gray-600'}`}>{subItem.icon}</span>
+                                    <span className="font-bold text-sm">{subItem.label}</span>
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          );
+                        }
+                        return (
+                          <div key={item.href} className="mx-2">
+                            <Link
+                              href={item.href}
+                              onClick={onClose}
+                              className={`flex items-center gap-3 pl-4 pr-4 py-2.5 rounded-md transition-all duration-150 ${
+                                active ? 'bg-teal-50 text-teal-700 border-r-4 border-teal-600' : 'text-gray-800 hover:bg-teal-50/50 hover:text-teal-600'
+                              }`}
+                            >
+                              <span className={`font-bold ${active ? 'text-teal-600' : 'text-gray-600'}`}>{item.icon}</span>
+                              <span className="font-bold text-sm flex-1">{item.label}</span>
+                              {item.badge}
+                            </Link>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Drawer footer */}
+          <div className="border-t border-gray-200 p-3 flex-shrink-0">
+            <Link
+              href="/dashboard/settings"
+              onClick={onClose}
+              className="flex items-center gap-3 px-4 py-2.5 rounded-md text-base text-gray-800 hover:bg-teal-50/50 hover:text-teal-600 transition-colors mb-1"
+            >
+              <Settings className="h-5 w-5 text-gray-600 font-bold" />
+              <span className="font-bold">Settings</span>
+            </Link>
+            <button
+              onClick={() => { handleLogout(); onClose?.(); }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-md text-base text-red-600 hover:bg-red-50 transition-colors"
+            >
+              <LogOut className="h-5 w-5 font-bold" />
+              <span className="font-bold">Logout</span>
+            </button>
+          </div>
+        </nav>
+      </>
+    )}
+    </>
   );
 }

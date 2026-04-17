@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Key, Eye, EyeOff, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 
-export default function ActivatePage() {
+function ActivatePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email') || '';
@@ -310,5 +310,13 @@ export default function ActivatePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ActivatePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>}>
+      <ActivatePageContent />
+    </Suspense>
   );
 }

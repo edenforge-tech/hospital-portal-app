@@ -73,8 +73,8 @@ export default function ChangePasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-100">
-      <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-100 px-4 py-8">
+      <div className="bg-white rounded-lg shadow-2xl p-4 sm:p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-amber-600">Change Password</h1>
           <p className="text-gray-600 mt-2">

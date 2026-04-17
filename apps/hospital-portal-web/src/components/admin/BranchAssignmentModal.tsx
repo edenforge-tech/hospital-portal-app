@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { X, Building2, CheckCircle2, Trash2, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
+import { useConfirmation } from '@/components/common/ConfirmationDialog';
 
 interface BranchAssignmentModalProps {
   userId: string;
@@ -45,6 +46,8 @@ export default function BranchAssignmentModal({
   const [userBranches, setUserBranches] = useState<UserBranchAssignment[]>([]);
   const [selectedBranches, setSelectedBranches] = useState<Set<string>>(new Set());
   const [defaultBranch, setDefaultBranch] = useState<string>('');
+
+  const { showConfirmation, ConfirmationComponent } = useConfirmation();
 
   useEffect(() => {
     fetchData();
@@ -182,41 +185,47 @@ export default function BranchAssignmentModal({
     }
   };
 
-  const handleRemoveBranch = async (assignmentId: string, branchName: string) => {
-    if (!confirm(`Remove ${branchName} from ${userName}?`)) return;
+  const handleRemoveBranch = (assignmentId: string, branchName: string) => {
+    showConfirmation({
+      title: 'Remove Branch',
+      message: `Remove ${branchName} from ${userName}?`,
+      variant: 'danger',
+      confirmText: 'Remove',
+      onConfirm: async () => {
+        try {
+          setSaving(true);
+          setError('');
 
-    try {
-      setSaving(true);
-      setError('');
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5073/api';
+          const { token, tenantId } = useAuthStore.getState();
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5073/api';
-      const { token, tenantId } = useAuthStore.getState();
+          if (!tenantId || !token) {
+            throw new Error('Authentication required. Please log in again.');
+          }
 
-      if (!tenantId || !token) {
-        throw new Error('Authentication required. Please log in again.');
-      }
+          const response = await fetch(`${apiUrl}/user-branches/${assignmentId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'X-Tenant-ID': tenantId
+            }
+          });
 
-      const response = await fetch(`${apiUrl}/user-branches/${assignmentId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-Tenant-ID': tenantId
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to remove branch');
+          }
+
+          setSuccess(`${branchName} removed successfully`);
+          await fetchData();
+        } catch (err: any) {
+          console.error('Error removing branch:', err);
+          setError(err.message || 'Failed to remove branch');
+        } finally {
+          setSaving(false);
         }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to remove branch');
-      }
-
-      setSuccess(`${branchName} removed successfully`);
-      await fetchData();
-    } catch (err: any) {
-      console.error('Error removing branch:', err);
-      setError(err.message || 'Failed to remove branch');
-    } finally {
-      setSaving(false);
-    }
+      },
+    });
   };
 
   const handleSetDefault = async (assignmentId: string, branchName: string) => {
@@ -275,6 +284,7 @@ export default function BranchAssignmentModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <ConfirmationComponent />
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">

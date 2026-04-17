@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { departmentsEnhancedApi, Department, StaffAssignment, StaffFilters } from '@/lib/api/departments-enhanced.api';
+import { useDeleteConfirmation } from '@/components/common/ConfirmationDialog';
 import { 
   Users, 
   UserPlus, 
@@ -58,6 +59,7 @@ interface StaffAssignmentFormData {
 }
 
 export default function DepartmentStaffAssignments({ department, onUpdate }: DepartmentStaffAssignmentsProps) {
+  const { confirmDelete, ConfirmationComponent } = useDeleteConfirmation();
   const [staffAssignments, setStaffAssignments] = useState<StaffAssignment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,16 +104,14 @@ export default function DepartmentStaffAssignments({ department, onUpdate }: Dep
   };
 
   const handleDeleteAssignment = async (assignment: StaffAssignment) => {
-    if (!window.confirm(`Are you sure you want to remove ${assignment.user.firstName} ${assignment.user.lastName} from this department?`)) {
-      return;
-    }
-
-    try {
-      await departmentsEnhancedApi.deleteStaffAssignment(department.id, assignment.id);
-      await loadStaffAssignments();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to remove staff assignment');
-    }
+    confirmDelete(`${assignment.user.firstName} ${assignment.user.lastName}`, async () => {
+      try {
+        await departmentsEnhancedApi.deleteStaffAssignment(department.id, assignment.id);
+        await loadStaffAssignments();
+      } catch (err: any) {
+        setError(err.response?.data?.message || 'Failed to remove staff assignment');
+      }
+    });
   };
 
   const getPerformanceColor = (score: number) => {
@@ -146,6 +146,7 @@ export default function DepartmentStaffAssignments({ department, onUpdate }: Dep
 
   return (
     <div className="space-y-6">
+      <ConfirmationComponent />
       {/* Error Display */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">

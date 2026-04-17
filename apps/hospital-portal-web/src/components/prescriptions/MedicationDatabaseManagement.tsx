@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useConfirmation } from '@/components/common/ConfirmationDialog';
 
 interface Medication {
   id: string;
@@ -117,6 +118,8 @@ export function MedicationDatabaseManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
 
+  const { showConfirmation, ConfirmationComponent } = useConfirmation();
+
   // Filter medications
   useEffect(() => {
     let filtered = medications;
@@ -162,11 +165,17 @@ export function MedicationDatabaseManagement() {
   };
 
   const handleDeactivate = (medication: Medication) => {
-    if (confirm(`Are you sure you want to deactivate ${medication.name}?`)) {
-      setMedications((prev) =>
-        prev.map((m) => (m.id === medication.id ? { ...m, isActive: false } : m))
-      );
-    }
+    showConfirmation({
+      title: 'Deactivate Medication',
+      message: `Are you sure you want to deactivate ${medication.name}?`,
+      variant: 'warning',
+      confirmText: 'Deactivate',
+      onConfirm: async () => {
+        setMedications((prev) =>
+          prev.map((m) => (m.id === medication.id ? { ...m, isActive: false } : m))
+        );
+      },
+    });
   };
 
   const handleReactivate = (medication: Medication) => {
@@ -192,6 +201,7 @@ export function MedicationDatabaseManagement() {
 
   return (
     <div className="space-y-6">
+      <ConfirmationComponent />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

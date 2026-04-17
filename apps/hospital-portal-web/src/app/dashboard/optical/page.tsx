@@ -420,7 +420,7 @@ export default function OpticalShopPage() {
                   </div>
                 </div>
 
-                <div className="border-t border-gray-200 pt-4">
+                <div className="border-t border-gray-200 pt-4 overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead>
                       <tr className="text-gray-500">

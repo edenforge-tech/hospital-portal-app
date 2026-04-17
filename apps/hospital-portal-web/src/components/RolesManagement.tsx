@@ -446,7 +446,7 @@ export function RolesManagement() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -541,6 +541,7 @@ export function RolesManagement() {
 
       {/* Roles Table */}
       <Card>
+        <div className="overflow-x-auto">
         <Table caption="List of system roles and permissions">
           <TableHeader>
             <TableRow>
@@ -658,6 +659,7 @@ export function RolesManagement() {
             ))}
           </TableBody>
         </Table>
+        </div>
         
         {sortedRoles.length > 0 && (
           <div className="border-t border-gray-200 p-4">

@@ -1,0 +1,19 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "AzureWebJobs.AutoReorderTimer.Disabled": "true"
+  },
+  "Host": {
+    "LocalHttpPort": 7072,
+    "CORS": "http://localhost:3000",
+    "CORSCredentials": true
+  },
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=hospitalportal-db-server.postgres.database.azure.com;Port=5432;Database=hospitalportal;Username=postgres;Password=NewPass@2026!;SSL Mode=Require;Trust Server Certificate=true;Timeout=30;Command Timeout=30;Pooling=true;Minimum Pool Size=1;Maximum Pool Size=20;Keepalive=30;"
+  },
+  "NotificationService": {
+    "BaseUrl": "http://localhost:7073"
+  }
+}

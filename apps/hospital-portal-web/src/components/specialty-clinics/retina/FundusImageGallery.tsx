@@ -43,7 +43,7 @@ export default function FundusImageGallery({ patientId, canEdit }: FundusImageGa
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {images.map((image) => (
           <div key={image.id} className="bg-white border-2 border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all">
             <div className="bg-gray-200 h-48 flex items-center justify-center">

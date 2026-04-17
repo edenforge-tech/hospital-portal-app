@@ -54,10 +54,12 @@ import { RoleAnalyticsDashboard } from './RoleAnalyticsDashboard';
 import { BulkRoleOperations } from './BulkRoleOperations';
 import { EnhancedRoleFormModal } from './EnhancedRoleFormModal';
 import { PermissionComplianceView } from './PermissionComplianceView';
+import { useDeleteConfirmation } from '@/components/common/ConfirmationDialog';
 
 interface EnhancedRolesPageProps {}
 
 export const EnhancedRolesPage: React.FC<EnhancedRolesPageProps> = () => {
+  const { confirmDelete, ConfirmationComponent } = useDeleteConfirmation();
   // State Management
   const [roles, setRoles] = useState<Role[]>([]);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
@@ -198,14 +200,14 @@ export const EnhancedRolesPage: React.FC<EnhancedRolesPageProps> = () => {
         setShowFormModal(true);
         break;
       case 'delete':
-        if (confirm(`Are you sure you want to delete the role "${role.name}"?`)) {
+        confirmDelete(role.name, async () => {
           try {
             await rolesPermissionsEnhancedApi.deleteRole(role.id);
             await loadData();
           } catch (error) {
             console.error('Error deleting role:', error);
           }
-        }
+        });
         break;
       case 'view':
         setSelectedRole(role);
@@ -251,6 +253,7 @@ export const EnhancedRolesPage: React.FC<EnhancedRolesPageProps> = () => {
 
   return (
     <div className="space-y-6">
+      <ConfirmationComponent />
       {/* Header Section */}
       <div className="flex items-center justify-between">
         <div>

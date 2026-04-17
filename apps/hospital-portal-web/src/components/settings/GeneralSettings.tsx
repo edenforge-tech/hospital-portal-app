@@ -214,7 +214,7 @@ export default function GeneralSettings({ settings, onUpdate, validationErrors }
               placeholder="Apartment, suite, etc. (optional)"
             />
             
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <input
                 type="text"
                 value={settings.address?.city || ''}

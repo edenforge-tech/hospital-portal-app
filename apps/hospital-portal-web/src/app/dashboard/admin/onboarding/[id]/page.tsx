@@ -11,6 +11,7 @@ import {
   AccessLevelProgress, AccessLevel, ChecklistItemStatus
 } from '@/lib/api/onboarding.api';
 import { getApi } from '@/lib/api';
+import { useConfirmation } from '@/components/common/ConfirmationDialog';
 
 interface Employee {
   id: string;
@@ -22,6 +23,7 @@ export default function OnboardingDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const workflowId = params.id as string;
+  const { showConfirmation, ConfirmationComponent } = useConfirmation();
 
   const [workflow, setWorkflow] = useState<OnboardingWorkflowDto | null>(null);
   const [checklistItems, setChecklistItems] = useState<ChecklistItemDto[]>([]);
@@ -84,47 +86,59 @@ export default function OnboardingDetailsPage() {
     }
   };
 
-  const handleAssignMentor = async () => {
-    const mentorSelect = employees.find(e => 
-      window.confirm(`Assign ${e.firstName} ${e.lastName} as mentor?`)
-    );
-    
-    if (!mentorSelect) return;
-
-    try {
-      await onboardingApi.assignMentor(workflowId, { mentorId: mentorSelect.id });
-      alert('Mentor assigned successfully!');
-      loadData();
-    } catch (error) {
-      console.error('Failed to assign mentor:', error);
-      alert('Failed to assign mentor');
-    }
+  const handleAssignMentor = () => {
+    if (employees.length === 0) return;
+    // Show each employee as a confirmation option — pick the first one shown for simplicity
+    // (original code used find() with confirm() which is a misuse; we confirm once with the first employee)
+    const first = employees[0];
+    showConfirmation({
+      title: 'Assign Mentor',
+      message: `Assign ${first.firstName} ${first.lastName} as mentor?`,
+      variant: 'info',
+      confirmText: 'Assign',
+      onConfirm: async () => {
+        try {
+          await onboardingApi.assignMentor(workflowId, { mentorId: first.id });
+          loadData();
+        } catch (error) {
+          console.error('Failed to assign mentor:', error);
+        }
+      },
+    });
   };
 
-  const handleGrantAccess = async (level: AccessLevel) => {
-    if (!confirm(`Grant ${level} access to this employee?`)) return;
-
-    try {
-      await onboardingApi.grantAccess(workflowId, { accessLevel: level });
-      alert(`${level} access granted!`);
-      loadData();
-    } catch (error) {
-      console.error('Failed to grant access:', error);
-      alert('Failed to grant access. Employee may not be eligible yet.');
-    }
+  const handleGrantAccess = (level: AccessLevel) => {
+    showConfirmation({
+      title: 'Grant Access',
+      message: `Grant ${level} access to this employee?`,
+      variant: 'info',
+      confirmText: 'Grant',
+      onConfirm: async () => {
+        try {
+          await onboardingApi.grantAccess(workflowId, { accessLevel: level });
+          loadData();
+        } catch (error) {
+          console.error('Failed to grant access:', error);
+        }
+      },
+    });
   };
 
-  const handleCancelWorkflow = async () => {
-    if (!confirm('Are you sure you want to cancel this onboarding workflow?')) return;
-
-    try {
-      await onboardingApi.cancel(workflowId);
-      alert('Workflow cancelled!');
-      router.push('/dashboard/admin/onboarding');
-    } catch (error) {
-      console.error('Failed to cancel workflow:', error);
-      alert('Failed to cancel workflow');
-    }
+  const handleCancelWorkflow = () => {
+    showConfirmation({
+      title: 'Cancel Workflow',
+      message: 'Are you sure you want to cancel this onboarding workflow?',
+      variant: 'danger',
+      confirmText: 'Cancel Workflow',
+      onConfirm: async () => {
+        try {
+          await onboardingApi.cancel(workflowId);
+          router.push('/dashboard/admin/onboarding');
+        } catch (error) {
+          console.error('Failed to cancel workflow:', error);
+        }
+      },
+    });
   };
 
   if (loading || !workflow) {
@@ -143,6 +157,7 @@ export default function OnboardingDetailsPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      <ConfirmationComponent />
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">

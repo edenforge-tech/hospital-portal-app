@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Star,
 } from 'lucide-react';
+import { ConfirmationDialog } from '@/components/common/ConfirmationDialog';
 
 interface Appointment {
   id: string;
@@ -513,38 +514,18 @@ export default function PatientAppointmentsPage() {
       )}
 
       {/* Cancel Confirmation Modal */}
-      {showCancelModal && selectedAppointment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-            <div className="text-center">
-              <div className="h-12 w-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertCircle className="h-6 w-6 text-red-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Cancel Appointment?</h3>
-              <p className="text-gray-500 mb-4">
-                Are you sure you want to cancel your appointment with {selectedAppointment.doctorName} on {formatDate(selectedAppointment.date)} at {selectedAppointment.time}?
-              </p>
-              <p className="text-sm text-orange-600 mb-6">
-                Note: You may be charged a cancellation fee if cancelled within 24 hours.
-              </p>
-              <div className="flex gap-3 justify-center">
-                <button
-                  onClick={() => setShowCancelModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Keep Appointment
-                </button>
-                <button
-                  onClick={confirmCancellation}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                >
-                  Yes, Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmationDialog
+        isOpen={showCancelModal && !!selectedAppointment}
+        title="Cancel Appointment?"
+        message={selectedAppointment
+          ? `Are you sure you want to cancel your appointment with ${selectedAppointment.doctorName} on ${formatDate(selectedAppointment.date)} at ${selectedAppointment.time}? Note: You may be charged a cancellation fee if cancelled within 24 hours.`
+          : ''}
+        variant="danger"
+        confirmText="Yes, Cancel"
+        cancelText="Keep Appointment"
+        onConfirm={confirmCancellation}
+        onClose={() => setShowCancelModal(false)}
+      />
     </div>
   );
 }

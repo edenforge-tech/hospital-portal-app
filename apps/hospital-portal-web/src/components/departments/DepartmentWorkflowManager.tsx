@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { departmentsEnhancedApi, Department, DepartmentWorkflow, WorkflowFilters, WorkflowStep } from '@/lib/api/departments-enhanced.api';
+import { useDeleteConfirmation } from '@/components/common/ConfirmationDialog';
 import { 
   Workflow, 
   Plus, 
@@ -54,6 +55,7 @@ interface WorkflowFormData {
 }
 
 export default function DepartmentWorkflowManager({ department, onUpdate }: DepartmentWorkflowManagerProps) {
+  const { confirmDelete, ConfirmationComponent } = useDeleteConfirmation();
   const [workflows, setWorkflows] = useState<DepartmentWorkflow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,16 +101,14 @@ export default function DepartmentWorkflowManager({ department, onUpdate }: Depa
   };
 
   const handleDeleteWorkflow = async (workflow: DepartmentWorkflow) => {
-    if (!window.confirm(`Are you sure you want to delete ${workflow.workflowName}?`)) {
-      return;
-    }
-
-    try {
-      await departmentsEnhancedApi.deleteWorkflow(department.id, workflow.id);
-      await loadWorkflows();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete workflow');
-    }
+    confirmDelete(workflow.workflowName, async () => {
+      try {
+        await departmentsEnhancedApi.deleteWorkflow(department.id, workflow.id);
+        await loadWorkflows();
+      } catch (err: any) {
+        setError(err.response?.data?.message || 'Failed to delete workflow');
+      }
+    });
   };
 
   const handleToggleWorkflowStatus = async (workflow: DepartmentWorkflow) => {
@@ -174,6 +174,7 @@ export default function DepartmentWorkflowManager({ department, onUpdate }: Depa
 
   return (
     <div className="space-y-6">
+      <ConfirmationComponent />
       {/* Error Display */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">

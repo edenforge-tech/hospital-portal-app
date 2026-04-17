@@ -62,10 +62,12 @@ import { LocationManagement } from './LocationManagement';
 import { DepartmentAssignments } from './DepartmentAssignments';
 import { OrganizationAnalyticsDashboard } from './OrganizationAnalyticsDashboard';
 import { EnhancedOrganizationFormModal } from './EnhancedOrganizationFormModal';
+import { useDeleteConfirmation } from '@/components/common/ConfirmationDialog';
 
 interface EnhancedOrganizationsPageProps {}
 
 export const EnhancedOrganizationsPage: React.FC<EnhancedOrganizationsPageProps> = () => {
+  const { confirmDelete, ConfirmationComponent } = useDeleteConfirmation();
   // State Management
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
@@ -176,14 +178,14 @@ export const EnhancedOrganizationsPage: React.FC<EnhancedOrganizationsPageProps>
         setShowFormModal(true);
         break;
       case 'delete':
-        if (confirm(`Are you sure you want to delete the organization "${organization.name}"?`)) {
+        confirmDelete(organization.name, async () => {
           try {
             await organizationsEnhancedApi.deleteOrganization(organization.id);
             await loadData();
           } catch (error) {
             console.error('Error deleting organization:', error);
           }
-        }
+        });
         break;
       case 'view':
         setSelectedOrganization(organization);
@@ -240,6 +242,7 @@ export const EnhancedOrganizationsPage: React.FC<EnhancedOrganizationsPageProps>
 
   return (
     <div className="space-y-6">
+      <ConfirmationComponent />
       {/* Header Section */}
       <div className="flex items-center justify-between">
         <div>

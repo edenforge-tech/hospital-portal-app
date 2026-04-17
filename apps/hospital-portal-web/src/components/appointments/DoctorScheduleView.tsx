@@ -290,7 +290,8 @@ function WeekView({ appointments, weekDays }: { appointments: Appointment[], wee
     <div className="space-y-4">
       <h3 className="text-lg font-medium text-gray-900">Weekly Schedule</h3>
 
-      <div className="grid grid-cols-8 gap-2">
+      <div className="overflow-x-auto">
+      <div className="grid grid-cols-8 gap-2 min-w-[640px]">
         {/* Header */}
         <div className="p-2"></div>
         {weekDays.map((day, index) => (
@@ -333,6 +334,7 @@ function WeekView({ appointments, weekDays }: { appointments: Appointment[], wee
             })}
           </div>
         ))}
+      </div>
       </div>
     </div>
   );

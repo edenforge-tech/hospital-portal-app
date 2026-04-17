@@ -451,7 +451,7 @@ export default function TreatmentPlansPage() {
                 </div>
 
                 {/* Quick Stats */}
-                <div className="grid grid-cols-4 gap-4 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <div className="text-muted-foreground">Goals</div>
                     <div className="font-medium">

@@ -77,7 +77,7 @@ export function DateRangePicker({ value, onChange, placeholder = 'Select date ra
             className="fixed inset-0 z-40" 
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute top-full left-0 mt-2 p-4 bg-white rounded-lg shadow-lg border border-gray-200 z-50 min-w-[320px]">
+          <div className="absolute top-full left-0 mt-2 p-4 bg-white rounded-lg shadow-lg border border-gray-200 z-50 min-w-[320px] max-w-[calc(100vw-2rem)]">
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">

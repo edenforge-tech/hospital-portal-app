@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Role, RoleHierarchy, rolesPermissionsEnhancedApi } from '@/lib/api/roles-permissions-enhanced.api';
+import { useConfirmation } from '@/components/common/ConfirmationDialog';
 
 interface RoleHierarchyTreeProps {
   roles: Role[];
@@ -51,6 +52,8 @@ export const RoleHierarchyTree: React.FC<RoleHierarchyTreeProps> = ({ roles, onR
   const [dropTarget, setDropTarget] = useState<TreeNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+
+  const { showConfirmation, ConfirmationComponent } = useConfirmation();
 
   useEffect(() => {
     loadHierarchy();
@@ -246,11 +249,17 @@ export const RoleHierarchyTree: React.FC<RoleHierarchyTreeProps> = ({ roles, onR
         alert('Please drag and drop to demote this role');
         break;
       case 'delete':
-        if (confirm(`Delete role "${node.name}" and all its children?`)) {
-          await rolesPermissionsEnhancedApi.deleteRole(node.id);
-          await loadHierarchy();
-          onRoleUpdate();
-        }
+        showConfirmation({
+          title: 'Delete Role',
+          message: `Delete role "${node.name}" and all its children?`,
+          variant: 'danger',
+          confirmText: 'Delete',
+          onConfirm: async () => {
+            await rolesPermissionsEnhancedApi.deleteRole(node.id);
+            await loadHierarchy();
+            onRoleUpdate();
+          },
+        });
         break;
     }
   };
@@ -413,6 +422,7 @@ export const RoleHierarchyTree: React.FC<RoleHierarchyTreeProps> = ({ roles, onR
 
   return (
     <div className="space-y-6">
+      <ConfirmationComponent />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

@@ -446,7 +446,7 @@ export default function SurgeryFollowupPage() {
     <div className="flex flex-col bg-gray-50 rounded-2xl overflow-hidden" style={{ height: 'calc(100vh - 120px)' }}>
 
       {/* ── Compact tab bar ── */}
-      <div className="bg-white border-b border-gray-200 px-4 py-2.5 flex-shrink-0 flex items-center justify-between gap-3">
+      <div className="bg-white border-b border-gray-200 px-4 py-2.5 flex-shrink-0 flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-1">
           {TABS.map((tab) => {
             const Icon = tab.icon;
@@ -497,7 +497,7 @@ export default function SurgeryFollowupPage() {
       </div>
 
       {/* ── KPI Cards ── */}
-      <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex-shrink-0 flex gap-3">
+      <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex-shrink-0 flex flex-wrap gap-3">
         {activeTab === 'active' && (
           <>
             <KpiCard label="Total Pending"   value={activeTotal}          icon={Users}         bgColor="bg-blue-50"    textColor="text-blue-700"    borderColor="border-blue-100" />

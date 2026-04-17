@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Clock, CheckCircle, X, XCircle, FileText, AlertCircle } from 'lucide-react';
 import { departmentAccessApprovalApi, DepartmentAccessRequest } from '@/lib/api/department-access-approval.api';
+import { useConfirmation } from '@/components/common/ConfirmationDialog';
 
 const STATUS_CONFIG = {
   Pending: {
@@ -35,6 +36,8 @@ export default function MyRequestsPage() {
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
+  const { showConfirmation, ConfirmationComponent } = useConfirmation();
+
   useEffect(() => {
     fetchRequests();
   }, []);
@@ -53,22 +56,26 @@ export default function MyRequestsPage() {
   };
 
   const handleCancel = async (requestId: string, requestNumber: string) => {
-    if (!confirm(`Cancel request ${requestNumber}?\n\nThis action cannot be undone.`)) {
-      return;
-    }
-
-    setCancelling(requestId);
-    setError('');
-    setSuccess('');
-    try {
-      const result = await departmentAccessApprovalApi.cancelRequest(requestId);
-      setSuccess(result.message);
-      await fetchRequests();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to cancel request');
-    } finally {
-      setCancelling(null);
-    }
+    showConfirmation({
+      title: 'Cancel Request',
+      message: `Cancel request ${requestNumber}? This action cannot be undone.`,
+      variant: 'warning',
+      confirmText: 'Cancel Request',
+      onConfirm: async () => {
+        setCancelling(requestId);
+        setError('');
+        setSuccess('');
+        try {
+          const result = await departmentAccessApprovalApi.cancelRequest(requestId);
+          setSuccess(result.message);
+          await fetchRequests();
+        } catch (err: any) {
+          setError(err.response?.data?.message || 'Failed to cancel request');
+        } finally {
+          setCancelling(null);
+        }
+      },
+    });
   };
 
   const filteredRequests = filterStatus === 'all' 
@@ -90,6 +97,7 @@ export default function MyRequestsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
+      <ConfirmationComponent />
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-6">

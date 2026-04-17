@@ -460,7 +460,7 @@ td:first-child{font-weight:600;background:#f8fafc;width:42%;}
       </div>
 
       {/* Stats Bar */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: 'Total Scheduled',  value: statsBar.total,          color: 'bg-blue-50 border-blue-200',     text: 'text-blue-700'    },
           { label: 'Pending Actions',  value: statsBar.pendingActions,  color: 'bg-amber-50 border-amber-200',   text: 'text-amber-700'   },

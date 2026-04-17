@@ -275,7 +275,7 @@ export default function OPDReportsPage() {
                   <CardDescription>Patient flow throughout the day</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
                     {dailyReport.peakHours.map((hour) => (
                       <div key={hour.hour} className="text-center">
                         <div className="text-2xl font-bold text-gray-700">{hour.count}</div>

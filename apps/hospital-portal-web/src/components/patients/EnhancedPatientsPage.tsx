@@ -61,6 +61,7 @@ import {
 } from '@/lib/api/patients-enhanced.api';
 import { PatientDetailsModal } from './PatientDetailsModal';
 import { PatientFormModal } from './PatientFormModal';
+import { useDeleteConfirmation } from '@/components/common/ConfirmationDialog';
 // import { PatientMedicalRecords } from './PatientMedicalRecords';
 // import { PatientPortalManagement } from './PatientPortalManagement';
 // import { PatientAnalyticsDashboard } from './PatientAnalyticsDashboard';
@@ -68,6 +69,7 @@ import { PatientFormModal } from './PatientFormModal';
 interface EnhancedPatientsPageProps {}
 
 export const EnhancedPatientsPage: React.FC<EnhancedPatientsPageProps> = () => {
+  const { confirmDelete, ConfirmationComponent } = useDeleteConfirmation();
   // State Management
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -200,14 +202,14 @@ export const EnhancedPatientsPage: React.FC<EnhancedPatientsPageProps> = () => {
         setShowFormModal(true);
         break;
       case 'delete':
-        if (confirm(`Are you sure you want to delete patient "${patient.personalInfo.firstName} ${patient.personalInfo.lastName}"?`)) {
+        confirmDelete(`${patient.personalInfo.firstName} ${patient.personalInfo.lastName}`, async () => {
           try {
             await patientsEnhancedApi.deletePatient(patient.id);
             await loadData();
           } catch (error) {
             console.error('Error deleting patient:', error);
           }
-        }
+        });
         break;
       case 'portal':
         // Handle portal registration/management
@@ -297,6 +299,7 @@ export const EnhancedPatientsPage: React.FC<EnhancedPatientsPageProps> = () => {
 
   return (
     <div className="space-y-6">
+      <ConfirmationComponent />
       {/* Header Section */}
       <div className="flex items-center justify-between">
         <div>

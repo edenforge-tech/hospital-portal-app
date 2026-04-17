@@ -353,7 +353,7 @@ export function PatientQuickPanel({ journey, onClose, onJourneyUpdated }: Patien
       />
 
       {/* Panel */}
-      <div className="fixed right-0 top-0 bottom-0 z-50 w-[380px] bg-white shadow-2xl flex flex-col overflow-hidden">
+      <div className="fixed right-0 top-0 bottom-0 z-50 w-[380px] max-w-[calc(100vw-1rem)] bg-white shadow-2xl flex flex-col overflow-hidden">
 
         {/* Header */}
         <div className="flex items-start gap-3 px-5 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white">

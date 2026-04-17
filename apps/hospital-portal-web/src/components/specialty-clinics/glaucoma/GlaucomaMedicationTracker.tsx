@@ -172,7 +172,7 @@ export default function GlaucomaMedicationTracker({
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
           <h4 className="text-xs font-semibold text-blue-900 mb-1">Active Medications</h4>
           <p className="text-3xl font-bold text-blue-900">{activeMeds.length}</p>

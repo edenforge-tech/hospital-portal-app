@@ -62,6 +62,7 @@ import {
   CSS,
 } from '@dnd-kit/utilities';
 import { Organization, organizationsEnhancedApi } from '@/lib/api/organizations-enhanced.api';
+import { useDeleteConfirmation } from '@/components/common/ConfirmationDialog';
 
 interface OrganizationHierarchyTreeProps {
   organizations: Organization[];
@@ -296,6 +297,7 @@ export const OrganizationHierarchyTree: React.FC<OrganizationHierarchyTreeProps>
   organizations,
   onOrganizationUpdate
 }) => {
+  const { confirmDelete, ConfirmationComponent } = useDeleteConfirmation();
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('');
@@ -433,14 +435,14 @@ export const OrganizationHierarchyTree: React.FC<OrganizationHierarchyTreeProps>
         // Handle add child action
         break;
       case 'delete':
-        if (confirm(`Are you sure you want to delete "${organization.name}"?`)) {
+        confirmDelete(organization.name, async () => {
           try {
             await organizationsEnhancedApi.deleteOrganization(organization.id);
             await onOrganizationUpdate();
           } catch (error) {
             console.error('Error deleting organization:', error);
           }
-        }
+        });
         break;
     }
   };
@@ -454,7 +456,8 @@ export const OrganizationHierarchyTree: React.FC<OrganizationHierarchyTreeProps>
 
   return (
     <div className="space-y-6">
-      {/* Header Controls */}
+      <ConfirmationComponent />
+      {/* Header Controls */}}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
