@@ -6,8 +6,6 @@ import { useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import TopNav from '@/components/TopNav';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { hydrateAuthFromStorage } from '@/lib/auth-store';
-import { initializeApi } from '@/lib/api';
 import { Toaster } from 'react-hot-toast';
 
 export default function AdminLayout({
@@ -18,28 +16,20 @@ export default function AdminLayout({
   const router = useRouter();
   const { token } = useAuthStore();
   const [isClient, setIsClient] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
-    hydrateAuthFromStorage();
-    initializeApi();
-    setTimeout(() => setIsHydrated(true), 100);
   }, []);
 
   useEffect(() => {
-    if (isHydrated && !token) {
+    if (isClient && !token) {
       router.push('/auth/login');
     }
-  }, [isHydrated, token, router]);
+  }, [isClient, token, router]);
 
-  if (!isClient || !isHydrated || !token) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    );
+  if (!isClient || !token) {
+    return null; // loading.tsx skeleton shown by Next.js
   }
 
   return (

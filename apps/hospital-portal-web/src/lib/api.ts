@@ -8,6 +8,7 @@ let axiosInstance: AxiosInstance;
 export const initializeApi = () => {
   axiosInstance = axios.create({
     baseURL: API_BASE_URL,
+    timeout: 30000,
     headers: {
       'Content-Type': 'application/json',
     },
@@ -16,14 +17,6 @@ export const initializeApi = () => {
   // Add request interceptor to include tenant ID and token
   axiosInstance.interceptors.request.use((config) => {
     const { tenantId, token } = useAuthStore.getState();
-    
-    console.log('🌐 API Request Interceptor:', {
-      url: config.url,
-      hasTenantId: !!tenantId,
-      hasToken: !!token,
-      tenantId: tenantId
-    });
-    
     if (tenantId) {
       (config.headers as any)['X-Tenant-ID'] = tenantId;
     }
@@ -37,48 +30,23 @@ export const initializeApi = () => {
 
   // Add response interceptor for error handling
   axiosInstance.interceptors.response.use(
-    (response) => {
-      console.log('✅ API Response Success:', {
-        url: response.config.url,
-        status: response.status,
-        hasData: !!response.data,
-      });
-      return response;
-    },
+    (response) => response,
     (error) => {
-      console.error('❌ API Response Error:', {
-        url: error.config?.url,
-        status: error.response?.status,
-        message: error.message,
-        data: error.response?.data,
-        fullError: error.response,
-      });
-      
-      // Log backend validation errors in detail
-      if (error.response?.data) {
-        console.error('🔍 Backend Error Details:', JSON.stringify(error.response.data, null, 2));
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('API Error:', error.config?.url, error.response?.status, error.response?.data);
       }
-      
+
       if (error.response?.status === 401) {
         const url = error.config?.url || '';
-        
+
         // Don't auto-logout for specific endpoints - let component handle it
         const skipLogoutUrls = ['/patients', '/users', '/departments', '/appointments/stats'];
         const shouldSkipLogout = skipLogoutUrls.some(path => url.includes(path));
-        
+
         if (shouldSkipLogout) {
-          console.warn('⚠️ 401 UNAUTHORIZED - Session expired, please log in again');
           return Promise.reject(error);
         }
-        
-        // For other endpoints, log out
-        console.error('🔴 401 UNAUTHORIZED - LOGGING OUT:', {
-          url: url,
-          method: error.config?.method,
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data
-        });
+
         alert(`Session expired. Please log in again.`);
         useAuthStore.getState().logout();
         window.location.href = '/auth/login';
@@ -327,4 +295,38 @@ export const bulkOperationsApi = {
 export { userDepartmentAccessApi } from './api/user-department-access.api';
 export { auditLogsApi, activationAuditLogsApi } from './api/audit-logs.api';
 export { insuranceApi } from './api/insurance.api';
+
+// ─── Master Data Module (April 2026) ────────────────────────────────────────
+// Generic CRUD for all 53 entity types across 12 groups
+export const masterValuesApi = {
+  getGroups: () =>
+    getApi().get('/master-values/groups'),
+
+  getByEntityType: (entityType: string, includeInactive = false, page = 1, pageSize = 50) =>
+    getApi().get(`/master-values/${entityType}`, { params: { includeInactive, page, pageSize } }),
+
+  getById: (entityType: string, id: string) =>
+    getApi().get(`/master-values/${entityType}/${id}`),
+
+  getGroupStats: (groupKey: string) =>
+    getApi().get(`/master-values/stats/${groupKey}`),
+
+  create: (entityType: string, data: { code: string; label: string; description?: string; metadata?: string; sortOrder?: number }) =>
+    getApi().post(`/master-values/${entityType}`, data),
+
+  update: (entityType: string, id: string, data: { label: string; description?: string; metadata?: string; sortOrder?: number }) =>
+    getApi().put(`/master-values/${entityType}/${id}`, data),
+
+  enable: (entityType: string, id: string) =>
+    getApi().post(`/master-values/${entityType}/${id}/enable`),
+
+  disable: (entityType: string, id: string, reason?: string) =>
+    getApi().post(`/master-values/${entityType}/${id}/disable`, { reason }),
+
+  delete: (entityType: string, id: string) =>
+    getApi().delete(`/master-values/${entityType}/${id}`),
+
+  seedDefaults: () =>
+    getApi().post('/master-values/seed-defaults'),
+};
 

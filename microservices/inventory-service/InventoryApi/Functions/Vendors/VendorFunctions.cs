@@ -30,11 +30,13 @@ public sealed class VendorFunctions
     {
         try
         {
-            var tenantId = ParseGuid(req, "X-Tenant-Id");
-            var qs       = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
-            int page     = int.TryParse(qs["page"], out var p) ? p : 1;
-            int pageSize = int.TryParse(qs["pageSize"], out var ps) ? ps : 20;
-            var result   = await _vendors.ListAsync(tenantId, page, pageSize, ct);
+            var tenantId    = ParseGuid(req, "X-Tenant-Id");
+            var qs          = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
+            int page        = int.TryParse(qs["page"], out var p) ? p : 1;
+            int pageSize    = int.TryParse(qs["pageSize"], out var ps) ? ps : 20;
+            string? category   = qs["category"];
+            bool? isPreferred  = qs["isPreferred"] is { } ip ? bool.TryParse(ip, out var b) && b ? true : (bool?)false : null;
+            var result      = await _vendors.ListAsync(tenantId, page, pageSize, category, isPreferred, ct);
             return await OkJson(req, result);
         }
         catch (Exception ex) { return await BadRequest(req, ex.Message); }

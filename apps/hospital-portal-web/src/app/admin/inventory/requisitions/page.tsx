@@ -6,17 +6,14 @@ import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import {
   inventoryRequisitionApi,
-  inventoryStoreApi,
   inventoryItemApi,
-  inventoryVendorApi,
-  purchaseOrderApi,
-  StoreDto,
   ItemDto,
   VendorDto,
   EvaluatePolicyPathResult,
   type ConvertToPORequest,
 } from '@/lib/api/inventory-service.api';
 import { branchesApi } from '@/lib/api';
+import { useStores, useInventoryItems } from '@/hooks/useInventoryReferenceData';
 
 const STATUS_TABS = [
   { key: 'All',            label: 'All',             dot: 'bg-slate-400',    activeClass: 'bg-slate-600 border-slate-600 text-white' },
@@ -88,9 +85,10 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 }
 
 function CreateRequisitionModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [stores, setStores] = useState<StoreDto[]>([]);
-  const [items, setItems] = useState<ItemDto[]>([]);
+  const { data: stores = [] } = useStores();
   const [itemSearch, setItemSearch] = useState('');
+  const [querySearch, setQuerySearch] = useState<string | undefined>(undefined);
+  const { data: items = [] } = useInventoryItems(querySearch);
   const [storeId, setStoreId] = useState('');
   const [priority, setPriority] = useState('Normal');
   const [requiredByDate, setRequiredByDate] = useState('');
@@ -100,16 +98,7 @@ function CreateRequisitionModal({ onClose, onCreated }: { onClose: () => void; o
   const [error, setError] = useState('');
 
   useEffect(() => {
-    Promise.all([inventoryStoreApi.list(), inventoryItemApi.list({ pageSize: 100 })])
-      .then(([s, it]) => { setStores(s); setItems(it.items ?? []); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      inventoryItemApi.list({ pageSize: 100, search: itemSearch || undefined })
-        .then(it => setItems(it.items ?? [])).catch(() => {});
-    }, 300);
+    const t = setTimeout(() => setQuerySearch(itemSearch || undefined), 300);
     return () => clearTimeout(t);
   }, [itemSearch]);
 

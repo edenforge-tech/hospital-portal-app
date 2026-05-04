@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Info } from 'lucide-react';
+import { X, Info, ChevronUp, ChevronDown } from 'lucide-react';
 import { ItemDto } from '@/lib/api/inventory-service.api';
 
 // â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -35,6 +35,23 @@ export interface GrnLineItem {
   isReplacement: boolean;
   itemRemarks: string;
   roundingAmount: number;
+  // Traceability (new)
+  serialNumber?: string | null;
+  manufacturerName?: string | null;
+  countryOfOrigin?: string | null;
+  mfgDate?: string | null;
+  scheduleType?: string | null;
+  isColdChain?: boolean;
+  brandName?: string | null;
+  vendorSku?: string | null;
+  isInterState?: boolean;
+  extraFieldsJson?: string | null;
+  // Patient linkage (optional — used in IP billing context)
+  patientName?: string | null;
+  patientIpNo?: string | null;
+  surgeryId?: string | null;
+  originalMrp?: number;
+  isFullDiscount?: boolean;
 }
 
 export interface ItemGstFormModalProps {
@@ -234,6 +251,23 @@ export function ItemGstFormModal({
     isReplacement:    false,
     itemRemarks:      '',
     roundingAmount:   0,
+    // Traceability defaults
+    serialNumber:     null,
+    manufacturerName: null,
+    countryOfOrigin:  null,
+    mfgDate:          null,
+    scheduleType:     null,
+    isColdChain:      false,
+    brandName:        null,
+    vendorSku:        null,
+    isInterState:     false,
+    extraFieldsJson:  null,
+    // Patient linkage defaults
+    patientName:      null,
+    patientIpNo:      null,
+    surgeryId:        null,
+    originalMrp:      0,
+    isFullDiscount:   false,
     ...initial,
   });
 
@@ -274,6 +308,18 @@ export function ItemGstFormModal({
     setIgstSlab(slab);
     const pct = parseFloat(slab) || 0;
     setForm(f => ({ ...f, igstPercent: pct }));
+  };
+
+  // Inter-State toggle -> switch between CGST/SGST ↔ IGST mode
+  const handleIsInterStateChange = (checked: boolean) => {
+    const total = form.gstPercent;
+    if (checked) {
+      setForm(f => ({ ...f, isInterState: true, cgstPercent: 0, sgstPercent: 0, igstPercent: total }));
+      setIgstSlab(String(total));
+    } else {
+      setForm(f => ({ ...f, isInterState: false, cgstPercent: total / 2, sgstPercent: total / 2, igstPercent: 0 }));
+      setIgstSlab('0');
+    }
   };
 
   // MRP per unit auto-calc when pack data changes
@@ -322,66 +368,72 @@ export function ItemGstFormModal({
     setTimeout(() => { onSave({ ...form, taxOnFree: taxOnFreeCalc }); }, 800);
   };
 
+  // ── Section collapse state ────────────────────────────────────────────────
+  const hasSomeTrace = !!(
+    (initial?.serialNumber) || (initial?.manufacturerName) || (initial?.brandName) ||
+    (initial?.vendorSku) || (initial?.countryOfOrigin) || (initial?.mfgDate) ||
+    (initial?.scheduleType) || (initial?.isColdChain)
+  );
+  const [openSections, setOpenSections] = React.useState({
+    retail:  true,
+    pack:    false,
+    trace:   hasSomeTrace,
+    remarks: false,
+  });
+  const toggleSection = (k: keyof typeof openSections) =>
+    setOpenSections(s => ({ ...s, [k]: !s[k] }));
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
       <div
-        className="relative z-10 w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+        className="relative z-10 w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
         style={{ maxHeight: '94vh' }}
         onClick={e => e.stopPropagation()}
       >
-        {/* â”€â”€ Modal header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        <div className="flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100 flex-shrink-0">
-          <div>
-            <h2 className="text-base font-bold text-gray-900">{item.itemName}</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {[item.unit, item.hsnCode ? `HSN: ${item.hsnCode}` : null, item.genericName].filter(Boolean).join(' · ')}
-            </p>
+        {/* ── Sticky Header ──────────────────────────────────────────────────── */}
+        <div className="flex-shrink-0 flex items-start justify-between px-5 py-3.5 bg-white border-b border-gray-100 shadow-sm">
+          <div className="min-w-0 flex-1 pr-4">
+            <h2 className="text-sm font-bold text-gray-900 truncate" title={item.itemName}>
+              {item.itemName}
+            </h2>
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              <span className="text-[11px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full font-medium">{item.unit}</span>
+              {item.hsnCode && (
+                <span className="text-[11px] text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full font-medium">
+                  HSN: {item.hsnCode}
+                </span>
+              )}
+              {item.genericName && (
+                <span className="text-[11px] text-gray-400 truncate max-w-[200px]" title={item.genericName}>{item.genericName}</span>
+              )}
+            </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-white/70 transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors flex-shrink-0">
             <X size={16} />
           </button>
         </div>
 
-        {/* â”€â”€ Success banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* Success banner */}
         {saved && (
-          <div className="px-5 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-2 flex-shrink-0">
+          <div className="flex-shrink-0 px-5 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-2">
             <span className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[10px] font-bold shrink-0">✔</span>
             <span className="text-xs font-semibold text-emerald-700">{isEditing ? 'Item updated!' : 'Item added to GRN!'}</span>
           </div>
         )}
 
-        {/* â”€â”€ Body â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        <div className="overflow-y-auto flex-1 px-5 py-4">
-          <div className="grid grid-cols-2 gap-6">
+        {/* ── Scrollable Body ─────────────────────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
 
-            {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â• LEFT PANEL  -  Quantities + Purchase â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-            <div>
-              {/* QUANTITIES */}
-              <SecHead s="Quantities" />
-
-              {/* Asset Item radio */}
-              <div className="mb-3">
-                <Lbl s="Asset Item" />
-                <div className="flex gap-6 mt-1">
-                  {(['Yes', 'No'] as const).map(opt => (
-                    <label key={opt} className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="assetItem"
-                        value={opt}
-                        checked={form.isAssetItem === (opt === 'Yes')}
-                        onChange={() => set('isAssetItem', opt === 'Yes')}
-                        className="accent-blue-600"
-                      />
-                      <span className="text-sm text-gray-700">{opt}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+          {/* ══ SECTION 1: QUANTITIES & BATCH (always open) ════════════════════ */}
+          <div className="border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+            <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+              <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-widest">Quantities &amp; Batch</p>
+            </div>
+            <div className="px-4 py-3 space-y-3">
+              {/* Row 1: Batch, Expiry, Asset Item */}
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Lbl s="Batch No" />
                   <Inp value={form.batchNumber} onChange={v => set('batchNumber', v)} placeholder="Batch #" />
@@ -391,13 +443,22 @@ export function ItemGstFormModal({
                   <Inp type="date" value={form.expiryDate} onChange={v => set('expiryDate', v)} />
                 </div>
                 <div>
-                  <Lbl s="Packing" />
-                  <Inp type="number" value={form.packing} onChange={setNum('packing')} placeholder="0" />
+                  <Lbl s="Asset Item" />
+                  <div className="flex gap-5 mt-2">
+                    {(['Yes', 'No'] as const).map(opt => (
+                      <label key={opt} className="flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="assetItem" value={opt}
+                          checked={form.isAssetItem === (opt === 'Yes')}
+                          onChange={() => set('isAssetItem', opt === 'Yes')}
+                          className="accent-teal-600" />
+                        <span className="text-sm text-gray-700">{opt}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <Lbl s="No. of Unit" />
-                  <Inp type="number" value={form.unitsPerPack} onChange={setNum('unitsPerPack')} placeholder="0" />
-                </div>
+              </div>
+              {/* Row 2: Received, Accepted, Free, Subtotal */}
+              <div className="grid grid-cols-4 gap-3">
                 <div>
                   <Lbl s="Received Qty" />
                   <Inp type="number" value={form.orderedQuantity} onChange={setNum('orderedQuantity')} />
@@ -406,20 +467,27 @@ export function ItemGstFormModal({
                   <Lbl s="Accepted Qty" />
                   <Inp type="number" value={form.acceptedQuantity} onChange={setNum('acceptedQuantity')} />
                 </div>
-
-                {/* Free Qty | Purchase Amount (auto) | Item Price */}
                 <div>
-                  <Lbl s="Free" />
+                  <Lbl s="Free Qty" />
                   <Inp type="number" value={form.freeQuantity} onChange={setNum('freeQuantity')} placeholder="0" />
                 </div>
                 <div>
                   <Lbl s="Subtotal (Qty × Rate)" />
-                  <Inp value={purchaseAmount.toFixed(2)} readOnly accent />
+                  <input readOnly value={'₹' + purchaseAmount.toFixed(2)}
+                    className="w-full px-3 py-2 text-sm border border-teal-200 rounded-xl bg-teal-50 text-teal-800 font-semibold cursor-default" />
                 </div>
               </div>
+            </div>
+          </div>
 
-              {/* Purchase Rate  -  full width with last purchase chips */}
-              <div className="mt-3">
+          {/* ══ SECTION 2: PURCHASE PRICING (always open) ══════════════════════ */}
+          <div className="border border-teal-100 rounded-xl overflow-hidden shadow-sm">
+            <div className="px-4 py-2.5 bg-teal-50 border-b border-teal-100">
+              <p className="text-[10px] font-extrabold text-teal-700 uppercase tracking-widest">Purchase Pricing</p>
+            </div>
+            <div className="px-4 py-3 space-y-3">
+              {/* Purchase Rate */}
+              <div>
                 <div className="flex items-baseline gap-2 mb-1">
                   <label className={lblCls}>Purchase Rate</label>
                   <span className="text-[10px] text-gray-400 normal-case tracking-normal">per unit — from vendor invoice</span>
@@ -428,265 +496,335 @@ export function ItemGstFormModal({
                 {(lastPurchasePrice !== undefined || lastPurchaseFree !== undefined) && (
                   <div className="flex flex-wrap gap-2 mt-1.5">
                     {lastPurchasePrice !== undefined && <RefChip label="Last Purchase Price" value={lastPurchasePrice} color="orange" />}
-                    {lastPurchaseFree !== undefined && <RefChip label="Last Purchase Free" value={lastPurchaseFree} color="teal" />}
+                    {lastPurchaseFree  !== undefined && <RefChip label="Last Free Qty Cost"  value={lastPurchaseFree}  color="teal"   />}
                   </div>
                 )}
               </div>
 
-              {/* PURCHASE TAX bordered box */}
-              <SecHead s="Purchase Tax" />
-              <div className="border border-gray-200 rounded-xl p-3 bg-gray-50/40">
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Lbl s="Purchase Tax" />
-                    <Sel value={purchaseTaxSlab} onChange={handlePurchaseTaxChange}>
-                      {GST_SLABS.map(s => <option key={s} value={s}>GST {s}%</option>)}
-                    </Sel>
-                  </div>
-                  <TaxBadge label="CGST" pct={form.cgstPercent} />
-                  <TaxBadge label="SGST" pct={form.sgstPercent} />
+              {/* GST slabs — 3 col: Purchase Slab, CGST badge, SGST badge */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Lbl s="Purchase GST" />
+                  <Sel value={purchaseTaxSlab} onChange={handlePurchaseTaxChange}>
+                    {GST_SLABS.map(s => <option key={s} value={s}>GST {s}%</option>)}
+                  </Sel>
                 </div>
-                <div className="grid grid-cols-3 gap-3 mt-3">
-                  <div>
-                    <Lbl s="IGST" />
-                    <Sel value={igstSlab} onChange={handleIgstSlabChange}>
-                      {GST_SLABS.map(s => <option key={s} value={s}>GST {s}%</option>)}
-                    </Sel>
-                  </div>
-                  <TaxBadge label="IGST" pct={form.igstPercent} />
-                  <div />
+                <div>
+                  <p className={`${lblCls} text-teal-600`}>CGST {form.cgstPercent.toFixed(2)}%</p>
+                  <input readOnly value={form.cgstPercent.toFixed(4)}
+                    className="w-full px-3 py-2 text-sm border border-teal-100 bg-teal-50/60 rounded-xl text-teal-700 font-semibold cursor-default" />
+                </div>
+                <div>
+                  <p className={`${lblCls} text-teal-600`}>SGST {form.sgstPercent.toFixed(2)}%</p>
+                  <input readOnly value={form.sgstPercent.toFixed(4)}
+                    className="w-full px-3 py-2 text-sm border border-teal-100 bg-teal-50/60 rounded-xl text-teal-700 font-semibold cursor-default" />
                 </div>
               </div>
 
-              {/* Discount row */}
-              <div className="grid grid-cols-2 gap-3 mt-3">
+              {/* IGST + Inter-State row */}
+              <div className="grid grid-cols-3 gap-3 items-end">
                 <div>
-                  <Lbl s="Purchase Discount (%)" />
+                  <Lbl s="IGST Slab" />
+                  <Sel value={igstSlab} onChange={handleIgstSlabChange}>
+                    {GST_SLABS.map(s => <option key={s} value={s}>GST {s}%</option>)}
+                  </Sel>
+                </div>
+                <div>
+                  <p className={`${lblCls} text-slate-500`}>IGST {form.igstPercent.toFixed(2)}%</p>
+                  <input readOnly value={form.igstPercent.toFixed(4)}
+                    className="w-full px-3 py-2 text-sm border border-slate-100 bg-slate-50/60 rounded-xl text-slate-600 font-semibold cursor-default" />
+                </div>
+                <div className="pb-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={form.isInterState ?? false}
+                      onChange={e => handleIsInterStateChange(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded accent-teal-600" />
+                    <span className="text-xs text-gray-600 font-medium">Inter-State (IGST)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Discount */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Lbl s="Discount %" />
                   <Inp type="number" value={form.discountPercent} onChange={setNum('discountPercent')} placeholder="0.00" />
                 </div>
                 <div>
                   <Lbl s="Discount Amount" />
-                  <Inp value={discountAmount.toFixed(2)} readOnly />
+                  <input readOnly value={'₹' + discountAmount.toFixed(2)}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 text-gray-600 cursor-default" />
                 </div>
               </div>
-              <div className="mt-2">
-                <Chk label="GST on net amount (after discount)" checked={deductDiscount} onChange={setDeductDiscount} />
+              <Chk label="GST on net amount (after discount)" checked={deductDiscount} onChange={setDeductDiscount} />
+
+              {/* Mini purchase summary */}
+              <div className="grid grid-cols-4 gap-2 bg-teal-50/60 border border-teal-100 rounded-xl px-3 py-2.5">
+                {[
+                  { label: 'Before Tax', value: purchaseAmount - discountAmount },
+                  { label: 'Tax',        value: totalTax        },
+                  { label: 'Rounding',   value: form.roundingAmount ?? 0 },
+                  { label: 'Net Payable', value: totalPayable   },
+                ].map(({ label, value }) => (
+                  <div key={label} className="text-center">
+                    <p className="text-[9px] text-teal-500 font-semibold uppercase leading-tight">{label}</p>
+                    <p className={`text-sm font-bold mt-0.5 ${label === 'Net Payable' ? 'text-teal-800' : 'text-teal-700'}`}>
+                      {value > 0 ? '₹' : value < 0 ? '−₹' : '₹'}{Math.abs(value).toFixed(2)}
+                    </p>
+                  </div>
+                ))}
               </div>
 
-              {/* Total Payable — includes optional rounding adjustment */}
-              <div className="mt-3 border border-blue-100 rounded-xl p-3 bg-blue-50/20">
-                <div className="grid grid-cols-2 gap-3 mb-2.5">
+              {/* Rounding */}
+              <div className="grid grid-cols-2 gap-3 items-start">
+                <div>
+                  <Lbl s="Subtotal (before tax)" />
+                  <input readOnly value={'₹' + (purchaseAmount - discountAmount).toFixed(2)}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 text-gray-600 cursor-default" />
+                </div>
+                <div>
+                  <label className={lblCls + ' mb-1.5'}>Rounding</label>
+                  <div className="flex gap-1.5">
+                    {(['+', '-'] as const).map(sign => (
+                      <button key={sign} type="button" onClick={() => handleRoundingSignToggle(sign)}
+                        className={`w-8 h-[38px] rounded-lg text-sm font-bold border transition-colors flex-shrink-0 ${
+                          roundingSign === sign
+                            ? sign === '+' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-rose-500 text-white border-rose-500'
+                            : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'
+                        }`}>{sign}</button>
+                    ))}
+                    <Inp type="number" value={Math.abs(form.roundingAmount ?? 0)} onChange={handleRoundingAbsChange} placeholder="0.00" />
+                  </div>
+                </div>
+              </div>
+              {lastPurchaseCost !== undefined && (
+                <div><RefChip label="Last Payable" value={lastPurchaseCost} color="rose" /></div>
+              )}
+            </div>
+          </div>
+
+          {/* ══ SECTION 3: RETAIL PRICING (collapsible, default open) ═══════════ */}
+          <div className="border border-purple-100 rounded-xl overflow-hidden shadow-sm">
+            <button type="button" onClick={() => toggleSection('retail')}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-purple-50 border-b border-purple-100 hover:bg-purple-100/60 transition-colors">
+              <p className="text-[10px] font-extrabold text-purple-700 uppercase tracking-widest">Retail Pricing</p>
+              {openSections.retail ? <ChevronUp size={13} className="text-purple-400" /> : <ChevronDown size={13} className="text-purple-400" />}
+            </button>
+            {openSections.retail && (
+              <div className="px-4 py-3 space-y-3">
+                {lastMrp !== undefined && <div><RefChip label="Last MRP" value={lastMrp} color="amber" /></div>}
+                <p className="text-[10px] text-gray-400">MRP = max price printed on package (regulatory). Selling Price = amount billed to patient.</p>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Lbl s="Subtotal (before tax)" />
-                    <Inp value={(purchaseAmount - discountAmount).toFixed(2)} readOnly />
+                    <Lbl s="MRP (Max. Retail Price)" />
+                    <Inp type="number" value={form.mrp} onChange={setNum('mrp')} />
                   </div>
                   <div>
-                    <label className={lblCls + ' mb-1.5'}>Rounding</label>
-                    <div className="flex gap-1.5">
-                      {(['+', '-'] as const).map(sign => (
-                        <button
-                          key={sign}
-                          type="button"
-                          onClick={() => handleRoundingSignToggle(sign)}
-                          className={`w-8 h-[38px] rounded-lg text-sm font-bold border transition-colors flex-shrink-0 ${
-                            roundingSign === sign
-                              ? sign === '+'
-                                ? 'bg-emerald-500 text-white border-emerald-500'
-                                : 'bg-rose-500 text-white border-rose-500'
-                              : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'
-                          }`}
-                        >
-                          {sign}
-                        </button>
-                      ))}
-                      <Inp type="number" value={Math.abs(form.roundingAmount ?? 0)}
-                        onChange={handleRoundingAbsChange} placeholder="0.00" />
+                    <Lbl s="Barcode" />
+                    <Inp value={form.barcode} onChange={v => set('barcode', v)} placeholder="Barcode" />
+                  </div>
+                </div>
+
+                {/* Selling Tax */}
+                <div className="border border-gray-100 rounded-xl p-3 bg-gray-50/40">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Lbl s="Selling Tax" />
+                      <Sel value={sellingGst} onChange={setSellingGst}>
+                        {GST_SLABS.map(s => <option key={s} value={s}>GST {s}%</option>)}
+                      </Sel>
+                    </div>
+                    <div>
+                      <p className={`${lblCls} text-teal-600`}>CGST {sellingCgst.toFixed(2)}%</p>
+                      <input readOnly value={sellingCgst.toFixed(4)}
+                        className="w-full px-3 py-2 text-sm border border-teal-100 bg-teal-50/60 rounded-xl text-teal-700 font-semibold cursor-default" />
+                    </div>
+                    <div>
+                      <p className={`${lblCls} text-teal-600`}>SGST {sellingSgst.toFixed(2)}%</p>
+                      <input readOnly value={sellingSgst.toFixed(4)}
+                        className="w-full px-3 py-2 text-sm border border-teal-100 bg-teal-50/60 rounded-xl text-teal-700 font-semibold cursor-default" />
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <Chk label="Tax Inclusive (auto-calc selling price from MRP)" checked={taxInclusive} onChange={setTaxInclusive} />
+                    {taxInclusive && <p className="text-[10px] text-teal-600 font-medium">SP = MRP ÷ (1 + GST% / 100)</p>}
+                    <div>
+                      <div className="flex items-baseline gap-2 mb-1">
+                        <label className={lblCls}>Patient Selling Price</label>
+                        <span className="text-[10px] text-gray-400 normal-case tracking-normal">must be ≤ MRP</span>
+                      </div>
+                      <Inp type="number" value={form.sellingPrice}
+                        onChange={taxInclusive ? () => {} : setNum('sellingPrice')}
+                        readOnly={taxInclusive} accent={taxInclusive} />
                     </div>
                   </div>
                 </div>
-                <div className="border-t border-blue-100 pt-2 flex items-end justify-between">
-                  <div>
-                    <p className="block text-[10px] font-bold text-blue-700 uppercase tracking-widest mb-1">Total Payable</p>
-                    <p className="text-[10px] text-blue-400">Subtotal + Tax + Rounding</p>
-                  </div>
-                  <p className="text-xl font-extrabold text-blue-800 leading-none">₹{totalPayable.toFixed(2)}</p>
-                </div>
-                {lastPurchaseCost !== undefined && (
-                  <div className="mt-1.5">
-                    <RefChip label="Last Payable" value={lastPurchaseCost} color="rose" />
-                  </div>
-                )}
-              </div>
 
-              {/* PACK PRICING */}
-              <div className="mt-5 mb-2">
-                <div className="flex items-center gap-2">
-                  <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-widest">Pack Pricing</p>
-                  <span className="text-[10px] text-violet-500 bg-violet-50 border border-violet-100 px-2 py-0.5 rounded-full font-medium">For strips / boxes</span>
-                </div>
-                <p className="text-[10px] text-gray-400 mt-1">e.g. Tablet strip of 10: MRP on Pack = strip price, Units/Pack = 10 → MRP per Unit auto-fills.</p>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Lbl s="Transfer MRP" />
-                  <Inp type="number" value={form.transferMrp} onChange={setNum('transferMrp')} placeholder="0.00" />
-                </div>
-                <div>
-                  <Lbl s="MRP on Pack" />
-                  <Inp type="number" value={form.mrpOnPack} onChange={setNum('mrpOnPack')} placeholder="0.00" />
-                </div>
-                <div>
-                  <Lbl s="MRP per Unit" />
-                  <Inp type="number" value={form.mrpPerUnit ?? 0} onChange={setNum('mrpPerUnit')} placeholder="0.00" />
-                </div>
-              </div>
-            </div>
-
-            {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â• RIGHT PANEL  -  Selling + Tax + Totals â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-            <div>
-              {/* Last MRP chip  -  prominent at top */}
-              {lastMrp !== undefined && (
-                <div className="mb-3">
-                  <RefChip label="Last MRP" value={lastMrp} color="amber" />
-                </div>
-              )}
-
-              {/* MRP + Barcode */}
-              <SecHead s="Retail Pricing" />
-              <p className="text-[10px] text-gray-400 -mt-2 mb-2.5">MRP = max price printed on package (regulatory). Selling Price = amount billed to patient.</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Lbl s="MRP (Max. Retail Price)" />
-                  <Inp type="number" value={form.mrp} onChange={setNum('mrp')} />
-                </div>
-                <div>
-                  <Lbl s="Barcode" />
-                  <Inp value={form.barcode} onChange={v => set('barcode', v)} placeholder="Barcode" />
-                </div>
-              </div>
-
-              {/* SELLING TAX bordered box */}
-              <div className="border border-gray-200 rounded-xl p-3 bg-gray-50/40 mt-3">
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Lbl s="Selling Tax" />
-                    <Sel value={sellingGst} onChange={setSellingGst}>
-                      {GST_SLABS.map(s => <option key={s} value={s}>GST {s}%</option>)}
-                    </Sel>
-                  </div>
-                  <TaxBadge label="CGST" pct={sellingCgst} />
-                  <TaxBadge label="SGST" pct={sellingSgst} />
-                </div>
-                <div className="mt-3">
-                  <Chk label="Tax Inclusive (auto-calc selling price from MRP)" checked={taxInclusive} onChange={setTaxInclusive} />
-                  {taxInclusive && (
-                    <p className="text-[10px] text-teal-600 mt-1 font-medium">SP = MRP / (1 + GST%/100)</p>
+                {/* Tax on Free */}
+                <div className="border border-gray-100 rounded-xl p-3 bg-gray-50/40">
+                  <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-widest mb-2">Tax on Free</p>
+                  <Chk label="Calculate Tax On Free Items" checked={taxOnFreeCalc} onChange={setTaxOnFreeCalc} />
+                  {taxOnFreeCalc && (
+                    <div className="mt-3 grid grid-cols-4 gap-2">
+                      {[
+                        { label: 'Total Tax', value: freeTotalTax },
+                        { label: 'CGST',      value: freeCgstAmt  },
+                        { label: 'SGST',      value: freeSgstAmt  },
+                        { label: 'IGST',      value: freeIgstAmt  },
+                      ].map(({ label, value }) => (
+                        <div key={label}><Lbl s={label} /><Inp value={value.toFixed(2)} readOnly /></div>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <div className="mt-2">
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <label className={lblCls}>Patient Selling Price</label>
-                    <span className="text-[10px] text-gray-400 normal-case tracking-normal">must be ≤ MRP</span>
-                  </div>
-                  <Inp
-                    type="number"
-                    value={form.sellingPrice}
-                    onChange={taxInclusive ? () => {} : setNum('sellingPrice')}
-                    readOnly={taxInclusive}
-                    accent={taxInclusive}
-                  />
-                </div>
-              </div>
 
-              {/* TAX ON FREE bordered box */}
-              <div className="border border-gray-200 rounded-xl p-3 bg-gray-50/40 mt-4">
-                <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-widest mb-2.5">Tax on Free</p>
-                <Chk label="Calculate Tax On Free Items" checked={taxOnFreeCalc} onChange={setTaxOnFreeCalc} />
-                {taxOnFreeCalc && (
-                  <div className="mt-3 grid grid-cols-4 gap-2">
-                    {[
-                      { label: 'Total Tax', value: freeTotalTax },
-                      { label: 'CGST',      value: freeCgstAmt  },
-                      { label: 'SGST',      value: freeSgstAmt  },
-                      { label: 'IGST',      value: freeIgstAmt  },
-                    ].map(({ label, value }) => (
-                      <div key={label}>
-                        <Lbl s={label} />
-                        <Inp value={value.toFixed(2)} readOnly />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* OPTIONS */}
-              <div className="mt-4">
-                <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-widest mb-2">Options</p>
                 <Chk label="Replacement" checked={form.isReplacement} onChange={v => set('isReplacement', v)} />
               </div>
+            )}
+          </div>
 
-              {/* PURCHASE SUMMARY */}
-              <div className="mt-4 bg-blue-50/70 border border-blue-100 rounded-xl p-4">
-                <p className="text-[10px] font-extrabold text-blue-700 uppercase tracking-widest mb-3">Purchase Summary</p>
+          {/* ══ SECTION 4: PACK PRICING (collapsible, default closed) ══════════ */}
+          <div className="border border-orange-100 rounded-xl overflow-hidden shadow-sm">
+            <button type="button" onClick={() => toggleSection('pack')}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-orange-50 border-b border-orange-100 hover:bg-orange-100/60 transition-colors">
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] font-extrabold text-orange-700 uppercase tracking-widest">Pack Pricing</p>
+                <span className="text-[10px] text-violet-500 bg-violet-50 border border-violet-100 px-2 py-0.5 rounded-full font-medium">For strips / boxes</span>
+              </div>
+              {openSections.pack ? <ChevronUp size={13} className="text-orange-400" /> : <ChevronDown size={13} className="text-orange-400" />}
+            </button>
+            {openSections.pack && (
+              <div className="px-4 py-3">
+                <p className="text-[10px] text-gray-400 mb-3">e.g. Tablet strip of 10: MRP on Pack = strip price, Units/Pack = 10 → MRP per Unit auto-fills.</p>
                 <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { label: 'Subtotal',     value: taxableAmt,   sub: 'Qty × Rate − Disc' },
-                    { label: 'CGST',         value: cgstAmt,      sub: `${form.cgstPercent}%` },
-                    { label: 'SGST',         value: sgstAmt,      sub: `${form.sgstPercent}%` },
-                    { label: 'IGST',         value: igstAmt,      sub: `${form.igstPercent}%` },
-                    { label: 'Total Tax',    value: totalTax,     sub: 'CGST+SGST+IGST' },
-                    { label: 'Before Round', value: purchaseCost, sub: '' },
-                  ].map(({ label, value, sub }) => (
-                    <div key={label} className="text-center">
-                      <p className="text-[10px] text-blue-500 font-semibold uppercase leading-tight">{label}</p>
-                      {sub && <p className="text-[9px] text-blue-300 leading-none mb-0.5">{sub}</p>}
-                      <p className="text-sm font-bold text-blue-800 mt-0.5">₹{value.toFixed(2)}</p>
-                    </div>
-                  ))}
-                </div>
-                {(form.roundingAmount ?? 0) !== 0 && (
-                  <div className="mt-2 pt-2 border-t border-blue-100 flex items-center justify-between">
-                    <span className="text-[10px] text-blue-400 uppercase font-semibold tracking-wide">Rounding</span>
-                    <span className="text-sm font-bold text-blue-600">
-                      {(form.roundingAmount ?? 0) > 0 ? '+' : ''}₹{(form.roundingAmount ?? 0).toFixed(2)}
-                    </span>
+                  <div>
+                    <Lbl s="Transfer MRP" />
+                    <Inp type="number" value={form.transferMrp} onChange={setNum('transferMrp')} placeholder="0.00" />
                   </div>
-                )}
-                <div className="mt-2 pt-2 border-t border-blue-200 flex items-center justify-between">
-                  <span className="text-xs font-extrabold text-blue-900 uppercase tracking-wide">Total Payable</span>
-                  <span className="text-lg font-extrabold text-blue-900">₹{totalPayable.toFixed(2)}</span>
+                  <div>
+                    <Lbl s="MRP on Pack" />
+                    <Inp type="number" value={form.mrpOnPack} onChange={setNum('mrpOnPack')} placeholder="0.00" />
+                  </div>
+                  <div>
+                    <Lbl s="MRP per Unit (auto)" />
+                    <input readOnly value={form.mrpPerUnit?.toFixed(4) ?? '0.0000'}
+                      className="w-full px-3 py-2 text-sm border border-teal-200 rounded-xl bg-teal-50 text-teal-800 font-semibold cursor-default" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div>
+                    <Lbl s="Packing" />
+                    <Inp type="number" value={form.packing} onChange={setNum('packing')} placeholder="0" />
+                  </div>
+                  <div>
+                    <Lbl s="Units / Pack" />
+                    <Inp type="number" value={form.unitsPerPack} onChange={setNum('unitsPerPack')} placeholder="0" />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
-          {/* Item Remarks  -  full width */}
-          <div className="mt-5">
-            <label className={lblCls}>Item Remarks</label>
-            <textarea
-              value={form.itemRemarks}
-              onChange={e => set('itemRemarks', e.target.value)}
-              rows={2}
-              placeholder="Optional remarks..."
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
-            />
+          {/* ══ SECTION 5: TRACEABILITY & ORIGIN (collapsible) ══════════════════ */}
+          <div className="border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+            <button type="button" onClick={() => toggleSection('trace')}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-100 hover:bg-slate-100/60 transition-colors">
+              <p className="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest">Traceability &amp; Origin</p>
+              {openSections.trace ? <ChevronUp size={13} className="text-slate-400" /> : <ChevronDown size={13} className="text-slate-400" />}
+            </button>
+            {openSections.trace && (
+              <div className="px-4 py-3 grid grid-cols-2 gap-3">
+                <div>
+                  <label className={lblCls}>Serial Number</label>
+                  <input type="text" value={form.serialNumber ?? ''} onChange={e => set('serialNumber', e.target.value || null)}
+                    placeholder="e.g. HC24I20992400"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+                </div>
+                <div>
+                  <label className={lblCls}>Manufacturer</label>
+                  <input type="text" value={form.manufacturerName ?? ''} onChange={e => set('manufacturerName', e.target.value || null)}
+                    placeholder="e.g. Carl Zeiss Meditec AG"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+                </div>
+                <div>
+                  <label className={lblCls}>Brand Name</label>
+                  <input type="text" value={form.brandName ?? ''} onChange={e => set('brandName', e.target.value || null)}
+                    placeholder="Trade / brand name"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+                </div>
+                <div>
+                  <label className={lblCls}>Vendor SKU</label>
+                  <input type="text" value={form.vendorSku ?? ''} onChange={e => set('vendorSku', e.target.value || null)}
+                    placeholder="Vendor product code"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+                </div>
+                <div>
+                  <label className={lblCls}>Country of Origin</label>
+                  <input type="text" value={form.countryOfOrigin ?? ''} onChange={e => set('countryOfOrigin', e.target.value || null)}
+                    placeholder="e.g. Germany"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+                </div>
+                <div>
+                  <label className={lblCls}>Mfg Date</label>
+                  <input type="date" value={form.mfgDate ?? ''} onChange={e => set('mfgDate', e.target.value || null)}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+                </div>
+                <div>
+                  <label className={lblCls}>Schedule Type</label>
+                  <select value={form.scheduleType ?? ''} onChange={e => set('scheduleType', e.target.value || null)}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400">
+                    <option value="">— Not pharma —</option>
+                    <option value="OTC">OTC (Over the Counter)</option>
+                    <option value="G">Schedule G</option>
+                    <option value="H">Schedule H (Prescription)</option>
+                    <option value="H1">Schedule H1 (Restricted)</option>
+                    <option value="X">Schedule X (Narcotic)</option>
+                    <option value="MDR">MDR (Medical Device Rule)</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-4 pt-5">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" checked={form.isColdChain ?? false} onChange={e => set('isColdChain', e.target.checked)}
+                      className="w-3.5 h-3.5 rounded accent-teal-600" />
+                    Cold Chain (2–8°C)
+                  </label>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* ══ SECTION 6: REMARKS (collapsible, default closed) ═══════════════ */}
+          <div className="border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+            <button type="button" onClick={() => toggleSection('remarks')}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100 hover:bg-gray-100/60 transition-colors">
+              <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-widest">Remarks &amp; Options</p>
+              {openSections.remarks ? <ChevronUp size={13} className="text-gray-400" /> : <ChevronDown size={13} className="text-gray-400" />}
+            </button>
+            {openSections.remarks && (
+              <div className="px-4 py-3">
+                <label className={lblCls}>Item Remarks</label>
+                <textarea value={form.itemRemarks} onChange={e => set('itemRemarks', e.target.value)}
+                  rows={3} placeholder="Optional notes for this GRN line..."
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 resize-none mt-1" />
+              </div>
+            )}
+          </div>
+
         </div>
 
-        {/* â”€â”€ Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        <div className="px-5 py-3.5 border-t border-gray-100 flex items-center justify-between flex-shrink-0 bg-gray-50/50">
-          <p className="text-xs text-gray-400">
-            Qty {form.acceptedQuantity} · Net <span className="font-semibold text-gray-700">₹{totalPayable.toFixed(2)}</span>
-          </p>
+        {/* ── Sticky Footer ──────────────────────────────────────────────────── */}
+        <div className="flex-shrink-0 px-5 py-3.5 border-t border-gray-100 flex items-center justify-between bg-white shadow-[0_-1px_4px_rgba(0,0,0,0.04)]">
+          <div className="text-xs text-gray-500 space-y-0.5">
+            <p>Qty {form.acceptedQuantity} · Before Tax <span className="font-semibold text-gray-700">₹{(purchaseAmount - discountAmount).toFixed(2)}</span></p>
+            <p>Tax <span className="font-semibold text-gray-700">₹{totalTax.toFixed(2)}</span> · Net <span className="font-bold text-teal-700">₹{totalPayable.toFixed(2)}</span></p>
+          </div>
           <div className="flex gap-3">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">
+            <button onClick={onClose}
+              className="px-4 py-2 text-sm text-gray-600 border border-gray-200 hover:bg-gray-100 rounded-xl transition-colors">
               Cancel
             </button>
-            <button
-              onClick={handleSubmit}
-              disabled={saved}
-              className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-xl shadow-sm hover:shadow-md transition-all"
-            >
+            <button onClick={handleSubmit} disabled={saved}
+              className="px-5 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-60 rounded-xl shadow-sm hover:shadow-md transition-all">
               {saved ? (isEditing ? 'Updated ✔' : 'Added ✔') : (isEditing ? 'Update GRN' : 'Add to GRN')}
             </button>
           </div>

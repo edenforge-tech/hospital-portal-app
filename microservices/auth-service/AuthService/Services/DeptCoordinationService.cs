@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using AuthService.Context;
 using AuthService.Models.Counselor;
 using AuthService.Models.Domain;
+using AuthService.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -32,6 +33,7 @@ namespace AuthService.Services
         private readonly AppDbContext _context;
         private readonly INotificationService _notificationService;
         private readonly ILogger<DeptCoordinationService> _logger;
+        private readonly IMasterDataLookupService _lookupService;
 
         // All 9 departments supported after migration 73
         private static readonly string[] AllDepartments =
@@ -57,11 +59,27 @@ namespace AuthService.Services
         public DeptCoordinationService(
             AppDbContext context,
             INotificationService notificationService,
-            ILogger<DeptCoordinationService> logger)
+            ILogger<DeptCoordinationService> logger,
+            IMasterDataLookupService lookupService)
         {
             _context = context;
             _notificationService = notificationService;
             _logger = logger;
+            _lookupService = lookupService;
+        }
+
+        /// <summary>
+        /// Returns the active department list from master data, falling back to the
+        /// hardcoded <see cref="AllDepartments"/> array when the feature flag is off
+        /// or when master data returns nothing.
+        /// </summary>
+        private async Task<string[]> GetDepartmentsAsync(Guid tenantId)
+        {
+            var labels = await _lookupService.GetLabelsAsync(
+                tenantId,
+                "system.department",
+                AllDepartments);
+            return labels.ToArray();
         }
 
         public async Task<DeptCoordinationListResponse> GetByScheduleIdAsync(Guid scheduleId, Guid tenantId)
@@ -178,7 +196,7 @@ namespace AuthService.Services
 
             var summary = new DeptCoordinationSummaryDto();
 
-            foreach (var dept in AllDepartments)
+            foreach (var dept in await GetDepartmentsAsync(tenantId))
             {
                 var latest = requests.FirstOrDefault(r => r.Department == dept);
                 if (latest == null)
@@ -209,7 +227,7 @@ namespace AuthService.Services
                 .Select(r => r.Department)
                 .ToListAsync();
 
-            var toCreate = AllDepartments.Where(d => !existing.Contains(d)).ToList();
+            var toCreate = (await GetDepartmentsAsync(tenantId)).Where(d => !existing.Contains(d)).ToList();
 
             if (!toCreate.Any())
                 return new List<DeptCoordinationRequestDto>();
@@ -275,7 +293,7 @@ namespace AuthService.Services
                 .ToListAsync();
 
             var deptStatuses = new Dictionary<string, DeptStatusInfo>();
-            foreach (var dept in AllDepartments)
+            foreach (var dept in await GetDepartmentsAsync(tenantId))
             {
                 var latest = requests.FirstOrDefault(r => r.Department == dept);
                 deptStatuses[dept] = latest == null
@@ -290,7 +308,7 @@ namespace AuthService.Services
             }
 
             var completedDepts = deptStatuses.Count(kv => kv.Value.Status == "Completed");
-            var allClear = completedDepts == AllDepartments.Length;
+            var allClear = completedDepts == deptStatuses.Count;
 
             // Check schedule-level hold flag
             var schedule = await _context.OTSchedules

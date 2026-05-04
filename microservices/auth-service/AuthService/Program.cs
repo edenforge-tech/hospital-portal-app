@@ -801,6 +801,11 @@ try
     builder.Services.AddScoped<IConsentManagementService, ConsentManagementService>();
     builder.Services.AddScoped<IWorkflowOrchestrationService, WorkflowOrchestrationService>();
     builder.Services.AddScoped<IMasterDataService, MasterDataService>(); // Master data for dropdowns (Feb 23, 2026)
+    builder.Services.AddScoped<AuthService.Services.Interfaces.IMasterValueService, AuthService.Services.MasterValueService>(); // Generic master data module (April 2026)
+    builder.Services.AddSingleton<AuthService.Services.Interfaces.IFeatureFlagService, AuthService.Services.FeatureFlagService>(); // Feature flag service (reads from appsettings.json)
+    builder.Services.AddScoped<AuthService.Services.Interfaces.IMasterDataLookupService, AuthService.Services.MasterDataLookupService>(); // Feature-flag-aware master data lookup
+    builder.Services.AddScoped<AuthService.Services.Interfaces.IMasterDataValidationService, AuthService.Services.MasterDataValidationService>(); // Delete validation (system-lock + reference checks)
+    builder.Services.AddScoped<AuthService.Services.Interfaces.IMasterDataValidationService, AuthService.Services.MasterDataValidationService>(); // Master data delete validation (ref checks)
     builder.Services.AddScoped<IInventoryAvailabilityService, InventoryAvailabilityService>(); // IOL availability check (Feb 25, 2026)
     
     // Module 4: Front Office/OPD Management Services (Feb 3, 2026)

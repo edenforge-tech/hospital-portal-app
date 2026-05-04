@@ -55,7 +55,7 @@ public sealed class StockLedgerService : IStockLedgerService
         var q = _db.StockBatches
             .Include(b => b.Item)
             .Include(b => b.Store)
-            .Where(b => b.TenantId == tenantId && b.DeletedAt == null && b.QuantityAvailable > 0);
+            .Where(b => b.TenantId == tenantId && b.DeletedAt == null && b.IsActive);
 
         if (storeId.HasValue) q = q.Where(b => b.StoreId == storeId.Value);
 
@@ -77,14 +77,14 @@ public sealed class StockLedgerService : IStockLedgerService
             g.Key.ItemId,  g.Key.ItemName, g.Key.GenericName,
             g.Key.Unit, g.TotalAvailable, g.NearestExpiry,
             g.BatchCount, g.Key.ReorderLevel,
-            g.TotalAvailable <= g.Key.ReorderLevel
+            g.TotalAvailable <= g.Key.ReorderLevel  // IsBelowReorder
         )).ToList();
     }
 
     public async Task<IReadOnlyList<StockSummaryDto>> GetBelowReorderAsync(Guid tenantId, CancellationToken ct)
     {
         var all = await GetSummaryAsync(tenantId, null, ct);
-        return all.Where(s => s.BelowReorder).ToList();
+        return all.Where(s => s.IsBelowReorder).ToList();
     }
 
     public async Task<PagedResult<StockLedgerDto>> GetLedgerAsync(

@@ -899,6 +899,123 @@ VALUES
    'Full payment for INV/RM/2024-004', 'active');
 
 -- =============================================================================
+-- 17a. SCENARIO BATCHES (stockout + expired — for dashboard/alert testing)
+-- =============================================================================
+-- Batch 011: Ceftriaxone in Pharmacy — STOCKOUT (quantity_available=0, is_active=true)
+-- Demonstrates: out-of-stock item stays visible in stock summary with "Out of Stock" badge.
+INSERT INTO inv_stock_batches
+  (id, tenant_id, store_id, item_id, invoice_id, purchase_item_id,
+   batch_number, expiry_date, requires_cold_storage,
+   mrp, purchase_rate,
+   quantity_in, quantity_out, quantity_available,
+   is_active, status)
+VALUES
+  ('ba7ba7ba-0001-0001-0001-000000000011',
+   '155fe198-6ae5-4a01-9254-ead5b427247e',
+   'b1bb1bb1-0001-0001-0001-000000000002',
+   'e4ee4ee4-0001-0001-0001-000000000005',
+   NULL, NULL,
+   'CEF-2309', '2026-12-31', false,
+   55.00, 32.00,
+   50, 50, 0,
+   true, 'active')
+ON CONFLICT (id) DO NOTHING;
+
+-- =============================================================================
+-- 17b. SCENARIO LEDGER ENTRIES (PHARMACY_ISSUE / OT_ISSUE / ADJUSTMENT)
+-- =============================================================================
+-- These rows make the ledger tell a complete dispensing story beyond GRN_IN.
+INSERT INTO inv_stock_ledger
+  (id, tenant_id, store_id, item_id, stock_batch_id,
+   transaction_type, reference_id, reference_number,
+   quantity_in, quantity_out, balance_quantity,
+   unit_rate, total_value, remarks, transaction_date, status)
+VALUES
+  -- PHARMACY_ISSUE: Moxifloxacin → Pharmacy Bill 001 (2 units)
+  (uuid_generate_v4(), '155fe198-6ae5-4a01-9254-ead5b427247e',
+   'b1bb1bb1-0001-0001-0001-000000000002',
+   'e4ee4ee4-0001-0001-0001-000000000004',
+   'ba7ba7ba-0001-0001-0001-000000000004',
+   'PHARMACY_ISSUE', 'b1b1b1b1-b1b1-b1b1-b1b1-000000000001',
+   'PHBILL/2024/001',
+   0, 2, 38, 265.00, 530.00,
+   'Dispensed to Ramakrishna Reddy (OP/2024/1234)', '2024-11-20', 'active'),
+
+  -- PHARMACY_ISSUE: Dexamethasone → Pharmacy Bill 001 (2 units)
+  (uuid_generate_v4(), '155fe198-6ae5-4a01-9254-ead5b427247e',
+   'b1bb1bb1-0001-0001-0001-000000000002',
+   'e4ee4ee4-0001-0001-0001-000000000012',
+   'ba7ba7ba-0001-0001-0001-000000000010',
+   'PHARMACY_ISSUE', 'b1b1b1b1-b1b1-b1b1-b1b1-000000000001',
+   'PHBILL/2024/001',
+   0, 2, 45, 180.00, 360.00,
+   'Dispensed to Ramakrishna Reddy (OP/2024/1234)', '2024-11-20', 'active'),
+
+  -- PHARMACY_ISSUE: Timolol → Pharmacy Bill 002 (3 units)
+  (uuid_generate_v4(), '155fe198-6ae5-4a01-9254-ead5b427247e',
+   'b1bb1bb1-0001-0001-0001-000000000002',
+   'e4ee4ee4-0001-0001-0001-000000000011',
+   'ba7ba7ba-0001-0001-0001-000000000005',
+   'PHARMACY_ISSUE', 'b1b1b1b1-b1b1-b1b1-b1b1-000000000002',
+   'PHBILL/2024/002',
+   0, 3, 22, 210.00, 630.00,
+   'Dispensed to Saraswathi Naidu (OP/2024/1289)', '2024-11-28', 'active'),
+
+  -- OT_ISSUE: Monofocal IOL → Surgery (1 unit)
+  (uuid_generate_v4(), '155fe198-6ae5-4a01-9254-ead5b427247e',
+   'b1bb1bb1-0001-0001-0001-000000000003',
+   'e4ee4ee4-0001-0001-0001-000000000001',
+   'ba7ba7ba-0001-0001-0001-000000000001',
+   'OT_ISSUE', NULL, 'OT/SURG/2024/0101',
+   0, 1, 15, 6000.00, 6000.00,
+   'IOL implanted — phaco cataract surgery', '2024-11-18', 'active'),
+
+  -- OT_ISSUE: IOL Injector → Surgery (1 unit)
+  (uuid_generate_v4(), '155fe198-6ae5-4a01-9254-ead5b427247e',
+   'b1bb1bb1-0001-0001-0001-000000000003',
+   'e4ee4ee4-0001-0001-0001-000000000003',
+   'ba7ba7ba-0001-0001-0001-000000000003',
+   'OT_ISSUE', NULL, 'OT/SURG/2024/0101',
+   0, 1, 12, 1800.00, 1800.00,
+   'IOL Injector used — phaco cataract surgery', '2024-11-18', 'active'),
+
+  -- OT_ISSUE: OVD Provisc → Surgery (1 unit)
+  (uuid_generate_v4(), '155fe198-6ae5-4a01-9254-ead5b427247e',
+   'b1bb1bb1-0001-0001-0001-000000000003',
+   'e4ee4ee4-0001-0001-0001-000000000009',
+   'ba7ba7ba-0001-0001-0001-000000000008',
+   'OT_ISSUE', NULL, 'OT/SURG/2024/0101',
+   0, 1, 3, 1400.00, 1400.00,
+   'OVD used during phaco surgery', '2024-11-18', 'active'),
+
+  -- ADJUSTMENT: Surgical Gloves — count correction (−5 pairs damaged)
+  (uuid_generate_v4(), '155fe198-6ae5-4a01-9254-ead5b427247e',
+   'b1bb1bb1-0001-0001-0001-000000000002',
+   'e4ee4ee4-0001-0001-0001-000000000007',
+   'ba7ba7ba-0001-0001-0001-000000000006',
+   'ADJUSTMENT', NULL, 'ADJ/2024/001',
+   0, 5, 80, 35.00, 175.00,
+   'Damaged gloves removed from usable stock — count correction', '2024-12-01', 'active'),
+
+  -- GRN_IN for stockout batch (received and fully consumed)
+  (uuid_generate_v4(), '155fe198-6ae5-4a01-9254-ead5b427247e',
+   'b1bb1bb1-0001-0001-0001-000000000002',
+   'e4ee4ee4-0001-0001-0001-000000000005',
+   'ba7ba7ba-0001-0001-0001-000000000011',
+   'GRN_IN', NULL, 'PREV-GRN-CEF-2309',
+   50, 0, 50, 32.00, 1600.00,
+   'Ceftriaxone batch received (Sep 2023 prev stock)', '2023-09-15', 'active'),
+
+  -- OT_ISSUE: Ceftriaxone — fully consumed (50 of 50, now stockout)
+  (uuid_generate_v4(), '155fe198-6ae5-4a01-9254-ead5b427247e',
+   'b1bb1bb1-0001-0001-0001-000000000002',
+   'e4ee4ee4-0001-0001-0001-000000000005',
+   'ba7ba7ba-0001-0001-0001-000000000011',
+   'OT_ISSUE', NULL, 'OT/SURG/BULK/2024',
+   0, 50, 0, 32.00, 1600.00,
+   'Ceftriaxone — batch fully consumed (peri-operative prophylaxis)', '2024-10-30', 'active');
+
+-- =============================================================================
 -- 17. REFRESH MATERIALIZED VIEW (if it exists — ignore error otherwise)
 -- =============================================================================
 DO $$

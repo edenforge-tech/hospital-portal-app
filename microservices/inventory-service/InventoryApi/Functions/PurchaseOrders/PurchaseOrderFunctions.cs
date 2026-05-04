@@ -113,7 +113,64 @@ public sealed class PurchaseOrderFunctions
             var tenantId = ParseGuid(req, "X-Tenant-Id");
             var po = await _pos.GetAsync(tenantId, id, ct);
             if (po is null) return req.CreateResponse(HttpStatusCode.NotFound);
-            return await OkJson(req, po);
+
+            var logs = await _pos.GetLogsAsync(tenantId, id, ct);
+
+            return await OkJson(req, new
+            {
+                po.Id,
+                po.PoNumber,
+                po.PoStatus,
+                po.SourceType,
+                po.VendorId,
+                VendorName = po.Vendor?.Name,
+                po.BranchId,
+                po.RequisitionId,
+                po.RfqId,
+                po.TotalAmount,
+                po.GstAmount,
+                po.NetAmount,
+                po.PoDate,
+                po.ExpectedDeliveryDate,
+                po.ActualDeliveryDate,
+                po.SentToVendorAt,
+                po.ReceivedAt,
+                po.IsEmergency,
+                po.EmergencyBypassExpiry,
+                po.L1ApprovedByUserId,
+                po.L1ApprovedAt,
+                po.L2ApprovedByUserId,
+                po.L2ApprovedAt,
+                po.RejectedByUserId,
+                po.RejectedAt,
+                po.RejectionReason,
+                po.Terms,
+                po.Notes,
+                po.CreatedAt,
+                po.UpdatedAt,
+                Items = po.Items.Select(i => new
+                {
+                    i.Id,
+                    i.ItemId,
+                    ItemName = i.Item?.ItemName,
+                    i.OrderedQty,
+                    i.ReceivedQty,
+                    i.UnitPrice,
+                    i.GstPercent,
+                    i.TotalAmount,
+                    i.Unit,
+                    i.RequiredBy,
+                    i.Remarks,
+                }).ToList(),
+                TransitionLogs = logs.Select(l => new
+                {
+                    l.FromStatus,
+                    l.ToStatus,
+                    l.Reason,
+                    l.ActorUserId,
+                    l.TransitionedAt,
+                }).ToList(),
+            });
         }
         catch (Exception ex) { return await BadRequest(req, ex.Message); }
     }
@@ -283,6 +340,24 @@ public sealed class PurchaseOrderFunctions
                 po.ReceivedAt,
                 po.ActualDeliveryDate
             });
+        }
+        catch (KeyNotFoundException) { return req.CreateResponse(HttpStatusCode.NotFound); }
+        catch (InvalidOperationException ex) { return await Error(req, HttpStatusCode.Conflict, ex.Message); }
+        catch (Exception ex) { return await BadRequest(req, ex.Message); }
+    }
+
+    // ---------- POST /purchase-orders/{id}/generate-grn ----------
+    [Function("GenerateGrnFromPurchaseOrder")]
+    public async Task<HttpResponseData> GenerateGrnFromPo(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "purchase-orders/{id:guid}/generate-grn")]
+        HttpRequestData req, FunctionContext ctx, Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var tenantId = ParseGuid(req, "X-Tenant-Id");
+            var userId   = ParseGuid(req, "X-User-Id");
+            var grn = await _pos.GenerateGrnFromPoAsync(tenantId, userId, id, ct);
+            return await OkJson(req, grn, HttpStatusCode.Created);
         }
         catch (KeyNotFoundException) { return req.CreateResponse(HttpStatusCode.NotFound); }
         catch (InvalidOperationException ex) { return await Error(req, HttpStatusCode.Conflict, ex.Message); }

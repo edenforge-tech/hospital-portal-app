@@ -58,6 +58,14 @@ public sealed class ApprovalService : IApprovalService
             DueDate                  = req.DueDate,
             Reference                = req.Reference,
             PurchaseCategory         = req.PurchaseCategory,
+            Irn                      = req.Irn,
+            AckNo                    = req.AckNo,
+            AckDate                  = req.AckDate,
+            EWayBillNo               = req.EWayBillNo,
+            EWayBillDate             = req.EWayBillDate,
+            DateOfDelivery           = req.DateOfDelivery,
+            IsReverseCharge          = req.IsReverseCharge,
+            VendorGstinOnInvoice     = req.VendorGstinOnInvoice,
             ApprovalStatus           = "Draft",
             Status                   = "active",
             CreatedAt                = DateTime.UtcNow,
@@ -71,8 +79,8 @@ public sealed class ApprovalService : IApprovalService
 
         foreach (var line in req.Items)
         {
-            // Determine if inter-state from presence of non-zero IgstPercent
-            bool interState = line.IgstPercent > 0;
+            // Determine if inter-state from explicit flag OR presence of non-zero IgstPercent
+            bool interState = line.IsInterState || line.IgstPercent > 0;
 
             var lineGross    = Math.Round(line.PurchaseRate * line.OrderedQuantity, 2);
             var lineDiscount = line.IsFullDiscount
@@ -118,6 +126,26 @@ public sealed class ApprovalService : IApprovalService
                 PatientIpNo     = line.PatientIpNo,
                 SurgeryId       = line.SurgeryId,
                 ItemRemarks     = line.ItemRemarks,
+                // Traceability
+                SerialNumber     = line.SerialNumber,
+                ManufacturerName = line.ManufacturerName,
+                CountryOfOrigin  = line.CountryOfOrigin,
+                MfgDate          = line.MfgDate,
+                ScheduleType     = line.ScheduleType,
+                IsColdChain      = line.IsColdChain,
+                BrandName        = line.BrandName,
+                VendorSku        = line.VendorSku,
+                IsInterState     = interState,
+                ExtraFields      = line.ExtraFields,
+                // Pricing / packaging
+                SellingPrice     = line.SellingPrice,
+                Packing          = line.Packing,
+                UnitsPerPack     = line.UnitsPerPack,
+                MrpOnPack        = line.MrpOnPack,
+                TransferMrp      = line.TransferMrp,
+                IsAssetItem      = line.IsAssetItem,
+                TaxOnFree        = line.TaxOnFree,
+                IsReplacement    = line.IsReplacement,
                 CreatedAt       = DateTime.UtcNow,
                 UpdatedAt       = DateTime.UtcNow,
                 CreatedByUserId = userId,
@@ -322,7 +350,15 @@ public sealed class ApprovalService : IApprovalService
         CreditPeriod:     inv.CreditPeriod,
         DueDate:          inv.DueDate,
         Reference:        inv.Reference,
-        PurchaseCategory: inv.PurchaseCategory
+        PurchaseCategory: inv.PurchaseCategory,
+        Irn:                  inv.Irn,
+        AckNo:                inv.AckNo,
+        AckDate:              inv.AckDate,
+        EWayBillNo:           inv.EWayBillNo,
+        EWayBillDate:         inv.EWayBillDate,
+        DateOfDelivery:       inv.DateOfDelivery,
+        IsReverseCharge:      inv.IsReverseCharge,
+        VendorGstinOnInvoice: inv.VendorGstinOnInvoice
     );
 
     private static PurchaseItemDto MapItemToDto(PurchaseItem pi) => new(
@@ -350,14 +386,24 @@ public sealed class ApprovalService : IApprovalService
         pi.PatientName,
         pi.PatientIpNo,
         pi.ItemRemarks,
-        Packing:        0,
-        UnitsPerPack:   0,
-        SellingPrice:   0,
-        MrpOnPack:      0,
-        TransferMrp:    0,
-        IsAssetItem:    false,
-        TaxOnFree:      false,
-        IsReplacement:  false
+        Packing:         pi.Packing,
+        UnitsPerPack:    pi.UnitsPerPack,
+        SellingPrice:    pi.SellingPrice,
+        MrpOnPack:       pi.MrpOnPack,
+        TransferMrp:     pi.TransferMrp,
+        IsAssetItem:     pi.IsAssetItem,
+        TaxOnFree:       pi.TaxOnFree,
+        IsReplacement:   pi.IsReplacement,
+        SerialNumber:    pi.SerialNumber,
+        ManufacturerName: pi.ManufacturerName,
+        CountryOfOrigin: pi.CountryOfOrigin,
+        MfgDate:         pi.MfgDate,
+        ScheduleType:    pi.ScheduleType,
+        IsColdChain:     pi.IsColdChain,
+        BrandName:       pi.BrandName,
+        VendorSku:       pi.VendorSku,
+        IsInterState:    pi.IsInterState,
+        ExtraFieldsJson: pi.ExtraFields
     );
 
     public async Task<IReadOnlyList<GstSummaryByRateDto>> GetInvoiceGstSummaryAsync(
@@ -400,6 +446,16 @@ public sealed class ApprovalService : IApprovalService
             .FirstOrDefaultAsync(i => i.Id == invoiceId && i.TenantId == tenantId && i.DeletedAt == null, ct);
         if (inv is null) return null;
 
+        // Snapshot lock: block edits once a GRN exists and is not cancelled
+        var hasActiveGrn = await _db.GrnHeaders.AnyAsync(
+            g => g.InvoiceId == invoiceId &&
+                 g.TenantId == tenantId &&
+                 g.DeletedAt == null &&
+                 g.GrnStatus != "Cancelled", ct);
+        if (hasActiveGrn)
+            throw new InvalidOperationException(
+                "Invoice is locked: a GRN has already been created. Cancel the GRN first to edit the invoice.");
+
         if (req.InvoiceNumber      is not null) inv.InvoiceNumber    = req.InvoiceNumber;
         if (req.InvoiceDate        is not null) inv.InvoiceDate      = req.InvoiceDate.Value;
         if (req.InvoiceType        is not null) inv.InvoiceType      = req.InvoiceType;
@@ -428,6 +484,17 @@ public sealed class ApprovalService : IApprovalService
         if (inv.ApprovalStatus is "Approved" or "Cancelled" or "Rejected")
             throw new InvalidOperationException(
                 $"Cannot edit items on an invoice with status '{inv.ApprovalStatus}'.");
+
+        // Snapshot lock: block item edits once a GRN exists and is not cancelled
+        var hasActiveGrn = await _db.GrnHeaders.AnyAsync(
+            g => g.InvoiceId == invoiceId &&
+                 g.TenantId == tenantId &&
+                 g.DeletedAt == null &&
+                 g.GrnStatus != "Cancelled", ct);
+        if (hasActiveGrn)
+            throw new InvalidOperationException(
+                "Invoice is locked: a GRN has already been created. Cancel the GRN first to edit items.");
+
 
         var updatedIds = new HashSet<Guid>();
 

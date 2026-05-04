@@ -37,4 +37,17 @@ public interface INotificationClient
         decimal  netAmount,
         DateTime sentAt,
         string?  notes = null);
+
+    /// <summary>
+    /// Notifies relevant parties about a Bill Transfer SLA event (AtRisk / Breached / Override).
+    /// Never throws — failures are logged and swallowed.
+    /// </summary>
+    Task SendBillTransferEventAsync(
+        Guid     tenantId,
+        Guid     btId,
+        string   eventType,    // e.g. "L1_AtRisk", "L1_Breached", "L2_Breached"
+        string   vendorName,
+        decimal  amount,
+        DateTime dueAt,
+        CancellationToken ct = default);
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, X, Package } from 'lucide-react';
+import { Search, X, Package, Plus } from 'lucide-react';
 import { inventoryItemApi, inventoryStockApi, ItemDto } from '@/lib/api/inventory-service.api';
 
 export interface LastPurchaseInfo {
@@ -14,6 +14,8 @@ export interface ItemSearchModalProps {
   onClose: () => void;
   /** Pass the current store ID to show outlet stock for that store */
   storeId?: string;
+  /** Called when user wants to register a new item not found in search */
+  onCreateNew?: (suggestedName: string, suggestedHsn: string) => void;
 }
 
 /**
@@ -21,7 +23,7 @@ export interface ItemSearchModalProps {
  * Table layout with: Item Name · Item Cost (MRP) · Outlet Stock ·
  *   Company Name (Brand) · Itemrol (ScheduleType) · Chemical Composition (Generic)
  */
-export function ItemSearchModal({ onSelect, onClose, storeId }: ItemSearchModalProps) {
+export function ItemSearchModal({ onSelect, onClose, storeId, onCreateNew }: ItemSearchModalProps) {
   const [query,    setQuery]    = useState('');
   const [items,    setItems]    = useState<ItemDto[]>([]);
   const [loading,  setLoading]  = useState(false);
@@ -124,6 +126,14 @@ export function ItemSearchModal({ onSelect, onClose, storeId }: ItemSearchModalP
               <p className="text-sm text-gray-400">
                 {query ? 'No items match your search' : 'Start typing to search items'}
               </p>
+              {query && onCreateNew && (
+                <button
+                  onClick={() => onCreateNew(query, '')}
+                  className="mt-4 flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-xl shadow-sm transition-colors"
+                >
+                  <Plus size={14} /> Register &ldquo;{query}&rdquo; as New Item
+                </button>
+              )}
             </div>
           )}
 
@@ -208,7 +218,17 @@ export function ItemSearchModal({ onSelect, onClose, storeId }: ItemSearchModalP
         {/* Footer */}
         <div className="px-4 py-2.5 border-t border-gray-100 text-xs text-gray-400 flex-shrink-0 flex justify-between items-center">
           <span>{!loading && items.length > 0 ? `${items.length} item${items.length !== 1 ? 's' : ''} found` : ''}</span>
-          {storeId && <span className="text-[10px] text-teal-600 font-medium">Showing stock for selected store</span>}
+          <div className="flex items-center gap-3">
+            {onCreateNew && (
+              <button
+                onClick={() => onCreateNew(query, '')}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg transition-colors"
+              >
+                <Plus size={11} /> Register New Item
+              </button>
+            )}
+            {storeId && <span className="text-[10px] text-teal-600 font-medium">Showing stock for selected store</span>}
+          </div>
         </div>
       </div>
     </div>

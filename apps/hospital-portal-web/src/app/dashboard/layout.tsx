@@ -6,9 +6,6 @@ import { useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import TopNav from '@/components/TopNav';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { hydrateAuthFromStorage } from '@/lib/auth-store';
-import { initializeApi } from '@/lib/api';
-import { useNotifications } from '@/hooks/useNotifications';
 import { Toaster } from 'react-hot-toast';
 
 export default function DashboardLayout({
@@ -20,7 +17,6 @@ export default function DashboardLayout({
   const { token, user } = useAuthStore();
   const pathname = usePathname();
   const [isClient, setIsClient] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
   const [isInIframe, setIsInIframe] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -32,36 +28,19 @@ export default function DashboardLayout({
   const noPadRoutes = ['/dashboard/counselor/sessions', '/dashboard/counselor'];
   const isNoPad = noPadRoutes.some(r => pathname.startsWith(r));
   
-  // Phase 3: Initialize real-time notifications
-  const { isConnected, notifications } = useNotifications();
-
   useEffect(() => {
     setIsClient(true);
-    
-    // Detect if we're in an iframe
     setIsInIframe(window.self !== window.top);
-    
-    // Hydrate auth from storage first
-    hydrateAuthFromStorage();
-    initializeApi();
-    
-    // Mark as hydrated after a short delay to ensure state is set
-    setTimeout(() => setIsHydrated(true), 100);
   }, []);
 
   useEffect(() => {
-    // Only check authentication after hydration is complete
-    if (isHydrated && !token) {
+    if (isClient && !token) {
       router.push('/auth/login');
     }
-  }, [isHydrated, token, router]);
+  }, [isClient, token, router]);
 
-  if (!isClient || !isHydrated || !token) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    );
+  if (!isClient || !token) {
+    return null; // loading.tsx skeleton is shown by Next.js Suspense
   }
 
   // If in iframe, render only children without dashboard layout

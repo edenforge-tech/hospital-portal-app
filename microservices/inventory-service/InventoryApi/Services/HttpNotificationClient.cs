@@ -115,4 +115,35 @@ public sealed class HttpNotificationClient : INotificationClient
                 rfqNumber, toEmail);
         }
     }
+
+    public async Task SendBillTransferEventAsync(
+        Guid     tenantId,
+        Guid     btId,
+        string   eventType,
+        string   vendorName,
+        decimal  amount,
+        DateTime dueAt,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var client  = _factory.CreateClient("notifications");
+            var payload = new { tenantId, btId, eventType, vendorName, amount, dueAt };
+            var response = await client.PostAsJsonAsync("api/notifications/bill-transfer-event", payload, ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync(ct);
+                _log.LogWarning(
+                    "BillTransfer event notification failed [{Status}] for BT {BtId} ({EventType}): {Body}",
+                    (int)response.StatusCode, btId, eventType, body);
+            }
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex,
+                "BillTransfer event notification error for BT {BtId} ({EventType}). Continuing.",
+                btId, eventType);
+        }
+    }
 }

@@ -1,6 +1,7 @@
 using AuthService.Models.Identity;
 using AuthService.Models.Domain;
 using AuthService.Models;
+using AuthService.Models.MasterData;
 using AuthService.Models.Onboarding;
 using AuthService.Models.Search;
 using AuthService.Models.PerformanceReview;
@@ -285,6 +286,10 @@ namespace AuthService.Context
         public DbSet<IolPrice> IolPrices { get; set; }
         public DbSet<BranchPricingOverride> BranchPricingOverrides { get; set; }
         public DbSet<ConsultationCharge> ConsultationCharges { get; set; }
+
+        // Master Data Module (April 2026)
+        public DbSet<MasterValue> MasterValues { get; set; }
+        public DbSet<EntityTypeRegistry> EntityTypeRegistries { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -2763,6 +2768,54 @@ namespace AuthService.Context
                 entity.ToTable("post_op_visit");
                 // DB uses schedule_id; the model class attr says post_op_care_schedule_id
                 entity.Property(e => e.PostOpCareScheduleId).HasColumnName("schedule_id");
+            });
+
+            // ============================================================================
+            // MASTER DATA MODULE (April 2026)
+            // ============================================================================
+
+            builder.Entity<MasterValue>(entity =>
+            {
+                entity.ToTable("master_value", "master");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(e => e.TenantId).HasColumnName("tenant_id").IsRequired();
+                entity.Property(e => e.GroupKey).HasColumnName("group_key").HasMaxLength(100).IsRequired();
+                entity.Property(e => e.EntityType).HasColumnName("entity_type").HasMaxLength(150).IsRequired();
+                entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(150).IsRequired();
+                entity.Property(e => e.Label).HasColumnName("label").HasMaxLength(500).IsRequired();
+                entity.Property(e => e.Description).HasColumnName("description");
+                entity.Property(e => e.Metadata).HasColumnName("metadata").HasColumnType("jsonb").HasDefaultValue("{}");
+                entity.Property(e => e.SortOrder).HasColumnName("sort_order").HasDefaultValue(0);
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.Property(e => e.IsSystemLocked).HasColumnName("is_system_locked").HasDefaultValue(false);
+                entity.Property(e => e.DisabledAt).HasColumnName("disabled_at");
+                entity.Property(e => e.DisabledByUserId).HasColumnName("disabled_by_user_id");
+                entity.Property(e => e.DisabledReason).HasColumnName("disabled_reason").HasMaxLength(500);
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();
+                entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+                entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+                entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+
+                entity.HasIndex(e => new { e.TenantId, e.GroupKey }).HasDatabaseName("idx_mv_tenant_group");
+                entity.HasIndex(e => new { e.TenantId, e.EntityType }).HasDatabaseName("idx_mv_tenant_type");
+                entity.HasIndex(e => new { e.TenantId, e.EntityType, e.Code }).IsUnique()
+                    .HasDatabaseName("uq_master_value_tenant_type_code");
+                entity.HasQueryFilter(e => e.DeletedAt == null);
+            });
+
+            builder.Entity<EntityTypeRegistry>(entity =>
+            {
+                entity.ToTable("entity_type_registry", "master");
+                entity.HasKey(e => e.EntityType);
+                entity.Property(e => e.EntityType).HasColumnName("entity_type").HasMaxLength(150);
+                entity.Property(e => e.GroupKey).HasColumnName("group_key").HasMaxLength(100).IsRequired();
+                entity.Property(e => e.DisplayName).HasColumnName("display_name").HasMaxLength(200).IsRequired();
+                entity.Property(e => e.Description).HasColumnName("description");
+                entity.Property(e => e.TabLabel).HasColumnName("tab_label").HasMaxLength(100);
+                entity.Property(e => e.AllowCustomFields).HasColumnName("allow_custom_fields").HasDefaultValue(false);
+                entity.Property(e => e.SortOrder).HasColumnName("sort_order").HasDefaultValue(0);
             });
         }
 

@@ -44,6 +44,29 @@ public class PurchaseItem
     public Guid? SurgeryId { get; set; }
 
     public string? ItemRemarks { get; set; }
+
+    // Traceability & serialization
+    public string? SerialNumber { get; set; }
+    public string? ManufacturerName { get; set; }
+    public string? CountryOfOrigin { get; set; }
+    public DateTime? MfgDate { get; set; }
+    public string? ScheduleType { get; set; }      // OTC, G, H, H1, X
+    public bool IsColdChain { get; set; } = false;
+    public string? BrandName { get; set; }
+    public string? VendorSku { get; set; }
+    public bool IsInterState { get; set; } = false;
+    public string? ExtraFields { get; set; }        // JSONB: diopter, lens_model, coating …
+
+    // Pricing / packaging (were DTO-only, now persisted)
+    public decimal SellingPrice { get; set; } = 0;
+    public decimal Packing { get; set; } = 0;
+    public decimal UnitsPerPack { get; set; } = 0;
+    public decimal MrpOnPack { get; set; } = 0;
+    public decimal TransferMrp { get; set; } = 0;
+    public bool IsAssetItem { get; set; } = false;
+    public bool TaxOnFree { get; set; } = false;
+    public bool IsReplacement { get; set; } = false;
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public Guid? CreatedByUserId { get; set; }

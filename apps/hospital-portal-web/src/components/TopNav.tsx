@@ -1,8 +1,13 @@
 'use client';
 
 import { useAuthStore } from '@/lib/auth-store';
-import LiveActivityFeed from '@/components/LiveActivityFeed';
+import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
+
+const LiveActivityFeed = dynamic(() => import('@/components/LiveActivityFeed'), {
+  ssr: false,
+  loading: () => <span className="w-8 h-8" />,
+});
 import { AudioRecorderPanel } from '@/components/counselor/AudioRecorderPanel';
 import { Menu } from 'lucide-react';
 

@@ -59,6 +59,13 @@ var host = new HostBuilder()
         services.AddScoped<IVendorAcknowledgmentService, VendorAcknowledgmentService>();
         services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
         services.AddScoped<IInventoryDashboardService, InventoryDashboardService>();
+        services.AddScoped<IInvoiceSettlementService, InvoiceSettlementService>();
+        services.AddScoped<IBillTransferPolicyService, BillTransferPolicyService>();
+        services.AddScoped<IBillTransferService, BillTransferService>();
+        services.AddScoped<IBillTransferSlaService, BillTransferSlaService>();
+        services.AddScoped<IVendorBankAccountService, VendorBankAccountService>();
+        services.AddSingleton<IBlobStorageService, BlobStorageService>();
+        services.AddScoped<IInvoiceExtractionService, OpenAiInvoiceExtractionService>();
     })
     .Build();
 

@@ -21,8 +21,7 @@ export function ProtectedRoute({
   const [showSessionExpired, setShowSessionExpired] = useState(false);
 
   useEffect(() => {
-    // Small delay to ensure auth state is hydrated
-    setTimeout(() => setIsHydrated(true), 50);
+    setIsHydrated(true);
   }, []);
 
   useEffect(() => {
@@ -77,13 +76,9 @@ export function ProtectedRoute({
     );
   }
 
-  // Show loading or nothing while hydrating
+  // Suppress render until hydrated — layout already shows loading skeleton
   if (!isHydrated || !token) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return null;
   }
 
   return <>{children}</>;

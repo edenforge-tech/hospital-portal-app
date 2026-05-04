@@ -4,18 +4,18 @@
  * Auto-Reorder Management Page  (/admin/inventory/reorder)
  *
  * Two tabs:
- *   1. Reorder History  â€” auto-generated purchase requisitions (AutoReorder type)
- *   2. Reorder Config   â€” per-item threshold settings (ReorderLevel / ReorderQuantity)
+ *   1. Reorder History  — auto-generated purchase requisitions (AutoReorder type)
+ *   2. Reorder Config   — per-item threshold settings (ReorderLevel / ReorderQuantity)
  *
  * Top controls:
- *   â€¢ "Run Now" button â€” manually triggers auto-reorder for the current tenant
- *   â€¢ Below-Reorder badge â€” count of items currently below threshold
+ *   â€¢ "Run Now" button — manually triggers auto-reorder for the current tenant
+ *   â€¢ Below-Reorder badge — count of items currently below threshold
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   RefreshCw, Play, ChevronDown, ChevronRight, AlertTriangle,
-  Settings, Clock, CheckCircle, Edit, Save, X,
+  Settings, Clock, CheckCircle, Edit, Save, X, EyeOff, Eye,
 } from 'lucide-react';
 import {
   inventoryReorderApi,
@@ -59,7 +59,7 @@ function HistoryRow({ req }: { req: ReorderHistoryDto }) {
         <td className="px-4 py-3 text-sm text-gray-700">
           {new Date(req.requisitionDate).toLocaleDateString('en-IN')}
         </td>
-        <td className="px-4 py-3 text-sm text-gray-600">{req.storeName ?? 'â€”'}</td>
+        <td className="px-4 py-3 text-sm text-gray-600">{req.storeName ?? '—'}</td>
         <td className="px-4 py-3">
           <StatusBadge status={req.requisitionStatus} />
         </td>
@@ -88,7 +88,7 @@ function HistoryRow({ req }: { req: ReorderHistoryDto }) {
                     <td className={`text-right py-1.5 pr-3 font-medium ${it.currentStock === 0 ? 'text-red-600' : 'text-amber-600'}`}>
                       {it.currentStock}
                     </td>
-                    <td className="py-1.5 text-gray-500">{it.remarks ?? 'â€”'}</td>
+                    <td className="py-1.5 text-gray-500">{it.remarks ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -107,6 +107,7 @@ function ConfigRow({ item, onSaved }: { item: ReorderConfigDto; onSaved: () => v
   const [reorderLevel, setReorderLevel] = useState(item.reorderLevel);
   const [reorderQty, setReorderQty] = useState(item.reorderQuantity);
   const [saving, setSaving] = useState(false);
+  const [suppressing, setSuppressing] = useState(false);
 
   const save = async () => {
     setSaving(true);
@@ -128,6 +129,30 @@ function ConfigRow({ item, onSaved }: { item: ReorderConfigDto; onSaved: () => v
     setReorderLevel(item.reorderLevel);
     setReorderQty(item.reorderQuantity);
     setEditing(false);
+  };
+
+  const suppressItem = async () => {
+    setSuppressing(true);
+    try {
+      await inventoryReorderApi.suppress(item.id);
+      onSaved();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error ?? e?.message ?? 'Failed to suppress item');
+    } finally {
+      setSuppressing(false);
+    }
+  };
+
+  const enableItem = async () => {
+    setSuppressing(true);
+    try {
+      await inventoryReorderApi.enable(item.id);
+      onSaved();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error ?? e?.message ?? 'Failed to enable item');
+    } finally {
+      setSuppressing(false);
+    }
   };
 
   return (
@@ -176,7 +201,18 @@ function ConfigRow({ item, onSaved }: { item: ReorderConfigDto; onSaved: () => v
         )}
       </td>
       <td className="px-4 py-3 text-sm text-gray-500 text-right">
-        {item.stockCoveragePercent != null ? `${item.stockCoveragePercent}%` : 'â€”'}
+        {item.stockCoveragePercent != null ? `${item.stockCoveragePercent}%` : '—'}
+      </td>
+      <td className="px-4 py-3 text-center">
+        {item.reorderSuppressed ? (
+          <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+            Suppressed
+          </span>
+        ) : (
+          <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+            Active
+          </span>
+        )}
       </td>
       <td className="px-4 py-3 text-right">
         {editing ? (
@@ -186,7 +222,7 @@ function ConfigRow({ item, onSaved }: { item: ReorderConfigDto; onSaved: () => v
               disabled={saving}
               className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
             >
-              <Save className="h-3 w-3" /> {saving ? 'â€¦' : 'Save'}
+              <Save className="h-3 w-3" /> {saving ? '…' : 'Save'}
             </button>
             <button
               onClick={cancel}
@@ -196,12 +232,31 @@ function ConfigRow({ item, onSaved }: { item: ReorderConfigDto; onSaved: () => v
             </button>
           </div>
         ) : (
-          <button
-            onClick={() => setEditing(true)}
-            className="flex items-center gap-1 px-2 py-1 text-xs border rounded text-blue-600 border-blue-200 hover:bg-blue-50"
-          >
-            <Edit className="h-3 w-3" /> Edit
-          </button>
+          <div className="flex gap-1 justify-end">
+            <button
+              onClick={() => setEditing(true)}
+              className="flex items-center gap-1 px-2 py-1 text-xs border rounded text-blue-600 border-blue-200 hover:bg-blue-50"
+            >
+              <Edit className="h-3 w-3" /> Edit
+            </button>
+            {item.reorderSuppressed ? (
+              <button
+                onClick={enableItem}
+                disabled={suppressing}
+                className="flex items-center gap-1 px-2 py-1 text-xs border rounded text-green-600 border-green-200 hover:bg-green-50 disabled:opacity-50"
+              >
+                <Eye className="h-3 w-3" /> Enable
+              </button>
+            ) : (
+              <button
+                onClick={suppressItem}
+                disabled={suppressing}
+                className="flex items-center gap-1 px-2 py-1 text-xs border rounded text-amber-600 border-amber-200 hover:bg-amber-50 disabled:opacity-50"
+              >
+                <EyeOff className="h-3 w-3" /> Suppress
+              </button>
+            )}
+          </div>
         )}
       </td>
     </tr>
@@ -312,7 +367,7 @@ export default function ReorderPage() {
             className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium disabled:opacity-60"
           >
             <Play className="h-4 w-4" />
-            {triggering ? 'Runningâ€¦' : 'Run Now'}
+            {triggering ? 'Running…' : 'Run Now'}
           </button>
         </div>
       </div>
@@ -382,7 +437,7 @@ export default function ReorderPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {historyLoading ? (
-                  <tr><td colSpan={7} className="text-center py-8 text-gray-400">Loadingâ€¦</td></tr>
+                  <tr><td colSpan={7} className="text-center py-8 text-gray-400">Loading…</td></tr>
                 ) : history.length === 0 ? (
                   <tr><td colSpan={7} className="text-center py-8 text-gray-400">No auto-reorder history found.</td></tr>
                 ) : history.map(req => (
@@ -410,7 +465,7 @@ export default function ReorderPage() {
           <div className="flex gap-3 items-center">
             <input
               type="text"
-              placeholder="Search itemsâ€¦"
+              placeholder="Search items…"
               value={configSearch}
               onChange={e => { setConfigSearch(e.target.value); setConfigPage(1); }}
               className="border rounded-lg px-3 py-2 text-sm w-64"
@@ -440,14 +495,15 @@ export default function ReorderPage() {
                   <th className="text-right px-4 py-3 font-medium text-gray-600">Reorder Level</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">Reorder Qty</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">Coverage %</th>
+                  <th className="text-center px-4 py-3 font-medium text-gray-600">Status</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {configLoading ? (
-                  <tr><td colSpan={7} className="text-center py-8 text-gray-400">Loadingâ€¦</td></tr>
+                  <tr><td colSpan={8} className="text-center py-8 text-gray-400">Loading…</td></tr>
                 ) : config.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-8 text-gray-400">No items found.</td></tr>
+                  <tr><td colSpan={8} className="text-center py-8 text-gray-400">No items found.</td></tr>
                 ) : config.map(item => (
                   <ConfigRow key={item.id} item={item} onSaved={loadConfig} />
                 ))}

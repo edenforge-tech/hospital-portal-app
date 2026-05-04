@@ -4,17 +4,13 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, RefreshCw, Search, ShoppingCart, X, CheckCircle, XCircle, Send, Truck, Ban, Pencil, PackageCheck, Lock, Eye } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
-import { branchesApi } from '@/lib/api';
 import {
   purchaseOrderApi,
-  inventoryVendorApi,
   inventoryItemApi,
-  inventoryStoreApi,
-  VendorDto,
   ItemDto,
-  StoreDto,
   type UpdatePurchaseOrderRequest,
 } from '@/lib/api/inventory-service.api';
+import { useVendors, useBranches, useInventoryItems } from '@/hooks/useInventoryReferenceData';
 
 const STATUS_TABS = [
   { key: 'All',          label: 'All',            dot: 'bg-slate-400',   activeClass: 'bg-slate-600 border-slate-600 text-white' },
@@ -88,10 +84,11 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 }
 
 function CreatePOModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [vendors, setVendors] = useState<VendorDto[]>([]);
-  const [branches, setBranches] = useState<any[]>([]);
-  const [items, setItems] = useState<ItemDto[]>([]);
+  const { data: vendors = [] } = useVendors();
+  const { data: branches = [] } = useBranches();
   const [itemSearch, setItemSearch] = useState('');
+  const [querySearch, setQuerySearch] = useState<string | undefined>(undefined);
+  const { data: items = [] } = useInventoryItems(querySearch);
   const [vendorId, setVendorId] = useState('');
   const [branchId, setBranchId] = useState('');
   const [poDate, setPoDate] = useState(new Date().toISOString().slice(0, 10));
@@ -104,17 +101,7 @@ function CreatePOModal({ onClose, onCreated }: { onClose: () => void; onCreated:
   const [error, setError] = useState('');
 
   useEffect(() => {
-    Promise.all([
-      inventoryVendorApi.list().then(r => r.items ?? []),
-      branchesApi.getAll().then(r => r.data?.branches ?? []),
-      inventoryItemApi.list({ pageSize: 100 }).then(r => r.items ?? []),
-    ]).then(([v, b, it]) => { setVendors(v); setBranches(b); setItems(it); }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      inventoryItemApi.list({ pageSize: 100, search: itemSearch || undefined }).then(it => setItems(it.items ?? [])).catch(() => {});
-    }, 300);
+    const t = setTimeout(() => setQuerySearch(itemSearch || undefined), 300);
     return () => clearTimeout(t);
   }, [itemSearch]);
 
@@ -320,7 +307,28 @@ function RecordReceiptModal({ po, onClose, onDone }: { po: any; onClose: () => v
           barcode: l.barcode || undefined,
         })),
       });
-      toast.success('Receipt recorded. Stock updated.');
+      // Offer to generate GRN via custom toast with CTA
+      toast.dismiss();
+      toast.custom((t) => (
+        <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-sm w-full bg-white shadow-lg rounded-xl pointer-events-auto flex items-center gap-3 px-4 py-3 border border-green-200`}>
+          <div className="flex-1 text-sm font-medium text-gray-800">Receipt recorded. Stock updated.</div>
+          <button
+            className="text-sm font-semibold text-teal-600 hover:text-teal-700 whitespace-nowrap"
+            onClick={async () => {
+              toast.dismiss(t.id);
+              const tid = toast.loading('Generating GRN…');
+              try {
+                await purchaseOrderApi.generateGrn(po.id);
+                toast.success('GRN generated! Check Purchase Query.', { id: tid });
+              } catch (err: any) {
+                toast.error(err?.response?.data ?? 'Failed to generate GRN.', { id: tid });
+              }
+            }}
+          >
+            Generate GRN →
+          </button>
+        </div>
+      ), { duration: 8000 });
       onDone();
     } catch (e: any) {
       setErr(e?.response?.data ?? e?.message ?? 'Failed to record receipt.');
@@ -687,6 +695,170 @@ function SendToVendorModal({ po, onClose, onSent }: { po: any; onClose: () => vo
   );
 }
 
+function PODetailModal({ loading, po, onClose }: { loading: boolean; po: any | null; onClose: () => void }) {
+  function fmtD(v?: string | null) {
+    if (!v) return '—';
+    return new Date(v).toLocaleDateString('en-IN', { dateStyle: 'medium' });
+  }
+  function fmtDT(v?: string | null) {
+    if (!v) return '—';
+    return new Date(v).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+  }
+  function fmtMoney(v?: number | null) {
+    return v == null ? '—' : '₹' + v.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-6 pb-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">{po ? po.poNumber : 'Purchase Order'}</h2>
+            {po && (
+              <span className={`inline-flex mt-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[po.poStatus]?.bg ?? 'bg-gray-100 text-gray-600'}`}>
+                {STATUS_BADGE[po.poStatus]?.label ?? po.poStatus}
+              </span>
+            )}
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {loading && (
+            <div className="flex items-center justify-center py-16">
+              <p className="text-sm text-gray-400 animate-pulse">Loading…</p>
+            </div>
+          )}
+
+          {!loading && !po && (
+            <div className="text-center py-10 text-gray-500 text-sm">Failed to load purchase order details.</div>
+          )}
+
+          {!loading && po && (<>
+            {/* Summary */}
+            <section>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Summary</h3>
+              <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
+                {([
+                  ['PO Date', fmtD(po.poDate)],
+                  ['Vendor', po.vendorName ?? po.vendorId ?? '—'],
+                  ['Source Type', po.sourceType ?? '—'],
+                  ['Expected Delivery', fmtD(po.expectedDeliveryDate)],
+                  ['Actual Delivery', fmtD(po.actualDeliveryDate)],
+                  ['Emergency', po.isEmergency ? 'Yes' : 'No'],
+                ] as [string, string][]).map(([label, value]) => (
+                  <div key={label}>
+                    <dt className="text-xs font-medium text-gray-500">{label}</dt>
+                    <dd className="mt-0.5 text-sm font-medium text-gray-900">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t">
+                {([['Total Amount', fmtMoney(po.totalAmount)], ['GST Amount', fmtMoney(po.gstAmount)], ['Net Amount', fmtMoney(po.netAmount)]] as [string, string][]).map(([label, value]) => (
+                  <div key={label}>
+                    <dt className="text-xs font-medium text-gray-500">{label}</dt>
+                    <dd className="mt-0.5 text-sm font-bold text-gray-900">{value}</dd>
+                  </div>
+                ))}
+              </div>
+              {po.notes && <p className="mt-3 text-xs text-gray-600 border-t pt-3"><span className="font-medium">Notes: </span>{po.notes}</p>}
+              {po.terms && <p className="mt-2 text-xs text-gray-600"><span className="font-medium">Terms: </span>{po.terms}</p>}
+            </section>
+
+            {/* Line Items */}
+            <section>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Line Items</h3>
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      {['#', 'Item', 'Ordered', 'Received', 'Unit Price', 'GST%', 'Amount'].map(h => (
+                        <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {(po.items ?? []).length === 0 ? (
+                      <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-400 text-xs">No line items.</td></tr>
+                    ) : (po.items ?? []).map((item: any, idx: number) => {
+                      const pct = Math.min(100, Math.round(((item.receivedQty ?? 0) / Math.max(1, item.orderedQty)) * 100));
+                      return (
+                        <tr key={item.id ?? idx} className="hover:bg-gray-50">
+                          <td className="px-3 py-2 text-gray-400 text-xs">{idx + 1}</td>
+                          <td className="px-3 py-2 font-medium text-gray-800 text-xs">{item.itemName ?? item.itemId}</td>
+                          <td className="px-3 py-2 text-xs text-gray-700">{item.orderedQty} <span className="text-gray-400">{item.unit}</span></td>
+                          <td className="px-3 py-2 text-xs">
+                            <span className={`font-medium ${pct === 100 ? 'text-green-600' : pct > 0 ? 'text-yellow-600' : 'text-gray-400'}`}>
+                              {item.receivedQty ?? 0}/{item.orderedQty}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-xs text-gray-700">{fmtMoney(item.unitPrice)}</td>
+                          <td className="px-3 py-2 text-xs text-gray-500">{item.gstPercent ?? 0}%</td>
+                          <td className="px-3 py-2 text-xs font-medium text-gray-900">{fmtMoney(item.totalAmount)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* Approval Timeline */}
+            <section>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Approval Timeline</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-1">L1 Approval</p>
+                  {po.l1ApprovedAt ? <p className="text-xs text-gray-700">{fmtDT(po.l1ApprovedAt)}</p> : <p className="text-xs text-gray-400">Pending</p>}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-1">L2 Approval</p>
+                  {po.l2ApprovedAt ? <p className="text-xs text-gray-700">{fmtDT(po.l2ApprovedAt)}</p> : <p className="text-xs text-gray-400">Pending</p>}
+                </div>
+              </div>
+              {po.rejectedAt && (
+                <div className="mt-3 pt-3 border-t">
+                  <p className="text-xs font-semibold text-red-600 mb-1">Rejected — {fmtDT(po.rejectedAt)}</p>
+                  {po.rejectionReason && <p className="text-xs text-gray-600">{po.rejectionReason}</p>}
+                </div>
+              )}
+            </section>
+
+            {/* Audit Trail */}
+            {(po.transitionLogs ?? []).length > 0 && (
+              <section>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Audit Trail</h3>
+                <div className="space-y-1">
+                  {(po.transitionLogs ?? []).map((t: any, idx: number) => (
+                    <div key={idx} className="flex items-start gap-3 py-1.5 border-b border-gray-50 last:border-0">
+                      <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+                      <div className="flex-1 text-xs text-gray-700">
+                        <span className="font-medium">{t.fromStatus || '—'}</span>
+                        <span className="mx-1.5 text-gray-400">→</span>
+                        <span className="font-medium">{t.toStatus}</span>
+                        {t.reason && <span className="ml-2 text-gray-500">({t.reason})</span>}
+                      </div>
+                      <span className="text-xs text-gray-400 flex-shrink-0">{fmtDT(t.transitionedAt)}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Metadata */}
+            <section className="border-t pt-4 grid grid-cols-2 gap-4 text-xs text-gray-500">
+              <div><span className="font-medium">Created:</span> {fmtDT(po.createdAt)}</div>
+              <div><span className="font-medium">Updated:</span> {fmtDT(po.updatedAt)}</div>
+              {po.rfqId && <div><span className="font-medium">RFQ:</span> <span className="font-mono">{po.rfqId}</span></div>}
+              {po.requisitionId && <div><span className="font-medium">Requisition:</span> <span className="font-mono">{po.requisitionId}</span></div>}
+            </section>
+          </>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PurchaseOrdersPage() {
   const router = useRouter();
   const [rows, setRows] = useState<any[]>([]);
@@ -700,6 +872,9 @@ export default function PurchaseOrdersPage() {
   const [editPoId, setEditPoId] = useState<string | null>(null);
   const [sendPoTarget, setSendPoTarget] = useState<any | null>(null);
   const [fetchingReceipt, setFetchingReceipt] = useState<string | null>(null);
+  const [viewPoId, setViewPoId] = useState<string | null>(null);
+  const [viewPo, setViewPo] = useState<any | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -804,8 +979,12 @@ export default function PurchaseOrdersPage() {
                  <td className="px-4 py-3 text-gray-500 text-xs">{fmtDate(r.poDate ?? r.createdAt)}</td>
                  <td className="px-4 py-3">
                    <div className="flex items-center gap-1 flex-wrap">
-                     <button onClick={() => router.push(`/admin/inventory/po/${r.id}`)}
-                       className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200" title="View details">
+                     <button onClick={async () => {
+                       setViewPoId(r.id); setViewPo(null); setViewLoading(true);
+                       try { setViewPo(await purchaseOrderApi.get(r.id)); }
+                       catch { toast.error('Failed to load PO details.'); setViewPoId(null); }
+                       finally { setViewLoading(false); }
+                     }} className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200" title="View details">
                        <Eye className="w-3 h-3" />
                      </button>
                      {r.poStatus === 'Draft' && (<>
@@ -890,6 +1069,9 @@ export default function PurchaseOrdersPage() {
       )}
       {receiptPo && (
         <RecordReceiptModal po={receiptPo} onClose={() => setReceiptPo(null)} onDone={() => { setReceiptPo(null); load(); }} />
+      )}
+      {viewPoId && (
+        <PODetailModal loading={viewLoading} po={viewPo} onClose={() => { setViewPoId(null); setViewPo(null); }} />
       )}
     </div>
   );

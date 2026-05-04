@@ -3,11 +3,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, RefreshCw, Search, FileText, X, CheckCircle, Eye, Award, Ban, Lock, ShoppingCart, MessageSquare, Phone, Mail, History, ArrowRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { branchesApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import {
   rfqApi,
-  inventoryVendorApi,
   inventoryItemApi,
   purchaseOrderApi,
   vendorAckApi,
@@ -18,6 +16,7 @@ import {
   VendorQuoteDto,
   RfqHeader,
 } from '@/lib/api/inventory-service.api';
+import { useVendors, useBranches, useInventoryItems } from '@/hooks/useInventoryReferenceData';
 
 const STATUS_TABS = [
   { key: 'All',                    label: 'All',               dot: 'bg-slate-400',   activeClass: 'bg-slate-600 border-slate-600 text-white' },
@@ -85,10 +84,11 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 }
 
 function CreateRFQModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [vendors, setVendors] = useState<VendorDto[]>([]);
-  const [branches, setBranches] = useState<any[]>([]);
-  const [items, setItems] = useState<ItemDto[]>([]);
+  const { data: vendors = [] } = useVendors();
+  const { data: branches = [] } = useBranches();
   const [itemSearch, setItemSearch] = useState('');
+  const [querySearch, setQuerySearch] = useState<string | undefined>(undefined);
+  const { data: items = [] } = useInventoryItems(querySearch, 20);
   const [showItemDropdown, setShowItemDropdown] = useState(false);
   const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
   const [branchId, setBranchId] = useState('');
@@ -100,16 +100,9 @@ function CreateRFQModal({ onClose, onCreated }: { onClose: () => void; onCreated
   const [error, setError] = useState('');
 
   useEffect(() => {
-    Promise.all([
-      inventoryVendorApi.list().then(r => r.items ?? []),
-      branchesApi.getAll().then(r => r.data?.branches ?? []),
-      inventoryItemApi.list({ pageSize: 100 }).then(r => r.items ?? []),
-    ]).then(([v, b, it]) => { setVendors(v); setBranches(b); setItems(it); }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
     const t = setTimeout(() => {
-      inventoryItemApi.list({ pageSize: 20, search: itemSearch || undefined }).then(it => { setItems(it.items ?? []); if (itemSearch.trim()) setShowItemDropdown(true); }).catch(() => {});
+      setQuerySearch(itemSearch || undefined);
+      if (itemSearch.trim()) setShowItemDropdown(true);
     }, 250);
     return () => clearTimeout(t);
   }, [itemSearch]);

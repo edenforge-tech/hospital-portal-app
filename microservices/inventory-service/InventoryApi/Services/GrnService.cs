@@ -110,6 +110,7 @@ public sealed class GrnService : IGrnService
             .Include(h => h.GrnItems).ThenInclude(gi => gi.Item)
             .Include(h => h.GrnItems).ThenInclude(gi => gi.PurchaseItem)
             .Include(h => h.Invoice).ThenInclude(i => i!.Vendor)
+            .Include(h => h.Invoice).ThenInclude(i => i!.Items).ThenInclude(pi => pi.Item)
             .Include(h => h.Store)
             .FirstOrDefaultAsync(h => h.Id == grnId && h.TenantId == tenantId && h.DeletedAt == null, ct);
         return header is null ? null : ToDto(header);
@@ -255,6 +256,14 @@ public sealed class GrnService : IGrnService
     public async Task<GrnHeaderDto> GenerateGrnFromInvoiceAsync(
         Guid tenantId, Guid invoiceId, Guid userId, DateTime grnDate, string? remarks, CancellationToken ct)
     {
+        // Idempotency: if a GRN already exists for this invoice, return it instead of
+        // creating a duplicate (guards against double-clicks and retries).
+        var existingGrn = await _db.GrnHeaders
+            .FirstOrDefaultAsync(h => h.InvoiceId == invoiceId && h.TenantId == tenantId && h.DeletedAt == null, ct);
+        if (existingGrn is not null)
+            return await GetGrnAsync(tenantId, existingGrn.Id, ct)
+                   ?? throw new InvalidOperationException("GRN not found.");
+
         var invoice = await _db.PurchaseInvoices
             .Include(i => i.Items)
             .FirstOrDefaultAsync(i => i.Id == invoiceId && i.TenantId == tenantId && i.DeletedAt == null, ct)
@@ -349,14 +358,22 @@ public sealed class GrnService : IGrnService
     {
         // Use raw SQL to call the atomic PostgreSQL function
         var conn = _db.Database.GetDbConnection();
-        await conn.OpenAsync(ct);
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT inv_next_grn_sequence($1, $2, $3)";
-        var p1 = cmd.CreateParameter(); p1.Value = tenantId; cmd.Parameters.Add(p1);
-        var p2 = cmd.CreateParameter(); p2.Value = storeId;  cmd.Parameters.Add(p2);
-        var p3 = cmd.CreateParameter(); p3.Value = fy;       cmd.Parameters.Add(p3);
-        var result = await cmd.ExecuteScalarAsync(ct);
-        return Convert.ToInt32(result);
+        bool needsOpen = conn.State != System.Data.ConnectionState.Open;
+        if (needsOpen) await conn.OpenAsync(ct);
+        try
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT inv_next_grn_sequence($1, $2, $3)";
+            var p1 = cmd.CreateParameter(); p1.Value = tenantId; cmd.Parameters.Add(p1);
+            var p2 = cmd.CreateParameter(); p2.Value = storeId;  cmd.Parameters.Add(p2);
+            var p3 = cmd.CreateParameter(); p3.Value = fy;       cmd.Parameters.Add(p3);
+            var result = await cmd.ExecuteScalarAsync(ct);
+            return Convert.ToInt32(result);
+        }
+        finally
+        {
+            if (needsOpen) await conn.CloseAsync();
+        }
     }
 
     private void AddApprovalLog(Guid tenantId, Guid invoiceId, Guid userId, string action, string? remarks)
@@ -384,7 +401,19 @@ public sealed class GrnService : IGrnService
 
     private static GrnHeaderDto ToDto(GrnHeader h)
     {
-        var inv = h.Invoice;
+        var inv   = h.Invoice;
+        var items = h.GrnItems.Count > 0
+            ? h.GrnItems.Select(ToItemDto).ToList()
+            : h.Invoice?.Items
+                  ?.Where(pi => pi.DeletedAt == null)
+                  .Select(InvoicePurchaseItemToGrnItemDto)
+                  .ToList() ?? [];
+
+        // Derive totals from live item data — stored inv.NetAmount can be stale.
+        decimal taxable = items.Sum(i => i.PurchaseCost);
+        decimal gst     = items.Sum(i => i.CgstAmount + i.SgstAmount + i.IgstAmount);
+        decimal total   = taxable + gst;
+
         return new GrnHeaderDto(
             Id:               h.Id,
             InvoiceId:        h.InvoiceId,
@@ -394,16 +423,17 @@ public sealed class GrnService : IGrnService
             GrnDate:          h.GrnDate,
             GrnStatus:        h.GrnStatus,
             Remarks:          h.Remarks,
-            Items:            h.GrnItems.Select(ToItemDto).ToList(),
+            Items:            items,
             VendorId:         inv?.VendorId ?? Guid.Empty,
             VendorName:       inv?.Vendor?.Name ?? string.Empty,
             InvoiceDate:      inv?.InvoiceDate ?? h.GrnDate,
             DueDate:          inv?.DueDate,
-            NetAmount:        inv?.NetAmount ?? 0,
-            TotalAmount:      inv?.NetAmount ?? 0,
+            NetAmount:        total > 0 ? total : (inv?.NetAmount ?? 0),
+            TotalAmount:      total > 0 ? total : (inv?.NetAmount ?? 0),
             PurchaseCategory: inv?.PurchaseCategory,
             PaymentMode:      inv?.PaymentMode,
-            StoreName:        h.Store?.StoreName
+            StoreName:        h.Store?.StoreName,
+            ApprovalStatus:   inv?.ApprovalStatus
         );
     }
 
@@ -439,30 +469,41 @@ public sealed class GrnService : IGrnService
             IgstAmount:       taxBase * igst / 100,
             Packing:          0,
             FreeQuantity:     pi?.FreeQuantity ?? 0,
-            PurchaseCost:     rate * (1 - (pi?.DiscountPercent ?? 0) / 100)
+            PurchaseCost:     rate * qty * (1 - (pi?.DiscountPercent ?? 0) / 100)
         );
     }
 
     /// <summary>Maps an invoice with no GRN to a GrnHeaderDto with GrnStatus = GRNNotGenerated.</summary>
-    private static GrnHeaderDto InvoiceToGrnNotGeneratedDto(PurchaseInvoice inv) => new GrnHeaderDto(
-        Id:               inv.Id,   // re-use invoice id as row key
-        InvoiceId:        inv.Id,
-        InvoiceNumber:    inv.InvoiceNumber,
-        StoreId:          inv.StoreId,
-        GrnNumber:        null,     // no GRN number until one is generated
-        GrnDate:          inv.InvoiceDate,
-        GrnStatus:        "GRNNotGenerated",
-        Remarks:          null,
-        Items:            inv.Items.Select(InvoicePurchaseItemToGrnItemDto).ToList(),
-        VendorId:         inv.VendorId,
-        VendorName:       inv.Vendor?.Name ?? string.Empty,
-        InvoiceDate:      inv.InvoiceDate,
-        DueDate:          inv.DueDate,
-        NetAmount:        inv.NetAmount,
-        TotalAmount:      inv.NetAmount,
-        PurchaseCategory: inv.PurchaseCategory,
-        PaymentMode:      inv.PaymentMode
-    );
+    private static GrnHeaderDto InvoiceToGrnNotGeneratedDto(PurchaseInvoice inv)
+    {
+        var items = inv.Items.Select(InvoicePurchaseItemToGrnItemDto).ToList();
+
+        // Derive totals from live item data — stored inv.NetAmount can be stale.
+        decimal taxable = items.Sum(i => i.PurchaseCost);
+        decimal gst     = items.Sum(i => i.CgstAmount + i.SgstAmount + i.IgstAmount);
+        decimal total   = taxable + gst;
+
+        return new GrnHeaderDto(
+            Id:               inv.Id,
+            InvoiceId:        inv.Id,
+            InvoiceNumber:    inv.InvoiceNumber,
+            StoreId:          inv.StoreId,
+            GrnNumber:        null,
+            GrnDate:          inv.InvoiceDate,
+            GrnStatus:        "GRNNotGenerated",
+            Remarks:          null,
+            Items:            items,
+            VendorId:         inv.VendorId,
+            VendorName:       inv.Vendor?.Name ?? string.Empty,
+            InvoiceDate:      inv.InvoiceDate,
+            DueDate:          inv.DueDate,
+            NetAmount:        total > 0 ? total : inv.NetAmount,
+            TotalAmount:      total > 0 ? total : inv.NetAmount,
+            PurchaseCategory: inv.PurchaseCategory,
+            PaymentMode:      inv.PaymentMode,
+            ApprovalStatus:   inv.ApprovalStatus
+        );
+    }
 
     /// <summary>Maps a PurchaseItem (from an invoice without a GRN) to a GrnItemDto for display purposes.</summary>
     private static GrnItemDto InvoicePurchaseItemToGrnItemDto(PurchaseItem pi)
@@ -496,7 +537,7 @@ public sealed class GrnService : IGrnService
             IgstAmount:       taxBase * igst / 100,
             Packing:          0,
             FreeQuantity:     pi.FreeQuantity,
-            PurchaseCost:     rate * (1 - pi.DiscountPercent / 100)
+            PurchaseCost:     rate * qty * (1 - pi.DiscountPercent / 100)
         );
     }
 }

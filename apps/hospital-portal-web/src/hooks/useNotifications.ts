@@ -22,7 +22,7 @@ export function useNotifications() {
     if (!token) return;
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5073/api';
-    const hubUrl = apiUrl.replace('/api', '/hubs/notifications');
+    const hubUrl = apiUrl.replace('/api', '/notificationHub');
 
     const newConnection = new signalR.HubConnectionBuilder()
       .withUrl(hubUrl, {

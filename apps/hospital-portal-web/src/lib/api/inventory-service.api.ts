@@ -40,7 +40,7 @@ let _client: AxiosInstance | null = null;
 
 function getClient(): AxiosInstance {
   if (_client) return _client;
-  _client = axios.create({ baseURL: INVENTORY_API_URL });
+  _client = axios.create({ baseURL: INVENTORY_API_URL, timeout: 15000 });
 
   _client.interceptors.request.use((config) => {
     const { tenantId, token, user, roles } = useAuthStore.getState();
@@ -79,35 +79,73 @@ export interface PagedResult<T> {
 export interface VendorDto {
   id: string;
   name: string;
-  vendorCode: string;
+  vendorCode?: string;
+  vendorCategory: string;
+  isPreferred: boolean;
   contactPerson?: string;
   phone?: string;
   email?: string;
-  gstinNumber?: string;
+  address?: string;
+  registeredAddress?: string;
+  website?: string;
+  gstNumber?: string;
   panNumber?: string;
+  cinNumber?: string;
+  drugLicenseNumber?: string;
+  drugLicenseExpiry?: string;
+  drugLicense20B?: string;
+  drugLicense20BExpiry?: string;
+  drugLicense21B?: string;
+  drugLicense21BExpiry?: string;
   apmcRegistration?: string;
   foodLicenseNumber?: string;
   importExportCode?: string;
+  swiftCode?: string;
+  latePaymentInterestRate?: number;
+  isColdChainVendor: boolean;
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankIfscCode?: string;
+  bankAccountHolderName?: string;
+  bankAccountType: string;
+  creditDays: number;
   outstandingBalance: number;
   status: string;
-  createdAt: string;
 }
 
 export interface CreateVendorRequest {
   name: string;
-  vendorCode: string;
+  vendorCode?: string;
+  vendorCategory: string;
+  isPreferred: boolean;
   contactPerson?: string;
   phone?: string;
   email?: string;
-  gstinNumber?: string;
+  address?: string;
+  registeredAddress?: string;
+  website?: string;
+  gstNumber?: string;
   panNumber?: string;
+  cinNumber?: string;
+  drugLicenseNumber?: string;
+  drugLicenseExpiry?: string;
+  drugLicense20B?: string;
+  drugLicense20BExpiry?: string;
+  drugLicense21B?: string;
+  drugLicense21BExpiry?: string;
   apmcRegistration?: string;
   foodLicenseNumber?: string;
   importExportCode?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  pinCode?: string;
+  swiftCode?: string;
+  latePaymentInterestRate?: number;
+  isColdChainVendor: boolean;
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankIfscCode?: string;
+  bankAccountHolderName?: string;
+  bankAccountType: string;
+  creditDays?: number;
+  status?: string;
 }
 
 export interface PurchaseInvoiceDto {
@@ -178,6 +216,7 @@ export interface GrnHeaderDto {
   grnNumber: string | null;
   grnDate: string;
   grnStatus: string;
+  approvalStatus?: string;
   remarks?: string;
   items: GrnItemDto[];
   // Extended fields
@@ -224,6 +263,8 @@ export interface StockSummaryDto {
   storeName: string;
   itemId: string;
   itemName: string;
+  genericName?: string;
+  unit?: string;
   totalAvailable: number;
   nearestExpiry?: string;
   batchCount: number;
@@ -313,6 +354,7 @@ export interface VendorPaymentDto {
   id: string;
   vendorId: string;
   invoiceId?: string;
+  settlementId?: string;
   paymentReference: string;
   paymentDate: string;
   amount: number;
@@ -321,13 +363,18 @@ export interface VendorPaymentDto {
   bankTransactionId?: string;
   remarks?: string;
   createdAt: string;
+  attachmentUrl?: string;
+  attachmentFilename?: string;
+  attachmentSizeKb?: number;
+  deletedAt?: string;
+  reversedByUserId?: string;
 }
 
 // ─── Vendor APIs ──────────────────────────────────────────────────────────────
 
 export const inventoryVendorApi = {
-  list: (page = 1, pageSize = 20): Promise<PagedResult<VendorDto>> =>
-    getClient().get('/vendors', { params: { page, pageSize } }).then(r => r.data),
+  list: (page = 1, pageSize = 20, category?: string, isPreferred?: boolean): Promise<PagedResult<VendorDto>> =>
+    getClient().get('/vendors', { params: { page, pageSize, ...(category ? { category } : {}), ...(isPreferred !== undefined ? { isPreferred } : {}) } }).then(r => r.data),
 
   get: (id: string): Promise<VendorDto> =>
     getClient().get(`/vendors/${id}`).then(r => r.data),
@@ -335,7 +382,7 @@ export const inventoryVendorApi = {
   create: (req: CreateVendorRequest): Promise<VendorDto> =>
     getClient().post('/vendors', req).then(r => r.data),
 
-  update: (id: string, req: CreateVendorRequest): Promise<VendorDto> =>
+  update: (id: string, req: Partial<CreateVendorRequest> & { name: string; vendorCategory: string; isPreferred: boolean; isColdChainVendor: boolean; bankAccountType: string }): Promise<VendorDto> =>
     getClient().put(`/vendors/${id}`, req).then(r => r.data),
 
   delete: (id: string): Promise<void> =>
@@ -360,6 +407,9 @@ export const inventoryVendorApi = {
 
   listPayments: (vendorId: string, page = 1, pageSize = 20): Promise<PagedResult<VendorPaymentDto>> =>
     getClient().get(`/vendors/${vendorId}/payments`, { params: { page, pageSize } }).then(r => r.data),
+
+  reversePayment: (paymentId: string, reason: string): Promise<void> =>
+    getClient().post(`/vendor-payments/${paymentId}/reverse`, { reason }).then(() => undefined),
 };
 
 // ─── Invoice APIs ─────────────────────────────────────────────────────────────
@@ -452,6 +502,219 @@ export const inventoryGrnApi = {
 
   generateFromInvoice: (invoiceId: string, grnDate?: string, remarks?: string): Promise<GrnHeaderDto> =>
     getClient().post(`/grn/from-invoice/${invoiceId}`, { grnDate, remarks }).then(r => r.data),
+};
+
+// ─── Invoice Extraction (OCR prefill) Types ───────────────────────────────────
+
+export type ExtractionConfidence = 'High' | 'Review' | 'Low';
+
+export interface ExtractedField<T> {
+  value: T | null;
+  sourceText: string | null;
+  confidence: ExtractionConfidence;
+  mismatchReason: string | null;
+}
+
+export interface ExtractionCandidate {
+  id: string;
+  name: string;
+  score: number;
+}
+
+export interface ExtractedInvoiceHeader {
+  invoiceNumber: ExtractedField<string>;
+  invoiceDate: ExtractedField<string>;
+  grnDate: ExtractedField<string>;
+  invoiceType: ExtractedField<string>;
+  paymentMode: ExtractedField<string>;
+  creditPeriod: ExtractedField<number>;
+  reference: ExtractedField<string>;
+  remarks: ExtractedField<string>;
+  vendorName: ExtractedField<string>;
+  vendorGstin: ExtractedField<string>;
+  vendorContact: ExtractedField<string>;
+  vendorPhone: ExtractedField<string>;
+  vendorEmail: ExtractedField<string>;
+  vendorCandidates: ExtractionCandidate[];
+  resolvedVendorId: string | null;
+  storeName: ExtractedField<string>;
+  storeCandidates: ExtractionCandidate[];
+  resolvedStoreId: string | null;
+  // e-Invoice & E-Way Bill
+  irn: ExtractedField<string>;
+  ackNo: ExtractedField<string>;
+  ackDate: ExtractedField<string>;
+  eWayBillNo: ExtractedField<string>;
+  eWayBillDate: ExtractedField<string>;
+  dateOfDelivery: ExtractedField<string>;
+  isReverseCharge: ExtractedField<boolean>;
+  vendorGstinOnInvoice: ExtractedField<string>;
+}
+
+export interface ExtractedLineItem {
+  rawDescription: ExtractedField<string>;
+  hsnCode: ExtractedField<string>;
+  itemCandidates: ExtractionCandidate[];
+  resolvedItemId: string | null;
+  resolvedItemName: string | null;
+  orderedQuantity: ExtractedField<number>;
+  freeQuantity: ExtractedField<number>;
+  batchNumber: ExtractedField<string>;
+  expiryDate: ExtractedField<string>;
+  purchaseRate: ExtractedField<number>;
+  mrp: ExtractedField<number>;
+  discountPercent: ExtractedField<number>;
+  sellingPrice: ExtractedField<number>;
+  gstPercent: ExtractedField<number>;
+  cgstPercent: ExtractedField<number>;
+  sgstPercent: ExtractedField<number>;
+  igstPercent: ExtractedField<number>;
+  isInterState: ExtractedField<boolean>;
+  // Traceability
+  serialNumbers: ExtractedField<string[] | null>;
+  manufacturerName: ExtractedField<string>;
+  countryOfOrigin: ExtractedField<string>;
+  mfgDate: ExtractedField<string>;
+  scheduleType: ExtractedField<string>;
+  isColdChain: ExtractedField<boolean>;
+  brandName: ExtractedField<string>;
+  vendorSku: ExtractedField<string>;
+  extraFieldsJson: ExtractedField<string | null>;
+}
+
+export interface ExtractedTotals {
+  subtotal: ExtractedField<number>;
+  totalCgst: ExtractedField<number>;
+  totalSgst: ExtractedField<number>;
+  totalIgst: ExtractedField<number>;
+  totalDiscount: ExtractedField<number>;
+  roundingAmount: ExtractedField<number>;
+  netAmount: ExtractedField<number>;
+  tcsAmount: ExtractedField<number>; // Tax Collected at Source
+}
+
+export interface InvoiceExtractionPreview {
+  sessionId: string;
+  documentUrl: string | null;
+  originalFilename: string;
+  providerModel: string;
+  processingMs: number;
+  hasDuplicateWarning: boolean;
+  duplicateWarningDetail: string | null;
+  header: ExtractedInvoiceHeader;
+  lineItems: ExtractedLineItem[];
+  totals: ExtractedTotals;
+}
+
+export interface ConfirmedLineItem {
+  itemId: string;
+  orderedQuantity: number;
+  freeQuantity: number;
+  batchNumber?: string | null;
+  expiryDate?: string | null;
+  barcode?: string | null;
+  mrp: number;
+  purchaseRate: number;
+  discountPercent: number;
+  hsnCode?: string | null;
+  gstPercent: number;
+  cgstPercent: number;
+  sgstPercent: number;
+  igstPercent: number;
+  sellingPrice?: number;
+  packing?: number;
+  unitsPerPack?: number;
+  mrpOnPack?: number;
+  transferMrp?: number;
+  isAssetItem?: boolean;
+  taxOnFree?: boolean;
+  isReplacement?: boolean;
+  itemRemarks?: string | null;
+  // Traceability
+  serialNumber?: string | null;
+  manufacturerName?: string | null;
+  countryOfOrigin?: string | null;
+  mfgDate?: string | null;
+  scheduleType?: string | null;
+  isColdChain?: boolean;
+  brandName?: string | null;
+  vendorSku?: string | null;
+  isInterState?: boolean;
+  extraFieldsJson?: string | null;
+  // Patient linkage
+  patientName?: string | null;
+  patientIpNo?: string | null;
+  surgeryId?: string | null;
+  originalMrp?: number;
+  isFullDiscount?: boolean;
+}
+
+export interface ConfirmExtractionRequest {
+  sessionId: string;
+  vendorId: string;
+  storeId: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  invoiceType: string;
+  paymentMode?: string | null;
+  creditPeriod?: number | null;
+  dueDate?: string | null;
+  reference?: string | null;
+  purchaseCategory?: string | null;
+  remarks?: string | null;
+  grnDate: string;
+  generateGrn: boolean;
+  items: ConfirmedLineItem[];
+  // e-Invoice & E-Way Bill
+  irn?: string | null;
+  ackNo?: string | null;
+  ackDate?: string | null;
+  eWayBillNo?: string | null;
+  eWayBillDate?: string | null;
+  dateOfDelivery?: string | null;
+  isReverseCharge?: boolean;
+  vendorGstinOnInvoice?: string | null;
+  // Audit metadata
+  originalFilename?: string;
+  documentUrl?: string;
+  providerModel?: string;
+  processingMs?: number;
+  highFieldCount?: number;
+  reviewFieldCount?: number;
+  lowFieldCount?: number;
+  fieldOverrideCount?: number;
+  overriddenFieldsJson?: string;
+  tcsTotalAmount?: number;
+}
+
+export interface ConfirmExtractionResponse {
+  invoice: PurchaseInvoiceDto;
+  grn: GrnHeaderDto | null;
+}
+
+// ─── Invoice Extraction API ───────────────────────────────────────────────────
+
+export const invoiceExtractionApi = {
+  /** Upload PDF/image; OpenAI extraction runs synchronously — may take up to 4 min. */
+  upload: (file: File): Promise<InvoiceExtractionPreview> =>
+    getClient().post<InvoiceExtractionPreview>(
+      '/invoice-extraction/upload', file,
+      {
+        headers: {
+          'Content-Type': file.type,
+          'X-Filename':   encodeURIComponent(file.name),
+        },
+        maxBodyLength:    Infinity,
+        maxContentLength: Infinity,
+        // No axios timeout — the function can legitimately take up to 4 min.
+        // The backend itself will surface a 504 if OpenAI times out.
+        timeout: 0,
+      },
+    ).then(r => r.data),
+
+  /** Submit user-confirmed data – creates invoice and optionally generates GRN. */
+  confirm: (req: ConfirmExtractionRequest): Promise<ConfirmExtractionResponse> =>
+    getClient().post('/invoice-extraction/confirm', req).then(r => r.data),
 };
 
 // ─── Stock APIs ───────────────────────────────────────────────────────────────
@@ -997,6 +1260,8 @@ export interface ReorderConfigDto {
   currentStock: number;
   belowReorder: boolean;
   stockCoveragePercent?: number;
+  reorderSuppressed: boolean;
+  reorderSuppressedUntil?: string;
 }
 
 export const inventoryReorderApi = {
@@ -1027,6 +1292,14 @@ export const inventoryReorderApi = {
     reorderQuantity?: number;
   }): Promise<{ id: string; itemName: string; reorderLevel: number; reorderQuantity: number }> =>
     getClient().patch(`/reorder/config/${itemId}`, req).then(r => r.data),
+
+  /** Suppress auto-reorder for an item (indefinite or until a date) */
+  suppress: (itemId: string, suppressUntil?: string): Promise<void> =>
+    getClient().post(`/reorder/config/${itemId}/suppress`, suppressUntil ? { suppressUntil } : {}).then(() => {}),
+
+  /** Re-enable auto-reorder for a previously suppressed item */
+  enable: (itemId: string): Promise<void> =>
+    getClient().post(`/reorder/config/${itemId}/enable`).then(() => {}),
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1483,6 +1756,9 @@ export const purchaseOrderApi = {
   receive: (id: string, req: RecordPoReceiptRequest): Promise<{
     id: string; poNumber: string; poStatus: string; receivedAt?: string; actualDeliveryDate?: string;
   }> => getClient().post(`/purchase-orders/${id}/receive`, req).then(r => r.data),
+
+  generateGrn: (id: string): Promise<GrnHeaderDto> =>
+    getClient().post(`/purchase-orders/${id}/generate-grn`).then(r => r.data),
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1551,4 +1827,349 @@ export const inventoryDashboardApi = {
     totalCount: number; page: number; pageSize: number; items: VendorPerformanceSummaryDto[];
   }> => getClient().get('/inventory/vendor-performance', { params }).then(r => r.data),
 
+};
+
+// ─── Bill Transfer ────────────────────────────────────────────────────────────
+
+export type BillTransferStatus =
+  | 'Draft'
+  | 'Resubmitted'
+  | 'L1Approved'
+  | 'L1Rejected'
+  | 'L2Rejected'
+  | 'FullyApproved'
+  | 'Cancelled';
+
+export type BtSlaState = 'OnTrack' | 'AtRisk' | 'Breached';
+
+export interface BillTransferDto {
+  id: string;
+  tenantId: string;
+  grnId: string;
+  invoiceId: string;
+  vendorId: string;
+  vendorName?: string;
+  grnNumber?: string;
+  invoiceNumber?: string;
+  invoiceDate?: string;
+  grnDate?: string;
+  grnTotalAmount: number;
+  invoiceTotalAmount: number;
+  cgstAmount: number;
+  sgstAmount: number;
+  igstAmount: number;
+  tcsAmount: number;
+  status: BillTransferStatus;
+  l1ApprovedBy?: string;
+  l1ApprovedAt?: string;
+  l1Remarks?: string;
+  l2ApprovedBy?: string;
+  l2ApprovedAt?: string;
+  l2Remarks?: string;
+  remarks?: string;
+  attachments: string[];
+  createdAt: string;
+  updatedAt: string;
+  // Phase 1+ additions
+  versionNo: number;
+  createdByUserId?: string;
+  // Phase 4 SLA
+  l1DueAt?: string;
+  l2DueAt?: string;
+  slaState: BtSlaState;
+}
+
+export interface SodDecisionDto {
+  strictApplied: boolean;
+  overrideApplied: boolean;
+  thresholdUsed: number;
+  ruleEvaluations: string[];
+}
+
+export interface BillTransferActionResultDto {
+  billTransfer: BillTransferDto;
+  sodDecision?: SodDecisionDto;
+}
+
+export interface BillTransferEventLogDto {
+  eventId: string;
+  billTransferId: string;
+  fromStatus?: string;
+  toStatus: string;
+  action: string;
+  actorUserId: string;
+  actorRole?: string;
+  reasonCode?: string;
+  reasonText?: string;
+  overrideApplied: boolean;
+  createdAt: string;
+}
+
+export interface BillTransferReasonCatalogDto {
+  id: string;
+  reasonCode: string;
+  reasonLabel: string;
+  category: string;
+  sortOrder: number;
+}
+
+export interface BillTransferPolicyDto {
+  tenantId: string;
+  lowValueOverrideThreshold: number;
+  allowLowValueFlexOverride: boolean;
+  requireOverrideReason: boolean;
+  updatedAt?: string;
+}
+
+export interface BillTransferChangesDto {
+  items: BillTransferDto[];
+  serverTimestamp: string;
+}
+
+export interface BtComplianceReportDto {
+  totalBillTransfers: number;
+  strictApprovals: number;
+  overrideApprovals: number;
+  overridePct: number;
+  slaBreached: number;
+  meanApprovalCycleHours: number;
+  generatedAt: string;
+}
+
+export interface ApproveBillTransferRequest {
+  remarks?: string;
+  expectedVersion?: number;
+  overrideReasonCode?: string;
+  overrideReasonText?: string;
+}
+
+export const inventoryBillTransferApi = {
+  list: (params?: {
+    page?: number;
+    pageSize?: number;
+    status?: BillTransferStatus;
+  }): Promise<{ total: number; page: number; pageSize: number; items: BillTransferDto[] }> =>
+    getClient().get('/bill-transfers', { params: { page: params?.page ?? 1, pageSize: params?.pageSize ?? 20, ...params } }).then(r => r.data),
+
+  get: (id: string): Promise<BillTransferDto> =>
+    getClient().get(`/bill-transfers/${id}`).then(r => r.data),
+
+  getEventLog: (id: string): Promise<BillTransferEventLogDto[]> =>
+    getClient().get(`/bill-transfers/${id}/event-log`).then(r => r.data),
+
+  getChanges: (since: string): Promise<BillTransferChangesDto> =>
+    getClient().get('/bill-transfers/changes', { params: { since } }).then(r => r.data),
+
+  getPolicy: (): Promise<BillTransferPolicyDto> =>
+    getClient().get('/bill-transfers/policy').then(r => r.data),
+
+  upsertPolicy: (body: Partial<BillTransferPolicyDto>): Promise<BillTransferPolicyDto> =>
+    getClient().put('/bill-transfers/policy', body).then(r => r.data),
+
+  getReasonCatalog: (category?: string): Promise<BillTransferReasonCatalogDto[]> =>
+    getClient().get('/bill-transfers/reason-catalog', { params: category ? { category } : {} }).then(r => r.data),
+
+  getComplianceReport: (): Promise<BtComplianceReportDto> =>
+    getClient().get('/bill-transfers/compliance').then(r => r.data),
+
+  generate: (grnId: string): Promise<BillTransferDto> =>
+    getClient().post(`/bill-transfers/from-grn/${grnId}`).then(r => r.data),
+
+  l1Approve: (id: string, req: ApproveBillTransferRequest, idempotencyKey?: string): Promise<BillTransferActionResultDto> =>
+    getClient().post(`/bill-transfers/${id}/l1-approve`, req, idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : {}).then(r => r.data),
+
+  l1Reject: (id: string, remarks?: string, expectedVersion?: number): Promise<BillTransferDto> =>
+    getClient().post(`/bill-transfers/${id}/l1-reject`, { remarks, expectedVersion }).then(r => r.data),
+
+  l2Approve: (id: string, req: ApproveBillTransferRequest, idempotencyKey?: string): Promise<BillTransferActionResultDto> =>
+    getClient().post(`/bill-transfers/${id}/l2-approve`, req, idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : {}).then(r => r.data),
+
+  l2Reject: (id: string, remarks?: string, expectedVersion?: number): Promise<BillTransferDto> =>
+    getClient().post(`/bill-transfers/${id}/l2-reject`, { remarks, expectedVersion }).then(r => r.data),
+
+  resubmit: (id: string, remarks?: string, expectedVersion?: number): Promise<BillTransferDto> =>
+    getClient().post(`/bill-transfers/${id}/resubmit`, { remarks, expectedVersion }).then(r => r.data),
+
+  cancel: (id: string, expectedVersion?: number): Promise<BillTransferDto> =>
+    getClient().post(`/bill-transfers/${id}/cancel`, { expectedVersion }).then(r => r.data),
+};
+
+// ─── Invoice Settlement ───────────────────────────────────────────────────────
+
+export type SettlementStatus =
+  | 'Pending'
+  | 'PartiallyPaid'
+  | 'FullySettled'
+  | 'Overdue'
+  | 'OnHold'
+  | 'Cancelled'
+  | 'WrittenOff';
+
+export interface SettlementPaymentDto {
+  id: string;
+  paymentId?: string;
+  amountAllocated: number;
+  allocationType: 'Payment' | 'CreditNote' | 'Advance' | 'Adjustment' | 'Reversal';
+  reference?: string;
+  appliedAt: string;
+  // Payment-method detail (null for credit-note allocations)
+  paymentMethod?: 'NEFT' | 'RTGS' | 'Cheque' | 'Cash' | 'UPI';
+  utrNumber?: string;
+  bankName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  chequeNumber?: string;
+  chequeDate?: string;
+  expectedClearanceDate?: string;
+  upiId?: string;
+  upiApp?: string;
+  cashReceiptNumber?: string;
+  cashReceivedBy?: string;
+  remarks?: string;
+  // Proof attachment
+  attachmentUrl?: string;
+  attachmentFilename?: string;
+  attachmentSizeKb?: number;
+}
+
+export interface InvoiceSettlementDto {
+  id: string;
+  tenantId: string;
+  billTransferId: string;
+  vendorId: string;
+  vendorName?: string;
+  grnNumber?: string;
+  invoiceNumber?: string;
+  grossAmount: number;
+  debitNoteAdjustment: number;
+  tcsAmount: number;
+  netPayableAmount: number;
+  amountPaid: number;
+  balanceRemaining: number;
+  status: SettlementStatus;
+  dueDate?: string;
+  settledAt?: string;
+  onHoldReason?: string;
+  cancellationReason?: string;
+  writeOffReason?: string;
+  createdAt: string;
+  updatedAt: string;
+  payments: SettlementPaymentDto[];
+}
+
+export interface RecordSettlementPaymentRequest {
+  amount: number;
+  paymentMethod: 'NEFT' | 'RTGS' | 'Cheque' | 'Cash' | 'UPI';
+  transactionReference: string;
+  paymentDate: string; // ISO datetime
+  remarks?: string;
+  // NEFT / RTGS
+  utrNumber?: string;
+  bankName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  // Cheque
+  chequeDate?: string;
+  expectedClearanceDate?: string;
+  // UPI
+  upiId?: string;
+  upiApp?: string;
+  // Cash
+  cashReceiptNumber?: string;
+  cashReceivedBy?: string;
+}
+
+// ─── Vendor Bank Accounts ─────────────────────────────────────────────────────
+
+export interface VendorBankAccountDto {
+  id: string;
+  vendorId: string;
+  accountHolderName: string;
+  bankName: string;
+  accountNumber: string;
+  maskedAccountNumber: string;
+  ifscCode: string;
+  accountType: 'current' | 'savings' | 'cc' | 'od';
+  isPrimary: boolean;
+  nickname?: string;
+  createdAt: string;
+}
+
+export interface CreateVendorBankAccountRequest {
+  accountHolderName: string;
+  bankName: string;
+  accountNumber: string;
+  ifscCode: string;
+  accountType: 'current' | 'savings' | 'cc' | 'od';
+  isPrimary?: boolean;
+  nickname?: string;
+}
+
+export const inventoryVendorBankAccountApi = {
+  list: (vendorId: string): Promise<VendorBankAccountDto[]> =>
+    getClient().get(`/vendors/${vendorId}/bank-accounts`).then(r => r.data),
+
+  create: (vendorId: string, req: CreateVendorBankAccountRequest): Promise<VendorBankAccountDto> =>
+    getClient().post(`/vendors/${vendorId}/bank-accounts`, req).then(r => r.data),
+
+  remove: (vendorId: string, accountId: string): Promise<void> =>
+    getClient().delete(`/vendors/${vendorId}/bank-accounts/${accountId}`).then(() => undefined),
+
+  setPrimary: (vendorId: string, accountId: string): Promise<VendorBankAccountDto> =>
+    getClient().patch(`/vendors/${vendorId}/bank-accounts/${accountId}/set-primary`).then(r => r.data),
+};
+
+export interface SettlementEventLogDto {
+  id: string;
+  fromStatus: string;
+  toStatus: string;
+  eventType: string;
+  reason?: string;
+  amount?: number;
+  actorUserId?: string;
+  actorType: 'user' | 'system';
+  occurredAt: string;
+}
+
+export const inventorySettlementApi = {
+  list: (params?: {
+    page?: number;
+    pageSize?: number;
+    status?: SettlementStatus;
+  }): Promise<{ total: number; page: number; pageSize: number; items: InvoiceSettlementDto[] }> =>
+    getClient().get('/settlements', { params: { page: params?.page ?? 1, pageSize: params?.pageSize ?? 20, ...params } }).then(r => r.data),
+
+  get: (id: string): Promise<InvoiceSettlementDto> =>
+    getClient().get(`/settlements/${id}`).then(r => r.data),
+
+  recordPayment: (id: string, req: RecordSettlementPaymentRequest): Promise<InvoiceSettlementDto> =>
+    getClient().post(`/settlements/${id}/record-payment`, req).then(r => r.data),
+
+  applyCreditNote: (id: string, purchaseReturnId: string, remarks?: string): Promise<InvoiceSettlementDto> =>
+    getClient().post(`/settlements/${id}/apply-credit-note`, { purchaseReturnId, remarks }).then(r => r.data),
+
+  hold: (id: string, reason: string): Promise<InvoiceSettlementDto> =>
+    getClient().post(`/settlements/${id}/hold`, { reason }).then(r => r.data),
+
+  resume: (id: string): Promise<InvoiceSettlementDto> =>
+    getClient().post(`/settlements/${id}/resume`).then(r => r.data),
+
+  cancel: (id: string, reason: string): Promise<InvoiceSettlementDto> =>
+    getClient().post(`/settlements/${id}/cancel`, { reason }).then(r => r.data),
+
+  writeOff: (id: string, reason: string): Promise<InvoiceSettlementDto> =>
+    getClient().post(`/settlements/${id}/write-off`, { reason }).then(r => r.data),
+
+  getEventLogs: (id: string): Promise<SettlementEventLogDto[]> =>
+    getClient().get(`/settlements/${id}/event-logs`).then(r => r.data),
+
+  uploadPaymentProof: (settlementId: string, paymentId: string, file: File): Promise<{ url: string; filename: string; sizeKb: number }> =>
+    getClient().post(`/settlements/${settlementId}/payments/${paymentId}/proof`, file, {
+      headers: {
+        'Content-Type': file.type,
+        'X-Filename': encodeURIComponent(file.name),
+      },
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
+    }).then(r => r.data),
 };

@@ -15,6 +15,7 @@ public class InventoryDbContext : DbContext
     // ── Vendors ───────────────────────────────────────────────────────────────
     public DbSet<Vendor> Vendors => Set<Vendor>();
     public DbSet<VendorPayment> VendorPayments => Set<VendorPayment>();
+    public DbSet<VendorBankAccount> VendorBankAccounts => Set<VendorBankAccount>();
     public DbSet<VendorOutstandingLedger> VendorOutstandingLedgers => Set<VendorOutstandingLedger>();
 
     // ── Purchase / GRN ────────────────────────────────────────────────────────
@@ -68,6 +69,26 @@ public class InventoryDbContext : DbContext
 
     // ── Vendor Performance ────────────────────────────────────────────────────
     public DbSet<VendorPerformanceRecord> VendorPerformanceRecords => Set<VendorPerformanceRecord>();
+
+    // ── Bill Transfer & Settlement ────────────────────────────────────────────
+    public DbSet<BillTransfer> BillTransfers => Set<BillTransfer>();
+    public DbSet<InvoiceSettlement> InvoiceSettlements => Set<InvoiceSettlement>();
+    public DbSet<SettlementPayment> SettlementPayments => Set<SettlementPayment>();
+
+    // ── Bill Transfer Governance (Phase 1) ───────────────────────────────────
+    public DbSet<BillTransferPolicy> BillTransferPolicies => Set<BillTransferPolicy>();
+    public DbSet<BillTransferEventLog> BillTransferEventLogs => Set<BillTransferEventLog>();
+
+    // ── Settlement Audit Trail ────────────────────────────────────────────────
+    public DbSet<SettlementEventLog> SettlementEventLogs => Set<SettlementEventLog>();
+
+    // ── Bill Transfer Governance (Phase 2–4) ─────────────────────────────────
+    public DbSet<BtReasonCatalog> BtReasonCatalog => Set<BtReasonCatalog>();
+    public DbSet<RequestIdempotency> RequestIdempotencies => Set<RequestIdempotency>();
+    public DbSet<BtEscalationQueue> BtEscalationQueue => Set<BtEscalationQueue>();
+
+    // ── Invoice Extraction Audit ───────────────────────────────────────────────
+    public DbSet<InvoiceExtractionAuditLog> InvoiceExtractionAuditLogs => Set<InvoiceExtractionAuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -164,15 +185,22 @@ public class InventoryDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.TenantId).HasColumnName("tenant_id");
             entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(300);
+            entity.Property(e => e.VendorCode).HasColumnName("vendor_code").HasMaxLength(50);
+            entity.Property(e => e.VendorCategory).HasColumnName("vendor_category").HasMaxLength(50);
+            entity.Property(e => e.IsPreferred).HasColumnName("is_preferred");
             entity.Property(e => e.ContactPerson).HasColumnName("contact_person").HasMaxLength(200);
             entity.Property(e => e.Phone).HasColumnName("phone").HasMaxLength(30);
             entity.Property(e => e.Email).HasColumnName("email").HasMaxLength(200);
             entity.Property(e => e.Address).HasColumnName("address");
+            entity.Property(e => e.RegisteredAddress).HasColumnName("registered_address");
+            entity.Property(e => e.Website).HasColumnName("website").HasMaxLength(300);
             entity.Property(e => e.GstNumber).HasColumnName("gst_number").HasMaxLength(20);
             entity.Property(e => e.PanNumber).HasColumnName("pan_number").HasMaxLength(15);
             entity.Property(e => e.DrugLicenseNumber).HasColumnName("drug_license_number").HasMaxLength(100);
             entity.Property(e => e.DrugLicense20B).HasColumnName("drug_license_20b").HasMaxLength(50);
             entity.Property(e => e.DrugLicense21B).HasColumnName("drug_license_21b").HasMaxLength(50);
+            entity.Property(e => e.DrugLicense20BExpiry).HasColumnName("drug_license_20b_expiry").HasColumnType("date");
+            entity.Property(e => e.DrugLicense21BExpiry).HasColumnName("drug_license_21b_expiry").HasColumnType("date");
             entity.Property(e => e.CinNumber).HasColumnName("cin_number").HasMaxLength(21);
             entity.Property(e => e.SwiftCode).HasColumnName("swift_code").HasMaxLength(11);
             entity.Property(e => e.LatePaymentInterestRate).HasColumnName("late_payment_interest_rate").HasColumnType("numeric(5,2)");
@@ -184,6 +212,8 @@ public class InventoryDbContext : DbContext
             entity.Property(e => e.BankName).HasColumnName("bank_name").HasMaxLength(200);
             entity.Property(e => e.BankAccountNumber).HasColumnName("bank_account_number").HasMaxLength(50);
             entity.Property(e => e.BankIfscCode).HasColumnName("bank_ifsc_code").HasMaxLength(20);
+            entity.Property(e => e.BankAccountHolderName).HasColumnName("bank_account_holder_name").HasMaxLength(200);
+            entity.Property(e => e.BankAccountType).HasColumnName("bank_account_type").HasMaxLength(20);
             entity.Property(e => e.CreditDays).HasColumnName("credit_days").HasColumnType("numeric(5,0)");
             entity.Property(e => e.OutstandingBalance).HasColumnName("outstanding_balance").HasColumnType("numeric(14,2)");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
@@ -205,9 +235,9 @@ public class InventoryDbContext : DbContext
             entity.Property(e => e.VendorId).HasColumnName("vendor_id");
             entity.Property(e => e.StoreId).HasColumnName("store_id");
             entity.Property(e => e.InvoiceNumber).HasColumnName("invoice_number").HasMaxLength(100);
-            entity.Property(e => e.InvoiceDate).HasColumnName("invoice_date");
+            entity.Property(e => e.InvoiceDate).HasColumnName("invoice_date").HasColumnType("date");
             entity.Property(e => e.DeliveryChallNumber).HasColumnName("delivery_chall_number").HasMaxLength(100);
-            entity.Property(e => e.DeliveryChallDate).HasColumnName("delivery_chall_date");
+            entity.Property(e => e.DeliveryChallDate).HasColumnName("delivery_chall_date").HasColumnType("date");
             entity.Property(e => e.VendorOrderNumber).HasColumnName("vendor_order_number").HasMaxLength(100);
             entity.Property(e => e.VendorDeliveryNoteNumber).HasColumnName("vendor_delivery_note_number").HasMaxLength(100);
             entity.Property(e => e.VendorSapNumber).HasColumnName("vendor_sap_number").HasMaxLength(100);
@@ -241,6 +271,17 @@ public class InventoryDbContext : DbContext
             entity.Property(e => e.DueDate).HasColumnName("due_date");
             entity.Property(e => e.Reference).HasColumnName("reference").HasMaxLength(200);
             entity.Property(e => e.PurchaseCategory).HasColumnName("purchase_category").HasMaxLength(100);
+
+            // e-Invoice & E-Way Bill
+            entity.Property(e => e.Irn).HasColumnName("irn").HasMaxLength(200);
+            entity.Property(e => e.AckNo).HasColumnName("ack_no").HasMaxLength(50);
+            entity.Property(e => e.AckDate).HasColumnName("ack_date").HasColumnType("date");
+            entity.Property(e => e.EWayBillNo).HasColumnName("e_way_bill_no").HasMaxLength(50);
+            entity.Property(e => e.EWayBillDate).HasColumnName("e_way_bill_date").HasColumnType("date");
+            entity.Property(e => e.DateOfDelivery).HasColumnName("date_of_delivery").HasColumnType("date");
+            entity.Property(e => e.IsReverseCharge).HasColumnName("is_reverse_charge");
+            entity.Property(e => e.VendorGstinOnInvoice).HasColumnName("vendor_gstin_on_invoice").HasMaxLength(20);
+
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
@@ -294,6 +335,29 @@ public class InventoryDbContext : DbContext
             entity.Property(e => e.PatientIpNo).HasColumnName("patient_ip_no").HasMaxLength(50);
             entity.Property(e => e.SurgeryId).HasColumnName("surgery_id");
             entity.Property(e => e.ItemRemarks).HasColumnName("item_remarks");
+
+            // Traceability & serialization
+            entity.Property(e => e.SerialNumber).HasColumnName("serial_number").HasMaxLength(100);
+            entity.Property(e => e.ManufacturerName).HasColumnName("manufacturer_name").HasMaxLength(200);
+            entity.Property(e => e.CountryOfOrigin).HasColumnName("country_of_origin").HasMaxLength(100);
+            entity.Property(e => e.MfgDate).HasColumnName("mfg_date").HasColumnType("date");
+            entity.Property(e => e.ScheduleType).HasColumnName("schedule_type").HasMaxLength(10);
+            entity.Property(e => e.IsColdChain).HasColumnName("is_cold_chain");
+            entity.Property(e => e.BrandName).HasColumnName("brand_name").HasMaxLength(200);
+            entity.Property(e => e.VendorSku).HasColumnName("vendor_sku").HasMaxLength(100);
+            entity.Property(e => e.IsInterState).HasColumnName("is_inter_state");
+            entity.Property(e => e.ExtraFields).HasColumnName("extra_fields").HasColumnType("jsonb");
+
+            // Pricing / packaging (persisted)
+            entity.Property(e => e.SellingPrice).HasColumnName("selling_price").HasColumnType("numeric(12,2)");
+            entity.Property(e => e.Packing).HasColumnName("packing").HasColumnType("numeric(8,3)");
+            entity.Property(e => e.UnitsPerPack).HasColumnName("units_per_pack").HasColumnType("numeric(8,3)");
+            entity.Property(e => e.MrpOnPack).HasColumnName("mrp_on_pack").HasColumnType("numeric(12,2)");
+            entity.Property(e => e.TransferMrp).HasColumnName("transfer_mrp").HasColumnType("numeric(12,2)");
+            entity.Property(e => e.IsAssetItem).HasColumnName("is_asset_item");
+            entity.Property(e => e.TaxOnFree).HasColumnName("tax_on_free");
+            entity.Property(e => e.IsReplacement).HasColumnName("is_replacement");
+
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
@@ -883,9 +947,28 @@ public class InventoryDbContext : DbContext
             entity.Property(e => e.PaymentDate).HasColumnName("payment_date").HasColumnType("date");
             entity.Property(e => e.Amount).HasColumnName("amount").HasColumnType("numeric(14,2)");
             entity.Property(e => e.PaymentMode).HasColumnName("payment_mode").HasMaxLength(20);
+            // NEFT / RTGS
+            entity.Property(e => e.UtrNumber).HasColumnName("utr_number").HasMaxLength(50);
+            entity.Property(e => e.BankName).HasColumnName("bank_name").HasMaxLength(100);
+            entity.Property(e => e.AccountNumber).HasColumnName("account_number").HasMaxLength(50);
+            entity.Property(e => e.IfscCode).HasColumnName("ifsc_code").HasMaxLength(11);
+            // Cheque
             entity.Property(e => e.ChequeNumber).HasColumnName("cheque_number").HasMaxLength(50);
+            entity.Property(e => e.ChequeDate).HasColumnName("cheque_date").HasColumnType("date");
+            entity.Property(e => e.ExpectedClearanceDate).HasColumnName("expected_clearance_date").HasColumnType("date");
+            // UPI
+            entity.Property(e => e.UpiId).HasColumnName("upi_id").HasMaxLength(100);
+            entity.Property(e => e.UpiApp).HasColumnName("upi_app").HasMaxLength(30);
+            // Cash
+            entity.Property(e => e.CashReceiptNumber).HasColumnName("cash_receipt_number").HasMaxLength(50);
+            entity.Property(e => e.CashReceivedBy).HasColumnName("cash_received_by").HasMaxLength(100);
+            // Legacy
             entity.Property(e => e.BankTransactionId).HasColumnName("bank_transaction_id").HasMaxLength(100);
             entity.Property(e => e.Remarks).HasColumnName("remarks");
+            // Attachment
+            entity.Property(e => e.AttachmentUrl).HasColumnName("attachment_url");
+            entity.Property(e => e.AttachmentFilename).HasColumnName("attachment_filename").HasMaxLength(255);
+            entity.Property(e => e.AttachmentSizeKb).HasColumnName("attachment_size_kb");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
@@ -902,6 +985,11 @@ public class InventoryDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(e => e.InvoiceId)
                   .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => new { e.TenantId, e.PaymentReference })
+                  .IsUnique()
+                  .HasFilter("deleted_at IS NULL")
+                  .HasDatabaseName("uix_vendor_payments_tenant_reference");
         });
 
         // ─── VendorOutstandingLedger ──────────────────────────────────────────
@@ -946,6 +1034,38 @@ public class InventoryDbContext : DbContext
 
             entity.HasIndex(e => new { e.TenantId, e.VendorId, e.EntryDate })
                   .HasDatabaseName("idx_vendor_outstanding_lookup");
+        });
+
+        // ─── VendorBankAccount ────────────────────────────────────────────────
+        modelBuilder.Entity<VendorBankAccount>(entity =>
+        {
+            entity.ToTable("inv_vendor_bank_accounts");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+            entity.Property(e => e.VendorId).HasColumnName("vendor_id");
+            entity.Property(e => e.AccountHolderName).HasColumnName("account_holder_name").HasMaxLength(200);
+            entity.Property(e => e.BankName).HasColumnName("bank_name").HasMaxLength(200);
+            entity.Property(e => e.AccountNumber).HasColumnName("account_number").HasMaxLength(50);
+            entity.Property(e => e.IfscCode).HasColumnName("ifsc_code").HasMaxLength(11);
+            entity.Property(e => e.AccountType).HasColumnName("account_type").HasMaxLength(20);
+            entity.Property(e => e.IsPrimary).HasColumnName("is_primary");
+            entity.Property(e => e.Nickname).HasColumnName("nickname").HasMaxLength(100);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+            entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+            entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(50);
+
+            entity.HasOne(e => e.Vendor)
+                  .WithMany()
+                  .HasForeignKey(e => e.VendorId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.TenantId, e.VendorId })
+                  .HasDatabaseName("idx_vendor_bank_accts_vendor")
+                  .HasFilter("deleted_at IS NULL");
         });
 
         // ─── BranchProcurementPolicy ──────────────────────────────────────────
@@ -1376,6 +1496,315 @@ public class InventoryDbContext : DbContext
             entity.HasIndex(e => new { e.TenantId, e.AckStatus })
                   .HasDatabaseName("idx_inv_vack_status")
                   .HasFilter("deleted_at IS NULL");
+        });
+
+        // ─── BillTransfer ─────────────────────────────────────────────────────
+        modelBuilder.Entity<BillTransfer>(entity =>
+        {
+            entity.ToTable("inv_bill_transfers");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+            entity.Property(e => e.GrnId).HasColumnName("grn_id");
+            entity.Property(e => e.InvoiceId).HasColumnName("invoice_id");
+            entity.Property(e => e.VendorId).HasColumnName("vendor_id");
+            entity.Property(e => e.GrnTotalAmount).HasColumnName("grn_total_amount").HasColumnType("numeric(14,2)");
+            entity.Property(e => e.InvoiceTotalAmount).HasColumnName("invoice_total_amount").HasColumnType("numeric(14,2)");
+            entity.Property(e => e.CgstAmount).HasColumnName("cgst_amount").HasColumnType("numeric(14,2)");
+            entity.Property(e => e.SgstAmount).HasColumnName("sgst_amount").HasColumnType("numeric(14,2)");
+            entity.Property(e => e.IgstAmount).HasColumnName("igst_amount").HasColumnType("numeric(14,2)");
+            entity.Property(e => e.TcsAmount).HasColumnName("tcs_amount").HasColumnType("numeric(14,2)");
+            entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(32);
+            entity.Property(e => e.L1ApprovedBy).HasColumnName("l1_approved_by");
+            entity.Property(e => e.L1ApprovedAt).HasColumnName("l1_approved_at");
+            entity.Property(e => e.L1Remarks).HasColumnName("l1_remarks");
+            entity.Property(e => e.L2ApprovedBy).HasColumnName("l2_approved_by");
+            entity.Property(e => e.L2ApprovedAt).HasColumnName("l2_approved_at");
+            entity.Property(e => e.L2Remarks).HasColumnName("l2_remarks");
+            entity.Property(e => e.Remarks).HasColumnName("remarks");
+            entity.Property(e => e.Attachments).HasColumnName("attachments").HasColumnType("text[]");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+            entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+            entity.Property(e => e.StatusMeta).HasColumnName("status_meta").HasMaxLength(20);
+            entity.Property(e => e.VersionNo).HasColumnName("version_no");
+            entity.Property(e => e.L1DueAt).HasColumnName("l1_due_at");
+            entity.Property(e => e.L2DueAt).HasColumnName("l2_due_at");
+            entity.Property(e => e.SlaState).HasColumnName("sla_state").HasMaxLength(16);
+
+            entity.HasOne(e => e.Grn)
+                  .WithMany()
+                  .HasForeignKey(e => e.GrnId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Invoice)
+                  .WithMany()
+                  .HasForeignKey(e => e.InvoiceId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Vendor)
+                  .WithMany()
+                  .HasForeignKey(e => e.VendorId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => e.GrnId)
+                  .IsUnique()
+                  .HasDatabaseName("uix_bill_transfers_grn_id")
+                  .HasFilter("deleted_at IS NULL");
+
+            entity.HasIndex(e => new { e.TenantId, e.Status })
+                  .HasDatabaseName("idx_bill_transfers_tenant_status")
+                  .HasFilter("deleted_at IS NULL");
+        });
+
+        // ─── InvoiceSettlement ────────────────────────────────────────────────
+        modelBuilder.Entity<InvoiceSettlement>(entity =>
+        {
+            entity.ToTable("inv_invoice_settlements");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+            entity.Property(e => e.BillTransferId).HasColumnName("bill_transfer_id");
+            entity.Property(e => e.VendorId).HasColumnName("vendor_id");
+            entity.Property(e => e.GrossAmount).HasColumnName("gross_amount").HasColumnType("numeric(14,2)");
+            entity.Property(e => e.DebitNoteAdjustment).HasColumnName("debit_note_adjustment").HasColumnType("numeric(14,2)");
+            entity.Property(e => e.TcsAmount).HasColumnName("tcs_amount").HasColumnType("numeric(14,2)");
+            entity.Property(e => e.NetPayableAmount).HasColumnName("net_payable_amount").HasColumnType("numeric(14,2)");
+            entity.Property(e => e.AmountPaid).HasColumnName("amount_paid").HasColumnType("numeric(14,2)");
+            entity.Property(e => e.BalanceRemaining).HasColumnName("balance_remaining").HasColumnType("numeric(14,2)");
+            entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20);
+            entity.Property(e => e.DueDate).HasColumnName("due_date").HasColumnType("date");
+            entity.Property(e => e.SettledAt).HasColumnName("settled_at");
+            entity.Property(e => e.OnHoldReason).HasColumnName("on_hold_reason");
+            entity.Property(e => e.CancellationReason).HasColumnName("cancellation_reason");
+            entity.Property(e => e.WriteOffReason).HasColumnName("write_off_reason");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+            entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+            entity.Property(e => e.StatusMeta).HasColumnName("status_meta").HasMaxLength(20);
+            entity.Property(e => e.VersionNo).HasColumnName("version_no");
+
+            entity.HasOne(e => e.BillTransfer)
+                  .WithOne(b => b.Settlement)
+                  .HasForeignKey<InvoiceSettlement>(e => e.BillTransferId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Vendor)
+                  .WithMany()
+                  .HasForeignKey(e => e.VendorId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => e.BillTransferId)
+                  .IsUnique()
+                  .HasDatabaseName("uix_settlements_bill_transfer_id")
+                  .HasFilter("deleted_at IS NULL");
+
+            entity.HasIndex(e => new { e.TenantId, e.Status })
+                  .HasDatabaseName("idx_settlements_tenant_status")
+                  .HasFilter("deleted_at IS NULL");
+        });
+
+        // ─── SettlementPayment ────────────────────────────────────────────────
+        modelBuilder.Entity<SettlementPayment>(entity =>
+        {
+            entity.ToTable("inv_settlement_payments");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+            entity.Property(e => e.SettlementId).HasColumnName("settlement_id");
+            entity.Property(e => e.PaymentId).HasColumnName("payment_id");
+            entity.Property(e => e.AmountAllocated).HasColumnName("amount_allocated").HasColumnType("numeric(14,2)");
+            entity.Property(e => e.AllocationType).HasColumnName("allocation_type").HasMaxLength(20);
+            entity.Property(e => e.Reference).HasColumnName("reference");
+            entity.Property(e => e.AppliedAt).HasColumnName("applied_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+            entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+
+            entity.HasOne(e => e.Settlement)
+                  .WithMany(s => s.Payments)
+                  .HasForeignKey(e => e.SettlementId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Payment)
+                  .WithMany()
+                  .HasForeignKey(e => e.PaymentId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => e.SettlementId)
+                  .HasDatabaseName("idx_settlement_payments_settlement")
+                  .HasFilter("deleted_at IS NULL");
+        });
+
+        // ─── SettlementEventLog ───────────────────────────────────────────────
+        modelBuilder.Entity<SettlementEventLog>(entity =>
+        {
+            entity.ToTable("inv_settlement_event_logs");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+            entity.Property(e => e.SettlementId).HasColumnName("settlement_id");
+            entity.Property(e => e.FromStatus).HasColumnName("from_status").HasMaxLength(30);
+            entity.Property(e => e.ToStatus).HasColumnName("to_status").HasMaxLength(30);
+            entity.Property(e => e.EventType).HasColumnName("event_type").HasMaxLength(40);
+            entity.Property(e => e.Reason).HasColumnName("reason");
+            entity.Property(e => e.Amount).HasColumnName("amount").HasColumnType("numeric(14,2)");
+            entity.Property(e => e.ActorUserId).HasColumnName("actor_user_id");
+            entity.Property(e => e.ActorType).HasColumnName("actor_type").HasMaxLength(10);
+            entity.Property(e => e.OccurredAt).HasColumnName("occurred_at");
+
+            entity.HasOne(e => e.Settlement)
+                  .WithMany()
+                  .HasForeignKey(e => e.SettlementId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.SettlementId)
+                  .HasDatabaseName("idx_settlement_event_logs_settlement");
+
+            entity.HasIndex(e => new { e.TenantId, e.OccurredAt })
+                  .HasDatabaseName("idx_settlement_event_logs_tenant_time");
+        });
+
+        // ─── BillTransferPolicy ───────────────────────────────────────────────
+        modelBuilder.Entity<BillTransferPolicy>(entity =>
+        {
+            entity.ToTable("inv_bill_transfer_policy");
+            entity.HasKey(e => e.TenantId);
+            entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+            entity.Property(e => e.LowValueOverrideThreshold)
+                  .HasColumnName("low_value_override_threshold")
+                  .HasColumnType("numeric(14,2)");
+            entity.Property(e => e.AllowLowValueFlexOverride).HasColumnName("allow_low_value_flex_override");
+            entity.Property(e => e.RequireOverrideReason).HasColumnName("require_override_reason");
+            entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+        });
+
+        // ─── BillTransferEventLog ─────────────────────────────────────────────
+        modelBuilder.Entity<BillTransferEventLog>(entity =>
+        {
+            entity.ToTable("inv_bill_transfer_event_log");
+            entity.HasKey(e => e.EventId);
+            entity.Property(e => e.EventId).HasColumnName("event_id");
+            entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+            entity.Property(e => e.BillTransferId).HasColumnName("bill_transfer_id");
+            entity.Property(e => e.FromStatus).HasColumnName("from_status").HasMaxLength(32);
+            entity.Property(e => e.ToStatus).HasColumnName("to_status").HasMaxLength(32);
+            entity.Property(e => e.Action).HasColumnName("action").HasMaxLength(64);
+            entity.Property(e => e.ActorUserId).HasColumnName("actor_user_id");
+            entity.Property(e => e.ActorRole).HasColumnName("actor_role").HasMaxLength(100);
+            entity.Property(e => e.ReasonCode).HasColumnName("reason_code").HasMaxLength(64);
+            entity.Property(e => e.ReasonText).HasColumnName("reason_text");
+            entity.Property(e => e.OverrideApplied).HasColumnName("override_applied");
+            entity.Property(e => e.CorrelationId).HasColumnName("correlation_id").HasMaxLength(128);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+
+            entity.HasOne(e => e.BillTransfer)
+                  .WithMany()
+                  .HasForeignKey(e => e.BillTransferId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.TenantId, e.BillTransferId, e.CreatedAt })
+                  .HasDatabaseName("idx_bt_event_log_bt_id");
+        });
+
+        // ─── BtReasonCatalog ──────────────────────────────────────────────────
+        modelBuilder.Entity<BtReasonCatalog>(entity =>
+        {
+            entity.ToTable("inv_bt_reason_catalog");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+            entity.Property(e => e.ReasonCode).HasColumnName("reason_code").HasMaxLength(64);
+            entity.Property(e => e.ReasonLabel).HasColumnName("reason_label").HasMaxLength(200);
+            entity.Property(e => e.Category).HasColumnName("category").HasMaxLength(32);
+            entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+        });
+
+        // ─── RequestIdempotency ───────────────────────────────────────────────
+        modelBuilder.Entity<RequestIdempotency>(entity =>
+        {
+            entity.ToTable("inv_request_idempotency");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+            entity.Property(e => e.EndpointKey).HasColumnName("endpoint_key").HasMaxLength(64);
+            entity.Property(e => e.IdempotencyKey).HasColumnName("idempotency_key").HasMaxLength(128);
+            entity.Property(e => e.ResponseStatus).HasColumnName("response_status");
+            entity.Property(e => e.ResponseBody).HasColumnName("response_body");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at");
+
+            entity.HasIndex(e => new { e.TenantId, e.EndpointKey, e.IdempotencyKey })
+                  .IsUnique()
+                  .HasDatabaseName("uix_idempotency_tenant_endpoint_key");
+        });
+
+        // ─── InvoiceExtractionAuditLog ─────────────────────────────────────────
+        modelBuilder.Entity<InvoiceExtractionAuditLog>(entity =>
+        {
+            entity.ToTable("inv_invoice_extraction_audit_logs");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.SessionId).HasColumnName("session_id").HasMaxLength(64);
+            entity.Property(e => e.Outcome).HasColumnName("outcome").HasMaxLength(20);
+            entity.Property(e => e.OriginalFilename).HasColumnName("original_filename").HasMaxLength(255);
+            entity.Property(e => e.DocumentUrl).HasColumnName("document_url");
+            entity.Property(e => e.BlobPurgeAt).HasColumnName("blob_purge_at");
+            entity.Property(e => e.BlobPurged).HasColumnName("blob_purged");
+            entity.Property(e => e.ProviderModel).HasColumnName("provider_model").HasMaxLength(100);
+            entity.Property(e => e.ProcessingMs).HasColumnName("processing_ms");
+            entity.Property(e => e.HighFieldCount).HasColumnName("high_field_count");
+            entity.Property(e => e.ReviewFieldCount).HasColumnName("review_field_count");
+            entity.Property(e => e.LowFieldCount).HasColumnName("low_field_count");
+            entity.Property(e => e.LineItemCount).HasColumnName("line_item_count");
+            entity.Property(e => e.FieldOverrideCount).HasColumnName("field_override_count");
+            entity.Property(e => e.OverriddenFieldsJson).HasColumnName("overridden_fields_json").HasColumnType("text");
+            entity.Property(e => e.CreatedInvoiceId).HasColumnName("created_invoice_id");
+            entity.Property(e => e.CreatedGrnId).HasColumnName("created_grn_id");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+
+            entity.HasIndex(e => new { e.TenantId, e.SessionId })
+                  .HasDatabaseName("idx_inv_extraction_audit_session")
+                  .HasFilter("blob_purged = false");
+
+            entity.HasIndex(e => new { e.TenantId, e.BlobPurgeAt, e.BlobPurged })
+                  .HasDatabaseName("idx_inv_extraction_audit_purge")
+                  .HasFilter("blob_purged = false");
+        });
+
+        // ─── BtEscalationQueue ────────────────────────────────────────────────
+        modelBuilder.Entity<BtEscalationQueue>(entity =>
+        {
+            entity.ToTable("inv_bt_escalation_queue");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+            entity.Property(e => e.BillTransferId).HasColumnName("bill_transfer_id");
+            entity.Property(e => e.EscalationStage).HasColumnName("escalation_stage").HasMaxLength(32);
+            entity.Property(e => e.NotifiedAt).HasColumnName("notified_at");
+            entity.Property(e => e.ResolvedAt).HasColumnName("resolved_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+
+            entity.HasOne(e => e.BillTransfer)
+                  .WithMany()
+                  .HasForeignKey(e => e.BillTransferId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.TenantId, e.CreatedAt })
+                  .HasDatabaseName("idx_bt_escalation_tenant_unresolved");
         });
 
     }

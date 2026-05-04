@@ -12,13 +12,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Initialize API with interceptors
     initializeApi();
     
-    // Debug: log auth state
-    const state = useAuthStore.getState();
-    console.log('🔐 Auth Provider initialized:', {
-      hasToken: !!state.token,
-      tenantId: state.tenantId,
-      user: state.user?.email
-    });
+
   }, []);
 
   return <>{children}</>;

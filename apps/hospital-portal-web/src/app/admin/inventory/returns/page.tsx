@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { ItemSearchModal } from '@/components/inventory/ItemSearchModal';
+import { useMasterValues } from '@/hooks/use-master-values';
 import {
   inventoryReturnApi,
   inventoryVendorApi,
@@ -552,6 +553,15 @@ function InlineCreateForm({
 }) {
   const today = new Date().toISOString().slice(0, 10);
 
+  const { options: purchaseCategoryOptions } = useMasterValues(
+    'inventory.purchase_category',
+    PURCHASE_CATEGORIES.map(c => ({ value: c, label: c }))
+  );
+  const { options: paymentModeOptions } = useMasterValues(
+    'billing.payment_mode',
+    PAYMENT_MODES.map(m => ({ value: m, label: m }))
+  );
+
   // ── Header state ──────────────────────────────────────────────────────
   const [purchaseCategory, setPurchaseCategory] = useState('');
   const [sourceType,        setSourceType]        = useState('Manual');
@@ -867,7 +877,7 @@ function InlineCreateForm({
             <label className={lblCls}>Purchase Category</label>
             <select value={purchaseCategory} onChange={e => setPurchaseCategory(e.target.value)} className={inputCls}>
               <option value="">Select…</option>
-              {PURCHASE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {purchaseCategoryOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           <div>
@@ -997,7 +1007,7 @@ function InlineCreateForm({
             <label className={lblCls}>Payment Mode</label>
             <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)} className={inputCls}>
               <option value="">Select…</option>
-              {PAYMENT_MODES.map(m => <option key={m} value={m}>{m}</option>)}
+              {paymentModeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           <div>
@@ -1215,6 +1225,11 @@ function InlineCreateForm({
 export default function ReturnsPage() {
   const [mode, setMode] = useState<'list' | 'create'>('list');
 
+  const { options: categoryFilterOptions } = useMasterValues(
+    'inventory.purchase_category',
+    PURCHASE_CATEGORIES.map(c => ({ value: c, label: c }))
+  );
+
   const [data,     setData]     = useState<{ total: number; page: number; pageSize: number; items: PurchaseReturnDto[] } | null>(null);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
@@ -1303,7 +1318,7 @@ export default function ReturnsPage() {
             <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setPage(1); }}
               className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400/20 focus:border-orange-400">
               <option value="">All Categories</option>
-              {PURCHASE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {categoryFilterOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           <div>

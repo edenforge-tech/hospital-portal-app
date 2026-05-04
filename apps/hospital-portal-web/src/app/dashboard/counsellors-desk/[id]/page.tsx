@@ -17,11 +17,12 @@ import { SessionHistoryModal } from '@/components/counsellors-desk/SessionHistor
 import type { CounsellingSession, ScheduleData, WaitingListStatus, SessionAuditEntry, DecisionType, MasterCatalogItem, InvestigationItem, CombinedPaymentType } from '@/types/counsellors-desk';
 import type { PriceOverrideRecord } from '@/lib/api/counselling-azure.api';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useMasterValues } from '@/hooks/use-master-values';
 
-const INSURANCE_COMPANY_OPTIONS = [
+const INSURANCE_COMPANY_FALLBACK = [
   'Star Health', 'HDFC Ergo', 'New India Assurance', 'United India',
   'Max Bupa', 'Care Health', 'SBI General', 'Oriental Insurance', 'ECHS', 'CGHS',
-];
+].map(name => ({ value: name, label: name }));
 const PACKAGE_OPTIONS = ['Phaco Standard', 'Phaco Premium', 'LASIK Basic', 'LASIK Advanced', 'Retina Package', 'Cornea Package', 'Glaucoma Package'];
 const INSURANCE_PAYMENT_TYPES: CombinedPaymentType[] = ['Insurance', 'CoPay', 'CGHS'];
 
@@ -50,6 +51,9 @@ export default function CounsellingSessionPage() {
   const router = useRouter();
   const sessionId = params.id as string;
   const { showConfirmation, ConfirmationComponent } = useConfirmation();
+
+  // Insurance providers from master data (falls back to hardcoded list if API unavailable)
+  const { options: insuranceProviderOptions } = useMasterValues('insurance.provider', INSURANCE_COMPANY_FALLBACK);
 
   const [session, setSession] = useState<CounsellingSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -2154,8 +2158,8 @@ export default function CounsellingSessionPage() {
                               <SelectValue placeholder="Select company" />
                             </SelectTrigger>
                             <SelectContent>
-                              {INSURANCE_COMPANY_OPTIONS.map(o => (
-                                <SelectItem key={o} value={o}>{o}</SelectItem>
+                              {insuranceProviderOptions.map(o => (
+                                <SelectItem key={o.value} value={o.label}>{o.label}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>

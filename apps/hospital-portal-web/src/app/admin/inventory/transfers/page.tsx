@@ -5,11 +5,10 @@ import { Plus, RefreshCw, Search, Package, X, CheckCircle, Truck, ArrowLeftRight
 import { toast } from 'react-hot-toast';
 import {
   inventoryTransferApi,
-  inventoryStoreApi,
   inventoryStockApi,
-  StoreDto,
   StockBatchDto,
 } from '@/lib/api/inventory-service.api';
+import { useStores } from '@/hooks/useInventoryReferenceData';
 
 const STATUS_TABS = [
   { key: 'All',        label: 'All',         dot: 'bg-slate-400',   activeClass: 'bg-slate-600 border-slate-600 text-white' },
@@ -67,7 +66,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 }
 
 function CreateTransferModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [stores, setStores] = useState<StoreDto[]>([]);
+  const { data: stores = [] } = useStores();
   const [batches, setBatches] = useState<StockBatchDto[]>([]);
   const [sourceStoreId, setSourceStoreId] = useState('');
   const [destStoreId, setDestStoreId] = useState('');
@@ -76,10 +75,6 @@ function CreateTransferModal({ onClose, onCreated }: { onClose: () => void; onCr
   const [lines, setLines] = useState<{ stockBatchId: string; itemName: string; batchNumber: string; available: number; quantity: number }[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    inventoryStoreApi.list().then(setStores).catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (!sourceStoreId) { setBatches([]); return; }

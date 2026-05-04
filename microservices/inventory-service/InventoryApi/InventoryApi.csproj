@@ -31,6 +31,13 @@
     <!-- Logging -->
     <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.0" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.22.2" />
+
+    <!-- OpenAI SDK for invoice OCR extraction -->
+    <PackageReference Include="OpenAI" Version="2.1.0" />
+    <!-- PDF text extraction (pure .NET, no native deps) -->
+    <PackageReference Include="PdfPig" Version="0.1.14" />
+    <PackageReference Include="PDFtoImage" Version="4.0.0" />
   </ItemGroup>
 
   <ItemGroup>

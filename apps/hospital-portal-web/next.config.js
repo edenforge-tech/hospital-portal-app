@@ -56,10 +56,6 @@ const nextConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
-  // Disable static optimization for API routes
-  generateBuildId: async () => {
-    return 'build-' + Date.now()
-  },
   // Redirect duplicate /imaging/* routes to canonical /diagnostic/* routes
   async redirects() {
     return [

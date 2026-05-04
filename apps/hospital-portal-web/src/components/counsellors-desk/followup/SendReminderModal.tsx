@@ -10,7 +10,7 @@ interface SendReminderModalProps {
   isOpen: boolean;
   onClose: () => void;
   patientId: string;
-  patientName: string;
+  patientName: string;ī
   phone: string | null;
   journeyId?: string;
   onSent?: () => void;

@@ -12,6 +12,7 @@ public interface IVendorPaymentService
         decimal amount, string paymentMode, string? chequeNumber, string? bankTxId,
         string? remarks, CancellationToken ct);
     Task<PagedResult<VendorPaymentDto>> ListPaymentsAsync(Guid tenantId, Guid vendorId, int page, int pageSize, CancellationToken ct);
+    Task ReversePaymentAsync(Guid tenantId, Guid paymentId, string reason, Guid reversedByUserId, CancellationToken ct);
 }
 
 public sealed class VendorPaymentService : IVendorPaymentService
@@ -26,6 +27,15 @@ public sealed class VendorPaymentService : IVendorPaymentService
         decimal amount, string paymentMode, string? chequeNumber, string? bankTxId,
         string? remarks, CancellationToken ct)
     {
+        // Prevent duplicate payment references within the same tenant
+        var isDuplicate = await _db.VendorPayments.AnyAsync(
+            p => p.TenantId == tenantId &&
+                 p.PaymentReference == paymentRef &&
+                 p.DeletedAt == null, ct);
+        if (isDuplicate)
+            throw new InvalidOperationException(
+                $"Payment reference '{paymentRef}' already exists for this tenant.");
+
         var payment = new VendorPayment
         {
             Id = Guid.NewGuid(),
@@ -110,10 +120,90 @@ public sealed class VendorPaymentService : IVendorPaymentService
                 p.Id, p.VendorId, p.InvoiceId,
                 p.PaymentReference, p.PaymentDate,
                 p.Amount, p.PaymentMode,
-                p.ChequeNumber, p.BankTransactionId,
-                p.Remarks, p.CreatedAt))
+                p.Remarks, p.CreatedAt,
+                // NEFT / RTGS
+                p.UtrNumber, p.BankName, p.AccountNumber, p.IfscCode,
+                // Cheque
+                p.ChequeNumber, p.ChequeDate, p.ExpectedClearanceDate,
+                // UPI
+                p.UpiId, p.UpiApp,
+                // Cash
+                p.CashReceiptNumber, p.CashReceivedBy,
+                // Legacy
+                p.BankTransactionId,
+                // Attachment
+                p.AttachmentUrl, p.AttachmentFilename, p.AttachmentSizeKb,
+                // Reversal metadata
+                p.DeletedAt, p.UpdatedByUserId,
+                // Settlement link
+                (Guid?)null))
             .ToListAsync(ct);
 
         return new PagedResult<VendorPaymentDto>(items, total, page, pageSize);
+    }
+
+    public async Task ReversePaymentAsync(
+        Guid tenantId, Guid paymentId, string reason, Guid reversedByUserId, CancellationToken ct)
+    {
+        var payment = await _db.VendorPayments
+            .FirstOrDefaultAsync(p => p.Id == paymentId && p.TenantId == tenantId && p.DeletedAt == null, ct)
+            ?? throw new InvalidOperationException("Payment not found or already reversed.");
+
+        var now = DateTime.UtcNow;
+
+        // Soft-delete the original payment, appending reversal reason
+        payment.DeletedAt       = now;
+        payment.UpdatedAt       = now;
+        payment.UpdatedByUserId = reversedByUserId;
+        payment.Remarks         = string.IsNullOrWhiteSpace(payment.Remarks)
+            ? $"[REVERSED] {reason}"
+            : $"{payment.Remarks} | [REVERSED] {reason}";
+
+        // Reverse the invoice balance if linked
+        if (payment.InvoiceId.HasValue)
+        {
+            var invoice = await _db.PurchaseInvoices.FindAsync([payment.InvoiceId.Value], ct);
+            if (invoice is not null)
+            {
+                invoice.PaidAmount    = Math.Max(0, invoice.PaidAmount - payment.Amount);
+                invoice.BalanceAmount = invoice.NetAmount - invoice.PaidAmount;
+                invoice.UpdatedAt     = now;
+            }
+        }
+
+        // Reverse vendor outstanding balance
+        var vendor = await _db.Vendors.FindAsync([payment.VendorId], ct);
+        if (vendor is not null)
+        {
+            vendor.OutstandingBalance += payment.Amount;
+            vendor.UpdatedAt           = now;
+        }
+
+        // Append reversal ledger entry
+        var lastLedger = await _db.VendorOutstandingLedgers
+            .Where(l => l.TenantId == tenantId && l.VendorId == payment.VendorId)
+            .OrderByDescending(l => l.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        _db.VendorOutstandingLedgers.Add(new VendorOutstandingLedger
+        {
+            Id               = Guid.NewGuid(),
+            TenantId         = tenantId,
+            VendorId         = payment.VendorId,
+            PaymentId        = payment.Id,
+            InvoiceId        = payment.InvoiceId,
+            EntryType        = "PaymentReversal",
+            Debit            = payment.Amount,
+            Credit           = 0,
+            RunningBalance   = (lastLedger?.RunningBalance ?? 0) + payment.Amount,
+            ReferenceNumber  = payment.PaymentReference,
+            EntryDate        = now.Date,
+            Remarks          = reason,
+            CreatedAt        = now,
+            UpdatedAt        = now,
+            CreatedByUserId  = reversedByUserId
+        });
+
+        await _db.SaveChangesAsync(ct);
     }
 }

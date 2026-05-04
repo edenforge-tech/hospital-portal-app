@@ -51,16 +51,11 @@ export function DashboardRouter() {
       const targetDashboard = ROLE_DASHBOARD_MAP[primaryRole];
       
       if (targetDashboard) {
-        console.log(`🎯 Redirecting ${primaryRole} to ${targetDashboard}`);
         router.replace(targetDashboard);
       } else {
-        // Default fallback: if role not mapped, go to frontdesk
-        console.warn(`⚠️ Role "${primaryRole}" not mapped, defaulting to frontdesk`);
         router.replace('/dashboard/frontdesk');
       }
     } else {
-      // No roles assigned, default to frontdesk
-      console.warn('⚠️ No roles found, defaulting to frontdesk');
       router.replace('/dashboard/frontdesk');
     }
   }, [roles, router]);

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using InventoryApi.Helpers;
 using InventoryApi.Models.DTOs;
 using InventoryApi.Services;
 using Microsoft.Azure.Functions.Worker;
@@ -33,6 +34,7 @@ public sealed class InvoiceFunctions
     {
         try
         {
+            RoleGuard.Require(req, RoleGuard.CanCreate);
             var tenantId = ParseGuid(req, "X-Tenant-Id");
             var userId   = ParseGuid(req, "X-User-Id");
             var body     = await JsonSerializer.DeserializeAsync<CreateInvoiceRequest>(req.Body, _json, ct)
@@ -40,6 +42,10 @@ public sealed class InvoiceFunctions
 
             var dto = await _approval.CreateInvoiceAsync(tenantId, userId, body, ct);
             return await OkJson(req, dto, HttpStatusCode.Created);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return await Forbidden(req);
         }
         catch (Exception ex)
         {
@@ -98,10 +104,15 @@ public sealed class InvoiceFunctions
     {
         try
         {
+            RoleGuard.Require(req, RoleGuard.CanCreate);
             var tenantId = ParseGuid(req, "X-Tenant-Id");
             var userId   = ParseGuid(req, "X-User-Id");
             await _approval.SubmitInvoiceAsync(tenantId, id, userId, ct);
             return req.CreateResponse(HttpStatusCode.NoContent);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return await Forbidden(req);
         }
         catch (InvalidOperationException ex)
         {
@@ -121,12 +132,17 @@ public sealed class InvoiceFunctions
     {
         try
         {
+            RoleGuard.Require(req, RoleGuard.CanApprove);
             var tenantId = ParseGuid(req, "X-Tenant-Id");
             var userId   = ParseGuid(req, "X-User-Id");
             var body     = await JsonSerializer.DeserializeAsync<ApproveInvoiceRequest>(req.Body, _json, ct)
                            ?? new ApproveInvoiceRequest("FinalApproval", null);
             await _approval.ApproveInvoiceAsync(tenantId, id, userId, body, ct);
             return req.CreateResponse(HttpStatusCode.NoContent);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return await Forbidden(req);
         }
         catch (InvalidOperationException ex)
         {
@@ -146,10 +162,15 @@ public sealed class InvoiceFunctions
     {
         try
         {
+            RoleGuard.Require(req, RoleGuard.CanApprove);
             var tenantId = ParseGuid(req, "X-Tenant-Id");
             var userId   = ParseGuid(req, "X-User-Id");
             await _approval.CancelInvoiceAsync(tenantId, id, userId, ct);
             return req.CreateResponse(HttpStatusCode.NoContent);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return await Forbidden(req);
         }
         catch (InvalidOperationException ex)
         {
@@ -187,6 +208,7 @@ public sealed class InvoiceFunctions
     {
         try
         {
+            RoleGuard.Require(req, RoleGuard.CanCreate);
             var tenantId = ParseGuid(req, "X-Tenant-Id");
             var userId   = ParseGuid(req, "X-User-Id");
             var body     = await req.ReadFromJsonAsync<UpdateInvoiceRequest>(ct)
@@ -195,6 +217,10 @@ public sealed class InvoiceFunctions
             return result is null
                 ? req.CreateResponse(HttpStatusCode.NotFound)
                 : await OkJson(req, result);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return await Forbidden(req);
         }
         catch (Exception ex)
         {
@@ -210,6 +236,7 @@ public sealed class InvoiceFunctions
     {
         try
         {
+            RoleGuard.Require(req, RoleGuard.CanCreate);
             var tenantId = ParseGuid(req, "X-Tenant-Id");
             var userId   = ParseGuid(req, "X-User-Id");
             var body     = await req.ReadFromJsonAsync<UpdateInvoiceItemsRequest>(ct)
@@ -218,6 +245,10 @@ public sealed class InvoiceFunctions
             return result is null
                 ? req.CreateResponse(HttpStatusCode.NotFound)
                 : await OkJson(req, result);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return await Forbidden(req);
         }
         catch (InvalidOperationException ex)
         {
@@ -256,6 +287,13 @@ public sealed class InvoiceFunctions
     {
         var res = req.CreateResponse(code);
         await res.WriteStringAsync(msg);
+        return res;
+    }
+
+    private static async Task<HttpResponseData> Forbidden(HttpRequestData req)
+    {
+        var res = req.CreateResponse(HttpStatusCode.Forbidden);
+        await res.WriteStringAsync("Insufficient permissions.");
         return res;
     }
 }

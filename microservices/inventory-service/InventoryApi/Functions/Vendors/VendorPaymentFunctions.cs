@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using InventoryApi.Helpers;
 using InventoryApi.Models.DTOs;
 using InventoryApi.Services;
 using Microsoft.Azure.Functions.Worker;
@@ -53,6 +54,7 @@ public sealed class VendorPaymentFunctions
     {
         try
         {
+            RoleGuard.Require(req, RoleGuard.CanCreate);
             var tenantId = ParseGuid(req, "X-Tenant-Id");
             var userId   = ParseGuid(req, "X-User-Id");
             var body     = await JsonSerializer.DeserializeAsync<CreateVendorPaymentRequest>(req.Body, _json, ct)
@@ -83,6 +85,37 @@ public sealed class VendorPaymentFunctions
             };
             return await OkJson(req, result, HttpStatusCode.Created);
         }
+        catch (UnauthorizedAccessException) { return await Forbidden(req); }
+        catch (InvalidOperationException ex) { return await Error(req, HttpStatusCode.Conflict, ex.Message); }
+        catch (Exception ex) { return await BadRequest(req, ex.Message); }
+    }
+
+    // ---------- POST inventory/vendor-payments/{id}/reverse ----------
+    [Function("ReverseVendorPayment")]
+    public async Task<HttpResponseData> ReversePayment(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "vendor-payments/{id:guid}/reverse")]
+        HttpRequestData req, FunctionContext ctx, Guid id, CancellationToken ct)
+    {
+        try
+        {
+            RoleGuard.Require(req, RoleGuard.CanApprove);
+            var tenantId = ParseGuid(req, "X-Tenant-Id");
+            var userId   = ParseGuid(req, "X-User-Id");
+
+            using var ms = new MemoryStream();
+            await req.Body.CopyToAsync(ms, ct);
+            ms.Position = 0;
+            string reason = "No reason provided";
+            if (ms.Length > 0)
+            {
+                var doc = await System.Text.Json.JsonDocument.ParseAsync(ms, cancellationToken: ct);
+                if (doc.RootElement.TryGetProperty("reason", out var r)) reason = r.GetString() ?? reason;
+            }
+
+            await _payments.ReversePaymentAsync(tenantId, id, reason, userId, ct);
+            return req.CreateResponse(HttpStatusCode.NoContent);
+        }
+        catch (UnauthorizedAccessException) { return await Forbidden(req); }
         catch (InvalidOperationException ex) { return await Error(req, HttpStatusCode.Conflict, ex.Message); }
         catch (Exception ex) { return await BadRequest(req, ex.Message); }
     }
@@ -153,6 +186,13 @@ public sealed class VendorPaymentFunctions
     {
         var res = req.CreateResponse(code);
         await res.WriteStringAsync(msg);
+        return res;
+    }
+
+    private static async Task<HttpResponseData> Forbidden(HttpRequestData req)
+    {
+        var res = req.CreateResponse(HttpStatusCode.Forbidden);
+        await res.WriteStringAsync("Insufficient permissions.");
         return res;
     }
 }

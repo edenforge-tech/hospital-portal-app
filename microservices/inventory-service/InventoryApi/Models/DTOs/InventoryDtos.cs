@@ -5,52 +5,75 @@ public record PagedResult<T>(IReadOnlyList<T> Items, int Total, int Page, int Pa
 
 // ── Vendor ────────────────────────────────────────────────────────────────────
 public record VendorDto(
-    Guid     Id,
-    string   Name,
-    string?  ContactPerson,
-    string?  Phone,
-    string?  Email,
-    string?  GstNumber,
-    string?  PanNumber,
-    string?  DrugLicenseNumber,
-    string?  DrugLicense20B,
-    string?  DrugLicense21B,
-    string?  CinNumber,
-    string?  SwiftCode,
-    decimal? LatePaymentInterestRate,
-    bool     IsColdChainVendor,
+    Guid      Id,
+    string    Name,
+    string?   VendorCode,
+    string    VendorCategory,
+    bool      IsPreferred,
+    string?   ContactPerson,
+    string?   Phone,
+    string?   Email,
+    string?   Address,
+    string?   RegisteredAddress,
+    string?   Website,
+    string?   GstNumber,
+    string?   PanNumber,
+    string?   CinNumber,
+    string?   DrugLicenseNumber,
     DateTime? DrugLicenseExpiry,
-    string?  ApmcRegistration,
-    string?  FoodLicenseNumber,
-    string?  ImportExportCode,
-    decimal  CreditDays,
-    decimal  OutstandingBalance,
-    string   Status
+    string?   DrugLicense20B,
+    DateTime? DrugLicense20BExpiry,
+    string?   DrugLicense21B,
+    DateTime? DrugLicense21BExpiry,
+    string?   ApmcRegistration,
+    string?   FoodLicenseNumber,
+    string?   ImportExportCode,
+    string?   SwiftCode,
+    decimal?  LatePaymentInterestRate,
+    bool      IsColdChainVendor,
+    string?   BankName,
+    string?   BankAccountNumber,
+    string?   BankIfscCode,
+    string?   BankAccountHolderName,
+    string    BankAccountType,
+    decimal   CreditDays,
+    decimal   OutstandingBalance,
+    string    Status
 );
 
 public record CreateVendorRequest(
-    string   Name,
-    string?  ContactPerson,
-    string?  Phone,
-    string?  Email,
-    string?  Address,
-    string?  GstNumber,
-    string?  PanNumber,
-    string?  DrugLicenseNumber,
-    string?  DrugLicense20B,
-    string?  DrugLicense21B,
-    string?  CinNumber,
-    string?  SwiftCode,
-    decimal? LatePaymentInterestRate,
-    bool     IsColdChainVendor,
+    string    Name,
+    string?   VendorCode,
+    string    VendorCategory,
+    bool      IsPreferred,
+    string?   ContactPerson,
+    string?   Phone,
+    string?   Email,
+    string?   Address,
+    string?   RegisteredAddress,
+    string?   Website,
+    string?   GstNumber,
+    string?   PanNumber,
+    string?   CinNumber,
+    string?   DrugLicenseNumber,
     DateTime? DrugLicenseExpiry,
-    string?  ApmcRegistration,
-    string?  FoodLicenseNumber,
-    string?  ImportExportCode,
-    string?  BankName,
-    string?  BankAccountNumber,
-    string?  BankIfscCode,
-    decimal  CreditDays = 30
+    string?   DrugLicense20B,
+    DateTime? DrugLicense20BExpiry,
+    string?   DrugLicense21B,
+    DateTime? DrugLicense21BExpiry,
+    string?   ApmcRegistration,
+    string?   FoodLicenseNumber,
+    string?   ImportExportCode,
+    string?   SwiftCode,
+    decimal?  LatePaymentInterestRate,
+    bool      IsColdChainVendor,
+    string?   BankName,
+    string?   BankAccountNumber,
+    string?   BankIfscCode,
+    string?   BankAccountHolderName,
+    string    BankAccountType,
+    decimal   CreditDays = 30,
+    string?   Status = null
 );
 
 // ── Item ──────────────────────────────────────────────────────────────────────
@@ -124,13 +147,22 @@ public record PurchaseInvoiceDto(
     string   ApprovalStatus,
     DateTime CreatedAt,
     List<PurchaseItemDto> Items,
-    string?   GrnNumber         = null,
-    string?   InvoiceType       = null,
-    string?   PaymentMode       = null,
-    int?      CreditPeriod      = null,
-    DateTime? DueDate           = null,
-    string?   Reference         = null,
-    string?   PurchaseCategory  = null
+    string?   GrnNumber             = null,
+    string?   InvoiceType           = null,
+    string?   PaymentMode           = null,
+    int?      CreditPeriod          = null,
+    DateTime? DueDate               = null,
+    string?   Reference             = null,
+    string?   PurchaseCategory      = null,
+    // e-Invoice & E-Way Bill
+    string?   Irn                   = null,
+    string?   AckNo                 = null,
+    DateTime? AckDate               = null,
+    string?   EWayBillNo            = null,
+    DateTime? EWayBillDate          = null,
+    DateTime? DateOfDelivery        = null,
+    bool      IsReverseCharge       = false,
+    string?   VendorGstinOnInvoice  = null
 );
 
 public record PurchaseItemDto(
@@ -158,7 +190,7 @@ public record PurchaseItemDto(
     string?  PatientName,
     string?  PatientIpNo,
     string?  ItemRemarks,
-    // Extended display fields (A3)
+    // Extended display fields
     decimal  Packing,
     decimal  UnitsPerPack,
     decimal  SellingPrice,
@@ -166,7 +198,18 @@ public record PurchaseItemDto(
     decimal  TransferMrp,
     bool     IsAssetItem,
     bool     TaxOnFree,
-    bool     IsReplacement
+    bool     IsReplacement,
+    // Traceability (new)
+    string?  SerialNumber,
+    string?  ManufacturerName,
+    string?  CountryOfOrigin,
+    DateTime? MfgDate,
+    string?  ScheduleType,
+    bool     IsColdChain,
+    string?  BrandName,
+    string?  VendorSku,
+    bool     IsInterState,
+    string?  ExtraFieldsJson
 );
 
 public record CreateInvoiceRequest(
@@ -186,13 +229,22 @@ public record CreateInvoiceRequest(
     decimal  TcsPercent,
     string?  Remarks,
     List<CreatePurchaseItemRequest> Items,
-    // Extended fields (A1) — all optional for backwards compatibility
-    string?  InvoiceType        = null,  // "Invoice" | "PackingSlip"
-    string?  PaymentMode        = null,  // "Cash" | "Credit" | "Cheque" | "Online"
-    int?     CreditPeriod       = null,
-    DateTime? DueDate           = null,
-    string?  Reference          = null,
-    string?  PurchaseCategory   = null
+    // Extended fields — all optional for backwards compatibility
+    string?  InvoiceType         = null,
+    string?  PaymentMode         = null,
+    int?     CreditPeriod        = null,
+    DateTime? DueDate            = null,
+    string?  Reference           = null,
+    string?  PurchaseCategory    = null,
+    // e-Invoice & E-Way Bill (new)
+    string?  Irn                 = null,
+    string?  AckNo               = null,
+    DateTime? AckDate            = null,
+    string?  EWayBillNo          = null,
+    DateTime? EWayBillDate       = null,
+    DateTime? DateOfDelivery     = null,
+    bool     IsReverseCharge     = false,
+    string?  VendorGstinOnInvoice = null
 );
 
 public record CreatePurchaseItemRequest(
@@ -216,15 +268,26 @@ public record CreatePurchaseItemRequest(
     string?  PatientIpNo,
     Guid?    SurgeryId,
     string?  ItemRemarks,
-    // Extended GST form fields (A2) — all optional
-    decimal  SellingPrice   = 0,
-    decimal  Packing        = 0,
-    decimal  UnitsPerPack   = 0,
-    decimal  MrpOnPack      = 0,
-    decimal  TransferMrp    = 0,
-    bool     IsAssetItem    = false,
-    bool     TaxOnFree      = false,
-    bool     IsReplacement  = false
+    // Extended GST form fields — all optional
+    decimal  SellingPrice      = 0,
+    decimal  Packing           = 0,
+    decimal  UnitsPerPack      = 0,
+    decimal  MrpOnPack         = 0,
+    decimal  TransferMrp       = 0,
+    bool     IsAssetItem       = false,
+    bool     TaxOnFree         = false,
+    bool     IsReplacement     = false,
+    // Traceability (new)
+    string?  SerialNumber      = null,
+    string?  ManufacturerName  = null,
+    string?  CountryOfOrigin   = null,
+    DateTime? MfgDate          = null,
+    string?  ScheduleType      = null,
+    bool     IsColdChain       = false,
+    string?  BrandName         = null,
+    string?  VendorSku         = null,
+    bool     IsInterState      = false,
+    string?  ExtraFields       = null
 );
 
 public record UpdateInvoiceRequest(
@@ -282,7 +345,8 @@ public record GrnHeaderDto(
     decimal  TotalAmount,
     string?  PurchaseCategory  = null,
     string?  PaymentMode       = null,
-    string?  StoreName         = null
+    string?  StoreName         = null,
+    string?  ApprovalStatus    = null
 );
 
 public record GrnItemDto(
@@ -341,7 +405,7 @@ public record StockSummaryDto(
     DateTime? NearestExpiry,
     int      BatchCount,
     decimal  ReorderLevel,
-    bool     BelowReorder
+    bool     IsBelowReorder
 );
 
 public record StockBatchDto(
@@ -482,9 +546,24 @@ public record CreateVendorPaymentRequest(
     DateTime PaymentDate,
     decimal  Amount,
     string   PaymentMode,
-    string?  ChequeNumber,
-    string?  BankTransactionId,
-    string?  Remarks
+    string?  Remarks,
+    // NEFT / RTGS
+    string?   UtrNumber             = null,
+    string?   BankName              = null,
+    string?   AccountNumber         = null,
+    string?   IfscCode              = null,
+    // Cheque
+    string?   ChequeNumber          = null,
+    DateTime? ChequeDate            = null,
+    DateTime? ExpectedClearanceDate = null,
+    // UPI
+    string?   UpiId                 = null,
+    string?   UpiApp                = null,
+    // Cash
+    string?   CashReceiptNumber     = null,
+    string?   CashReceivedBy        = null,
+    // Legacy
+    string?   BankTransactionId     = null
 );
 
 // ── GST Summary ───────────────────────────────────────────────────────────────
@@ -588,10 +667,59 @@ public record VendorPaymentDto(
     DateTime  PaymentDate,
     decimal   Amount,
     string    PaymentMode,
-    string?   ChequeNumber,
-    string?   BankTransactionId,
     string?   Remarks,
+    DateTime  CreatedAt,
+    // NEFT / RTGS
+    string?   UtrNumber             = null,
+    string?   BankName              = null,
+    string?   AccountNumber         = null,
+    string?   IfscCode              = null,
+    // Cheque
+    string?   ChequeNumber          = null,
+    DateTime? ChequeDate            = null,
+    DateTime? ExpectedClearanceDate = null,
+    // UPI
+    string?   UpiId                 = null,
+    string?   UpiApp                = null,
+    // Cash
+    string?   CashReceiptNumber     = null,
+    string?   CashReceivedBy        = null,
+    // Legacy
+    string?   BankTransactionId     = null,
+    // Attachment
+    string?   AttachmentUrl         = null,
+    string?   AttachmentFilename    = null,
+    int?      AttachmentSizeKb      = null,
+    // Reversal metadata
+    DateTime? DeletedAt             = null,
+    Guid?     ReversedByUserId      = null,
+    // Settlement link
+    Guid?     SettlementId          = null
+);
+
+// ── Vendor Bank Accounts ─────────────────────────────────────────────────────────────
+public record VendorBankAccountDto(
+    Guid      Id,
+    Guid      VendorId,
+    string    AccountHolderName,
+    string    BankName,
+    string    AccountNumber,
+    string    MaskedAccountNumber,
+    string    IfscCode,
+    string    AccountType,
+    bool      IsPrimary,
+    string?   Nickname,
     DateTime  CreatedAt
+);
+
+public record CreateVendorBankAccountRequest(
+    string  AccountHolderName,
+    string  BankName,
+    string  AccountNumber,
+    string  IfscCode,
+    string  AccountType = "current",
+    bool    IsPrimary   = false,
+    string? Nickname    = null
 );
 
 // ── Procurement Policy DTOs ────────────────────────────────────────────────
@@ -806,6 +934,208 @@ public record ConvertToPORequest
     public string?                       Notes                { get; init; }
     public string?                       Terms                { get; init; }
 }
+// ── Bill Transfer DTOs ────────────────────────────────────────────────────────
+public record BillTransferDto(
+    Guid      Id,
+    Guid      TenantId,
+    Guid      GrnId,
+    Guid      InvoiceId,
+    Guid      VendorId,
+    string?   VendorName,
+    string?   GrnNumber,
+    string?   InvoiceNumber,
+    DateTime? InvoiceDate,
+    DateTime? GrnDate,
+    decimal   GrnTotalAmount,
+    decimal   InvoiceTotalAmount,
+    decimal   CgstAmount,
+    decimal   SgstAmount,
+    decimal   IgstAmount,
+    decimal   TcsAmount,
+    string    Status,
+    Guid?     L1ApprovedBy,
+    DateTime? L1ApprovedAt,
+    string?   L1Remarks,
+    Guid?     L2ApprovedBy,
+    DateTime? L2ApprovedAt,
+    string?   L2Remarks,
+    string?   Remarks,
+    string[]  Attachments,
+    DateTime  CreatedAt,
+    DateTime  UpdatedAt,
+    long      VersionNo,
+    DateTime? L1DueAt,
+    DateTime? L2DueAt,
+    string    SlaState,
+    string?   CreatedByUserId
+);
+
+public record ApproveBillTransferRequest(
+    string? Remarks,
+    long?   ExpectedVersion     = null,
+    string? OverrideReasonCode  = null,
+    string? OverrideReasonText  = null
+);
+
+public record SodDecisionDto(
+    bool                     StrictApplied,
+    bool                     OverrideApplied,
+    decimal                  ThresholdUsed,
+    IReadOnlyList<string>    RuleEvaluations
+);
+
+public record BillTransferActionResultDto(
+    BillTransferDto   BillTransfer,
+    SodDecisionDto?   SodDecision
+);
+
+public record BillTransferReasonCatalogDto(
+    Guid    Id,
+    string  ReasonCode,
+    string  ReasonLabel,
+    string  Category,
+    int     SortOrder
+);
+
+public record BillTransferChangesDto(
+    IReadOnlyList<BillTransferDto> Items,
+    DateTime                       ServerTimestamp
+);
+
+public record BtComplianceReportDto(
+    int      TotalBillTransfers,
+    int      StrictApprovals,
+    int      OverrideApprovals,
+    double   OverridePct,
+    int      SlaBreached,
+    double   MeanApprovalCycleHours,
+    DateTime GeneratedAt
+);
+
+public record BtSlaStatusDto(
+    Guid      BillTransferId,
+    string?   GrnNumber,
+    string?   VendorName,
+    decimal   InvoiceTotalAmount,
+    string    Status,
+    string    SlaState,
+    DateTime? L1DueAt,
+    DateTime? L2DueAt,
+    bool      IsL1Overdue,
+    bool      IsL2Overdue
+);
+
+public record BillTransferEventLogDto(
+    Guid      EventId,
+    Guid      BillTransferId,
+    string?   FromStatus,
+    string    ToStatus,
+    string    Action,
+    Guid      ActorUserId,
+    string?   ActorRole,
+    string?   ReasonCode,
+    string?   ReasonText,
+    bool      OverrideApplied,
+    DateTime  CreatedAt
+);
+
+// ── Invoice Settlement DTOs ────────────────────────────────────────────────────
+public record InvoiceSettlementDto(
+    Guid      Id,
+    Guid      TenantId,
+    Guid      BillTransferId,
+    Guid      VendorId,
+    string?   VendorName,
+    string?   GrnNumber,
+    string?   InvoiceNumber,
+    decimal   GrossAmount,
+    decimal   DebitNoteAdjustment,
+    decimal   TcsAmount,
+    decimal   NetPayableAmount,
+    decimal   AmountPaid,
+    decimal   BalanceRemaining,
+    string    Status,
+    DateTime? DueDate,
+    DateTime? SettledAt,
+    string?   OnHoldReason,
+    string?   CancellationReason,
+    string?   WriteOffReason,
+    DateTime  CreatedAt,
+    DateTime  UpdatedAt,
+    IReadOnlyList<SettlementPaymentDto> Payments
+);
+
+public record SettlementPaymentDto(
+    Guid      Id,
+    Guid?     PaymentId,
+    decimal   AmountAllocated,
+    string    AllocationType,
+    string?   Reference,
+    DateTime  AppliedAt,
+    // Payment-method detail (null for credit-note allocations)
+    string?   PaymentMethod            = null,
+    string?   UtrNumber                = null,
+    string?   BankName                 = null,
+    string?   AccountNumber            = null,
+    string?   IfscCode                 = null,
+    string?   ChequeNumber             = null,
+    DateTime? ChequeDate               = null,
+    DateTime? ExpectedClearanceDate    = null,
+    string?   UpiId                    = null,
+    string?   UpiApp                   = null,
+    string?   CashReceiptNumber        = null,
+    string?   CashReceivedBy           = null,
+    string?   Remarks                  = null,
+    // Proof attachment
+    string?   AttachmentUrl            = null,
+    string?   AttachmentFilename       = null,
+    int?      AttachmentSizeKb         = null
+);
+
+public record RecordSettlementPaymentRequest(
+    decimal   Amount,
+    string    PaymentMethod,        // NEFT | RTGS | Cheque | Cash | UPI
+    string    TransactionReference, // UTR for NEFT/RTGS, Cheque# for Cheque, RRN for UPI, Receipt# for Cash
+    DateTime  PaymentDate,
+    string?   Remarks,
+    // NEFT / RTGS
+    string?   UtrNumber             = null,
+    string?   BankName              = null,
+    string?   AccountNumber         = null,
+    string?   IfscCode              = null,
+    // Cheque
+    DateTime? ChequeDate            = null,
+    DateTime? ExpectedClearanceDate = null,
+    // UPI
+    string?   UpiId                 = null,
+    string?   UpiApp                = null,
+    // Cash
+    string?   CashReceiptNumber     = null,
+    string?   CashReceivedBy        = null
+);
+
+public record ApplyCreditNoteRequest(
+    Guid      PurchaseReturnId,
+    string?   Remarks
+);
+
+public record HoldSettlementRequest(string Reason);
+public record WriteOffSettlementRequest(string Reason);
+public record CancelSettlementRequest(string Reason);
+
+/// <summary>Immutable audit-trail entry for a settlement state change.</summary>
+public record SettlementEventLogDto(
+    Guid      Id,
+    string    FromStatus,
+    string    ToStatus,
+    string    EventType,
+    string?   Reason,
+    decimal?  Amount,
+    Guid?     ActorUserId,
+    string    ActorType,
+    DateTime  OccurredAt
+);
+
 // ── Week 3: PO Receipt, Vendor Performance & Dashboard ─────────────────────
 
 public record RecordPoReceiptItemLine
@@ -842,4 +1172,212 @@ public record InventoryDashboardSummary(
     int     LowStockCount,
     decimal ThisMonthPoSpend,
     decimal OnTimeDeliveryRate    // 0–100 %
+);
+
+// ── Invoice OCR Extraction ────────────────────────────────────────────────────
+// Confidence bands:
+//   High   >= 0.90  → auto-accept in UI
+//   Review  0.70-0.89 → user must confirm
+//   Low    < 0.70  → user must manually enter
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// <summary>Confidence band for a single extracted field.</summary>
+public enum ExtractionConfidence { High, Review, Low }
+
+/// <summary>A single extracted + matched field with confidence metadata.</summary>
+public record ExtractedField<T>(
+    T?       Value,          // Normalised value ready to populate the form field
+    string?  SourceText,     // Raw text from the document before normalisation
+    ExtractionConfidence Confidence,
+    string?  MismatchReason  // Populated when confidence < High
+);
+
+/// <summary>Candidate match returned for vendor/store/item lookups.</summary>
+public record ExtractionCandidate(Guid Id, string Name, decimal Score);
+
+/// <summary>Extracted header section of an invoice document.</summary>
+public record ExtractedInvoiceHeader(
+    ExtractedField<string>   InvoiceNumber,
+    ExtractedField<DateTime?> InvoiceDate,
+    ExtractedField<DateTime?> GrnDate,
+    ExtractedField<string>   InvoiceType,       // "Invoice" | "Packing Slip"
+    ExtractedField<string>   PaymentMode,
+    ExtractedField<int?>     CreditPeriod,
+    ExtractedField<string>   Reference,
+    ExtractedField<string>   Remarks,
+    // Vendor resolution
+    ExtractedField<string>   VendorName,
+    ExtractedField<string>   VendorGstin,
+    ExtractedField<string>   VendorContact,
+    ExtractedField<string>   VendorPhone,
+    ExtractedField<string>   VendorEmail,
+    IReadOnlyList<ExtractionCandidate> VendorCandidates,
+    Guid?                    ResolvedVendorId,
+    // Store resolution
+    ExtractedField<string>   StoreName,
+    IReadOnlyList<ExtractionCandidate> StoreCandidates,
+    Guid?                    ResolvedStoreId,
+    // e-Invoice & E-Way Bill (new)
+    ExtractedField<string>   Irn,
+    ExtractedField<string>   AckNo,
+    ExtractedField<DateTime?> AckDate,
+    ExtractedField<string>   EWayBillNo,
+    ExtractedField<DateTime?> EWayBillDate,
+    ExtractedField<DateTime?> DateOfDelivery,
+    ExtractedField<bool>     IsReverseCharge,
+    ExtractedField<string>   VendorGstinOnInvoice
+);
+
+/// <summary>Extracted line item from an invoice document.</summary>
+public record ExtractedLineItem(
+    // Item resolution
+    ExtractedField<string>   RawDescription,
+    ExtractedField<string>   HsnCode,
+    IReadOnlyList<ExtractionCandidate> ItemCandidates,
+    Guid?                    ResolvedItemId,
+    string?                  ResolvedItemName,
+    // Quantities / batch
+    ExtractedField<decimal>  OrderedQuantity,
+    ExtractedField<decimal>  FreeQuantity,
+    ExtractedField<string>   BatchNumber,
+    ExtractedField<DateTime?> ExpiryDate,
+    // Pricing
+    ExtractedField<decimal>  PurchaseRate,
+    ExtractedField<decimal>  Mrp,
+    ExtractedField<decimal>  DiscountPercent,
+    ExtractedField<decimal>  SellingPrice,
+    // GST
+    ExtractedField<decimal>  GstPercent,
+    ExtractedField<decimal>  CgstPercent,
+    ExtractedField<decimal>  SgstPercent,
+    ExtractedField<decimal>  IgstPercent,
+    ExtractedField<bool>     IsInterState,
+    // Traceability (new)
+    ExtractedField<string[]?> SerialNumbers,
+    ExtractedField<string>   ManufacturerName,
+    ExtractedField<string>   CountryOfOrigin,
+    ExtractedField<DateTime?> MfgDate,
+    ExtractedField<string>   ScheduleType,
+    ExtractedField<bool>     IsColdChain,
+    ExtractedField<string>   BrandName,
+    ExtractedField<string>   VendorSku,
+    ExtractedField<string?>  ExtraFieldsJson
+);
+
+/// <summary>Extracted totals / tax summary section.</summary>
+public record ExtractedTotals(
+    ExtractedField<decimal> Subtotal,
+    ExtractedField<decimal> TotalCgst,
+    ExtractedField<decimal> TotalSgst,
+    ExtractedField<decimal> TotalIgst,
+    ExtractedField<decimal> TotalDiscount,
+    ExtractedField<decimal> RoundingAmount,
+    ExtractedField<decimal> NetAmount,
+    ExtractedField<decimal> TcsAmount    // Tax Collected at Source — 0 when not applicable
+);
+
+/// <summary>Full extraction result returned from the preview endpoint.</summary>
+public record InvoiceExtractionPreview(
+    string                        SessionId,       // Opaque ID linking to stored blob + extraction metadata
+    string?                       DocumentUrl,     // Blob storage URL for display in UI (read-only link)
+    string                        OriginalFilename,
+    string                        ProviderModel,   // e.g. "gpt-4o-mini"
+    int                           ProcessingMs,
+    bool                          HasDuplicateWarning,  // Vendor + invoice no + date already exists
+    string?                       DuplicateWarningDetail,
+    ExtractedInvoiceHeader        Header,
+    IReadOnlyList<ExtractedLineItem> LineItems,
+    ExtractedTotals               Totals
+);
+
+/// <summary>User-confirmed payload for a single line item after review.</summary>
+public record ConfirmedLineItem(
+    Guid     ItemId,
+    decimal  OrderedQuantity,
+    decimal  FreeQuantity,
+    string?  BatchNumber,
+    DateTime? ExpiryDate,
+    string?  Barcode,
+    decimal  Mrp,
+    decimal  PurchaseRate,
+    decimal  DiscountPercent,
+    string?  HsnCode,
+    decimal  GstPercent,
+    decimal  CgstPercent,
+    decimal  SgstPercent,
+    decimal  IgstPercent,
+    decimal  SellingPrice    = 0,
+    decimal  Packing         = 0,
+    decimal  UnitsPerPack    = 0,
+    decimal  MrpOnPack       = 0,
+    decimal  TransferMrp     = 0,
+    bool     IsAssetItem     = false,
+    bool     TaxOnFree       = false,
+    bool     IsReplacement   = false,
+    string?  ItemRemarks     = null,
+    // Traceability (new)
+    string?  SerialNumber      = null,
+    string?  ManufacturerName  = null,
+    string?  CountryOfOrigin   = null,
+    DateTime? MfgDate          = null,
+    string?  ScheduleType      = null,
+    bool     IsColdChain       = false,
+    string?  BrandName         = null,
+    string?  VendorSku         = null,
+    bool     IsInterState      = false,
+    string?  ExtraFieldsJson   = null,
+    // Patient linkage
+    string?  PatientName       = null,
+    string?  PatientIpNo       = null,
+    Guid?    SurgeryId         = null,
+    decimal  OriginalMrp       = 0,
+    bool     IsFullDiscount    = false
+);
+
+/// <summary>
+/// User-confirmed full payload submitted after reviewing extraction.
+/// Backend creates invoice and optionally generates GRN unchanged.
+/// </summary>
+public record ConfirmExtractionRequest(
+    string   SessionId,
+    Guid     VendorId,
+    Guid     StoreId,
+    string   InvoiceNumber,
+    DateTime InvoiceDate,
+    string   InvoiceType,
+    string?  PaymentMode,
+    int?     CreditPeriod,
+    DateTime? DueDate,
+    string?  Reference,
+    string?  PurchaseCategory,
+    string?  Remarks,
+    DateTime GrnDate,
+    bool     GenerateGrn,
+    IReadOnlyList<ConfirmedLineItem> Items,
+    // e-Invoice & E-Way Bill (new)
+    string?  Irn                  = null,
+    string?  AckNo                = null,
+    DateTime? AckDate             = null,
+    string?  EWayBillNo           = null,
+    DateTime? EWayBillDate        = null,
+    DateTime? DateOfDelivery      = null,
+    bool     IsReverseCharge      = false,
+    string?  VendorGstinOnInvoice = null,
+    // ── Audit metadata (passed from frontend for compliance logging) ──────────
+    string?  OriginalFilename     = null,
+    string?  DocumentUrl          = null,
+    string?  ProviderModel        = null,
+    int      ProcessingMs         = 0,
+    int      HighFieldCount       = 0,
+    int      ReviewFieldCount     = 0,
+    int      LowFieldCount        = 0,
+    int      FieldOverrideCount   = 0,
+    string?  OverriddenFieldsJson = null,
+    decimal  TcsTotalAmount       = 0    // Invoice-level TCS amount extracted from document
+);
+
+/// <summary>Response from the confirm endpoint with created invoice and optional GRN.</summary>
+public record ConfirmExtractionResponse(
+    PurchaseInvoiceDto Invoice,
+    GrnHeaderDto?      Grn         // null when GenerateGrn = false
 );

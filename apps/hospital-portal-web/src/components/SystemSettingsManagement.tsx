@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useState } from 'react';
+import { useMasterValues } from '@/hooks/use-master-values';
 import { 
   Settings, 
   Mail, 
@@ -197,7 +198,7 @@ const tabs = [
   { id: 'integration' as SettingTab, label: 'Integration', icon: Database, description: 'API and third-party services' }
 ];
 
-const timezones = [
+const TIMEZONE_FALLBACK = [
   'America/New_York',
   'America/Chicago',
   'America/Denver',
@@ -208,9 +209,9 @@ const timezones = [
   'Europe/Paris',
   'Asia/Tokyo',
   'Australia/Sydney'
-];
+].map(tz => ({ value: tz, label: tz }));
 
-const languages = [
+const LANGUAGE_FALLBACK = [
   { value: 'en', label: 'English' },
   { value: 'es', label: 'Spanish' },
   { value: 'fr', label: 'French' },
@@ -219,7 +220,7 @@ const languages = [
   { value: 'ja', label: 'Japanese' }
 ];
 
-const currencies = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD'];
+const CURRENCY_FALLBACK = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD'].map(c => ({ value: c, label: c }));
 
 export function SystemSettingsManagement() {
   const [activeTab, setActiveTab] = useState<SettingTab>('general');
@@ -228,6 +229,10 @@ export function SystemSettingsManagement() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [showSmtpPassword, setShowSmtpPassword] = useState(false);
+
+  const { options: timezoneOptions } = useMasterValues('system.timezone', TIMEZONE_FALLBACK);
+  const { options: languageOptions }  = useMasterValues('system.language',  LANGUAGE_FALLBACK);
+  const { options: currencyOptions }  = useMasterValues('system.currency',  CURRENCY_FALLBACK);
 
   const handleSettingChange = (category: keyof SystemSettings, field: string, value: any) => {
     setSettings(prev => ({
@@ -386,8 +391,8 @@ export function SystemSettingsManagement() {
                         onChange={(e) => handleSettingChange('general', 'timezone', e.target.value)}
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       >
-                        {timezones.map(tz => (
-                          <option key={tz} value={tz}>{tz}</option>
+                        {timezoneOptions.map(o => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
                         ))}
                       </select>
                     </div>
@@ -450,8 +455,8 @@ export function SystemSettingsManagement() {
                         onChange={(e) => handleSettingChange('general', 'language', e.target.value)}
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       >
-                        {languages.map(lang => (
-                          <option key={lang.value} value={lang.value}>{lang.label}</option>
+                        {languageOptions.map(o => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
                         ))}
                       </select>
                     </div>
@@ -463,8 +468,8 @@ export function SystemSettingsManagement() {
                         onChange={(e) => handleSettingChange('general', 'currency', e.target.value)}
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       >
-                        {currencies.map(currency => (
-                          <option key={currency} value={currency}>{currency}</option>
+                        {currencyOptions.map(o => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
                         ))}
                       </select>
                     </div>

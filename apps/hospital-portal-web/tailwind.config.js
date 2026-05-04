@@ -30,9 +30,9 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-        heading: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
-        mono: ['IBM Plex Mono', 'Courier New', 'monospace'],
+        sans: ['var(--font-inter)', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        heading: ['var(--font-plus-jakarta-sans)', 'Inter', 'sans-serif'],
+        mono: ['var(--font-ibm-plex-mono)', 'Courier New', 'monospace'],
       },
       fontSize: {
         'xs': ['0.75rem', { lineHeight: '1rem' }],

@@ -6,11 +6,10 @@ import { toast } from 'react-hot-toast';
 import {
   inventoryBillApi,
   inventoryPharmacyApi,
-  inventoryStoreApi,
   inventoryStockApi,
-  StoreDto,
   StockBatchDto,
 } from '@/lib/api/inventory-service.api';
+import { useStores } from '@/hooks/useInventoryReferenceData';
 
 const STATUS_TABS = [
   { key: 'All',             label: 'All',              dot: 'bg-slate-400',   activeClass: 'bg-slate-600 border-slate-600 text-white' },
@@ -74,7 +73,8 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 }
 
 function CreateBillModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [stores, setStores] = useState<StoreDto[]>([]);
+  const { data: allStores = [] } = useStores();
+  const stores = allStores.filter(x => x.storeType === 'Pharmacy' || x.storeType === 'Central');
   const [batches, setBatches] = useState<StockBatchDto[]>([]);
   const [storeId, setStoreId] = useState('');
   const [patientId, setPatientId] = useState('');
@@ -84,10 +84,6 @@ function CreateBillModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const [lines, setLines] = useState<{ stockBatchId: string; itemName: string; batchNumber: string; available: number; quantity: number; unitPrice: number }[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    inventoryStoreApi.list().then(s => setStores(s.filter(x => x.storeType === 'Pharmacy' || x.storeType === 'Central'))).catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (!storeId) { setBatches([]); return; }

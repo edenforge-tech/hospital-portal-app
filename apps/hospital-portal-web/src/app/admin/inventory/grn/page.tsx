@@ -1,20 +1,25 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, X, Trash2, AlertTriangle, Package, Edit } from 'lucide-react';
+import { Plus, X, Trash2, AlertTriangle, Package, Edit, Upload } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { ConfirmationDialog } from '@/components/common/ConfirmationDialog';
 import { useAuthStore } from '@/lib/auth-store';
 import {
-  inventoryVendorApi,
   inventoryInvoiceApi,
-  inventoryStoreApi,
+  invoiceExtractionApi,
   VendorDto,
   StoreDto,
+  type InvoiceExtractionPreview,
+  type ConfirmExtractionRequest,
 } from '@/lib/api/inventory-service.api';
 import { ItemSearchModal, LastPurchaseInfo } from '@/components/inventory/ItemSearchModal';
 import { ItemGstFormModal, GrnLineItem } from '@/components/inventory/ItemGstFormModal';
+import { InvoiceUploadPanel } from '@/components/inventory/InvoiceUploadPanel';
+import { ExtractionGrnReview } from '@/components/inventory/ExtractionGrnReview';
 import type { ItemDto } from '@/lib/api/inventory-service.api';
+import { useMasterValues } from '@/hooks/use-master-values';
+import { useVendors, useStores } from '@/hooks/useInventoryReferenceData';
 
 const PURCHASE_CATEGORIES = ['Pharmacy', 'OT & Surgery', 'Consumables', 'Optical', 'Laboratory', 'Stationery', 'Equipment', 'General Hospital'];
 const PAYMENT_MODES       = ['Cash', 'Credit', 'UPI', 'NEFT', 'RTGS', 'Cheque'];
@@ -50,6 +55,15 @@ function InlineHeaderForm({
   onCancel: () => void;
 }) {
   const today = new Date().toISOString().slice(0, 10);
+  const { options: purchaseCategoryOptions } = useMasterValues(
+    'inventory.purchase_category',
+    PURCHASE_CATEGORIES.map(c => ({ value: c, label: c }))
+  );
+  const { options: paymentModeOptions } = useMasterValues(
+    'billing.payment_mode',
+    PAYMENT_MODES.map(m => ({ value: m, label: m }))
+  );
+
   const [vendorId,         setVendorId]         = useState('');
   const [storeId,          setStoreId]          = useState('');
   const [invoiceType,      setInvoiceType]      = useState<'Invoice' | 'Packing Slip'>('Invoice');
@@ -147,14 +161,14 @@ function InlineHeaderForm({
             <label className={lblCls}>Purchase Category</label>
             <select value={purchaseCategory} onChange={e => setPurchaseCategory(e.target.value)} className={inputCls}>
               <option value="">Select…</option>
-              {PURCHASE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {purchaseCategoryOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           <div>
             <label className={lblCls}>Payment Mode</label>
             <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)} className={inputCls}>
               <option value="">Select…</option>
-              {PAYMENT_MODES.map(m => <option key={m} value={m}>{m}</option>)}
+              {paymentModeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           <div>
@@ -275,7 +289,19 @@ function InlineGrnCard({
           isAssetItem: l.isAssetItem, taxOnFree: l.taxOnFree, isReplacement: l.isReplacement,
         })),
       });
-      toast.success('Purchase saved! Find it in Purchase Query.', { id: tid });
+      toast.dismiss(tid);
+      toast.custom((t) => (
+        <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-sm w-full bg-white shadow-lg rounded-xl pointer-events-auto flex items-center gap-3 px-4 py-3 border border-green-200`}>
+          <div className="flex-1 text-sm font-medium text-gray-800">Purchase saved!</div>
+          <a
+            href="/admin/inventory/purchase-query"
+            className="text-sm font-semibold text-teal-600 hover:text-teal-700 whitespace-nowrap"
+            onClick={() => toast.dismiss(t.id)}
+          >
+            View in Purchase Query →
+          </a>
+        </div>
+      ), { duration: 6000 });
       onSaved();
     } catch (err: any) {
       toast.error(err?.response?.data ?? 'Failed to save purchase', { id: tid });
@@ -532,21 +558,79 @@ function InlineGrnCard({
 
 // ─── Main page ────────────────────────────────────────────────────────────────────
 export default function GrnPage() {
-  const [vendors,  setVendors]  = useState<VendorDto[]>([]);
-  const [stores,   setStores]   = useState<StoreDto[]>([]);
-  const [mode,     setMode]     = useState<'idle' | 'header' | 'items'>('idle');
-  const [header,   setHeader]   = useState<HeaderData | null>(null);
-  const [refCount, setRefCount] = useState(0);
+  const { data: vendors = [] } = useVendors();
+  const { data: rawStores = [] } = useStores();
+  const stores: StoreDto[] = Array.isArray(rawStores) ? rawStores : [];
+  const [mode,             setMode]             = useState<'idle' | 'upload' | 'review' | 'header' | 'items'>('idle');
+  const [header,           setHeader]           = useState<HeaderData | null>(null);
+  const [refCount,         setRefCount]         = useState(0);
+  const [extractionPreview, setExtractionPreview] = useState<InvoiceExtractionPreview | null>(null);
+  const [uploadProcessing,  setUploadProcessing]  = useState(false);
+  const [confirmingExtraction, setConfirmingExtraction] = useState(false);
+  const [extractionError, setExtractionError] = useState<string | null>(null);
 
-  const loadRefData = useCallback(async () => {
+  const handleFileSelected = useCallback(async (file: File) => {
+    setExtractionError(null);
+    setUploadProcessing(true);
+    const tid = toast.loading('Analysing invoice — this may take up to a minute…');
     try {
-      const [vResult, sResult] = await Promise.all([inventoryVendorApi.list(1, 200), inventoryStoreApi.list()]);
-      setVendors(vResult.items ?? []);
-      setStores(Array.isArray(sResult) ? sResult : []);
-    } catch { /* non-critical */ }
+      const preview = await invoiceExtractionApi.upload(file);
+      setExtractionPreview(preview);
+      toast.success('Invoice read successfully — please review the extracted fields.', { id: tid });
+      setMode('review');
+    } catch (err: any) {
+      const msg = err?.response?.data ?? 'Could not read invoice. The file may be password-protected, corrupted, or an unsupported format.';
+      setExtractionError(msg);
+      toast.error(msg, { id: tid });
+    } finally {
+      setUploadProcessing(false);
+    }
   }, []);
 
-  useEffect(() => { loadRefData(); }, [loadRefData]);
+  const handleExtractionConfirm = useCallback(async (data: Parameters<React.ComponentProps<typeof ExtractionGrnReview>['onConfirm']>[0]) => {
+    if (!extractionPreview) return;
+    setConfirmingExtraction(true);
+    const tid = toast.loading('Saving purchase…');
+    try {
+      const req: ConfirmExtractionRequest = {
+        sessionId:            extractionPreview.sessionId,
+        vendorId:             data.vendorId,
+        storeId:              data.storeId,
+        invoiceNumber:        data.invoiceNumber,
+        invoiceDate:          new Date(data.invoiceDate).toISOString(),
+        invoiceType:          data.invoiceType,
+        paymentMode:          data.paymentMode   || null,
+        creditPeriod:         parseInt(data.creditPeriod) || null,
+        dueDate:              data.dueDate        ? new Date(data.dueDate).toISOString() : null,
+        reference:            data.reference     || null,
+        purchaseCategory:     data.purchaseCategory || null,
+        remarks:              data.remarks        || null,
+        grnDate:              data.grnDate,
+        generateGrn:          true,
+        items:                data.items,
+        // Audit metadata
+        originalFilename:     data.originalFilename,
+        documentUrl:          data.documentUrl,
+        providerModel:        data.providerModel,
+        processingMs:         data.processingMs,
+        highFieldCount:       data.highFieldCount,
+        reviewFieldCount:     data.reviewFieldCount,
+        lowFieldCount:        data.lowFieldCount,
+        fieldOverrideCount:   data.fieldOverrideCount,
+        overriddenFieldsJson: data.overriddenFieldsJson,
+        tcsTotalAmount:       data.tcsTotalAmount ?? 0,
+      };
+      await invoiceExtractionApi.confirm(req);
+      toast.success('Purchase saved from invoice!', { id: tid });
+      setRefCount(c => c + 1);
+      setMode('idle');
+      setExtractionPreview(null);
+    } catch (err: any) {
+      toast.error(err?.response?.data ?? 'Failed to save purchase', { id: tid });
+    } finally {
+      setConfirmingExtraction(false);
+    }
+  }, [extractionPreview]);
 
   return (
     <div className="min-h-screen bg-gray-50/60 p-4 sm:p-6">
@@ -556,12 +640,20 @@ export default function GrnPage() {
           <p className="text-sm text-gray-500 mt-0.5">Goods Receipt Notes</p>
         </div>
         {mode === 'idle' && (
-          <button
-            onClick={() => setMode('header')}
-            className="self-start sm:self-auto flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm hover:shadow-md transition-all"
-          >
-            <Plus size={15} /> New GRN
-          </button>
+          <div className="flex gap-2 self-start sm:self-auto">
+            <button
+              onClick={() => setMode('upload')}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl shadow-sm hover:shadow-md transition-all"
+            >
+              <Upload size={15} /> Upload Invoice
+            </button>
+            <button
+              onClick={() => setMode('header')}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm hover:shadow-md transition-all"
+            >
+              <Plus size={15} /> New GRN
+            </button>
+          </div>
         )}
       </div>
 
@@ -569,6 +661,26 @@ export default function GrnPage() {
         <p className="text-xs text-emerald-600 font-medium mb-4">
           ✓ {refCount} purchase{refCount !== 1 ? 's' : ''} saved this session
         </p>
+      )}
+
+      {mode === 'upload' && (
+        <InvoiceUploadPanel
+          isProcessing={uploadProcessing}
+          onFileSelected={handleFileSelected}
+          onCancel={() => { setMode('idle'); setUploadProcessing(false); setExtractionError(null); }}
+          extractionError={extractionError}
+          onRetry={() => setExtractionError(null)}
+        />
+      )}
+
+      {mode === 'review' && extractionPreview && (
+        <ExtractionGrnReview
+          preview={extractionPreview}
+          vendors={vendors}
+          stores={stores}
+          onConfirm={handleExtractionConfirm}
+          onClose={() => { setMode('idle'); setExtractionPreview(null); }}
+        />
       )}
 
       {mode === 'header' && (

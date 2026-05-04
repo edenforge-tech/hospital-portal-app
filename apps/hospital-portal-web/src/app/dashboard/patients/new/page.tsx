@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { patientApi } from '@/lib/api/patients.api';
 import RegistrationCardPreview from '@/components/patients/RegistrationCardPreview';
 import { X } from 'lucide-react';
+import { useMasterValues } from '@/hooks/use-master-values';
 
 interface PatientFormData {
   // Phase 6: Extended Demographics
@@ -167,7 +168,52 @@ export default function NewPatientPage() {
   const [calculatedAge, setCalculatedAge] = useState<string>('');
   const [savedPatient, setSavedPatient] = useState<any>(null);
   const [showRegistrationCard, setShowRegistrationCard] = useState(false);
-  
+
+  // ── Master data dropdowns (feature-flag aware, fallback to hardcoded) ─────────
+  const TITLE_FALLBACK = [
+    { value: 'Dr', label: 'Dr.' }, { value: 'Mr', label: 'Mr.' },
+    { value: 'Ms', label: 'Ms.' }, { value: 'Mrs', label: 'Mrs.' },
+    { value: 'Master', label: 'Master' }, { value: 'Miss', label: 'Miss' },
+  ];
+  const GENDER_FALLBACK = [
+    { value: 'Male', label: 'Male' }, { value: 'Female', label: 'Female' },
+    { value: 'Other', label: 'Other' },
+  ];
+  const OCCUPATION_FALLBACK = [
+    { value: 'Student', label: 'Student' }, { value: 'Homemaker', label: 'Homemaker' },
+    { value: 'Retired', label: 'Retired' }, { value: 'Unemployed', label: 'Unemployed' },
+    { value: 'Business Owner', label: 'Business Owner' }, { value: 'Self Employed', label: 'Self Employed' },
+    { value: 'Private Sector', label: 'Private Sector' }, { value: 'Government Employee', label: 'Government Employee' },
+    { value: 'Healthcare Professional', label: 'Healthcare Professional' },
+    { value: 'Teacher/Professor', label: 'Teacher/Professor' }, { value: 'Engineer', label: 'Engineer' },
+    { value: 'IT Professional', label: 'IT Professional' }, { value: 'Skilled Labor', label: 'Skilled Labor' },
+    { value: 'Agriculture', label: 'Agriculture' }, { value: 'Other', label: 'Other' },
+  ];
+  const MARITAL_FALLBACK = [
+    { value: 'Single', label: 'Single' }, { value: 'Married', label: 'Married' },
+    { value: 'Divorced', label: 'Divorced' }, { value: 'Widowed', label: 'Widowed' },
+    { value: 'Separated', label: 'Separated' },
+  ];
+  const RELIGION_FALLBACK = [
+    { value: 'Hindu', label: 'Hindu' }, { value: 'Muslim', label: 'Muslim' },
+    { value: 'Christian', label: 'Christian' }, { value: 'Sikh', label: 'Sikh' },
+    { value: 'Buddhist', label: 'Buddhist' }, { value: 'Jain', label: 'Jain' },
+    { value: 'Jewish', label: 'Jewish' }, { value: 'Other', label: 'Other' },
+    { value: 'Prefer not to say', label: 'Prefer not to say' },
+  ];
+  const BLOOD_GROUP_FALLBACK = [
+    { value: 'A+', label: 'A+' }, { value: 'A-', label: 'A-' },
+    { value: 'B+', label: 'B+' }, { value: 'B-', label: 'B-' },
+    { value: 'AB+', label: 'AB+' }, { value: 'AB-', label: 'AB-' },
+    { value: 'O+', label: 'O+' }, { value: 'O-', label: 'O-' },
+  ];
+  const { options: titleOptions } = useMasterValues('patient.title', TITLE_FALLBACK);
+  const { options: genderOptions } = useMasterValues('patient.gender', GENDER_FALLBACK);
+  const { options: occupationOptions } = useMasterValues('patient.occupation', OCCUPATION_FALLBACK);
+  const { options: maritalOptions } = useMasterValues('patient.marital_status', MARITAL_FALLBACK);
+  const { options: religionOptions } = useMasterValues('patient.religion', RELIGION_FALLBACK);
+  const { options: bloodGroupOptions } = useMasterValues('patient.blood_group', BLOOD_GROUP_FALLBACK);
+
   // Webcam state
   const [showWebcam, setShowWebcam] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -539,12 +585,9 @@ export default function NewPatientPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select Title</option>
-                    <option value="Dr">Dr.</option>
-                    <option value="Mr">Mr.</option>
-                    <option value="Ms">Ms.</option>
-                    <option value="Mrs">Mrs.</option>
-                    <option value="Master">Master</option>
-                    <option value="Miss">Miss</option>
+                    {titleOptions.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -637,9 +680,9 @@ export default function NewPatientPage() {
                     onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
+                    {genderOptions.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -712,21 +755,9 @@ export default function NewPatientPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select Occupation</option>
-                      <option value="Student">Student</option>
-                      <option value="Homemaker">Homemaker</option>
-                      <option value="Retired">Retired</option>
-                      <option value="Unemployed">Unemployed</option>
-                      <option value="Business Owner">Business Owner</option>
-                      <option value="Self Employed">Self Employed</option>
-                      <option value="Private Sector">Private Sector</option>
-                      <option value="Government Employee">Government Employee</option>
-                      <option value="Healthcare Professional">Healthcare Professional</option>
-                      <option value="Teacher/Professor">Teacher/Professor</option>
-                      <option value="Engineer">Engineer</option>
-                      <option value="IT Professional">IT Professional</option>
-                      <option value="Skilled Labor">Skilled Labor</option>
-                      <option value="Agriculture">Agriculture</option>
-                      <option value="Other">Other</option>
+                      {occupationOptions.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -742,11 +773,9 @@ export default function NewPatientPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select Status</option>
-                      <option value="Single">Single</option>
-                      <option value="Married">Married</option>
-                      <option value="Divorced">Divorced</option>
-                      <option value="Widowed">Widowed</option>
-                      <option value="Separated">Separated</option>
+                      {maritalOptions.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
                     </select>
                   </div>
 
@@ -760,15 +789,9 @@ export default function NewPatientPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select Religion (Optional)</option>
-                      <option value="Hindu">Hindu</option>
-                      <option value="Muslim">Muslim</option>
-                      <option value="Christian">Christian</option>
-                      <option value="Sikh">Sikh</option>
-                      <option value="Buddhist">Buddhist</option>
-                      <option value="Jain">Jain</option>
-                      <option value="Jewish">Jewish</option>
-                      <option value="Other">Other</option>
-                      <option value="Prefer not to say">Prefer not to say</option>
+                      {religionOptions.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -953,14 +976,9 @@ export default function NewPatientPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select Blood Group</option>
-                    <option value="A+">A+</option>
-                    <option value="A-">A-</option>
-                    <option value="B+">B+</option>
-                    <option value="B-">B-</option>
-                    <option value="AB+">AB+</option>
-                    <option value="AB-">AB-</option>
-                    <option value="O+">O+</option>
-                    <option value="O-">O-</option>
+                    {bloodGroupOptions.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
                   </select>
                 </div>
 

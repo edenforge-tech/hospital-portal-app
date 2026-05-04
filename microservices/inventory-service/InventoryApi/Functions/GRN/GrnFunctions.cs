@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using InventoryApi.Helpers;
 using InventoryApi.Models.DTOs;
 using InventoryApi.Services;
 using Microsoft.Azure.Functions.Worker;
@@ -51,6 +52,7 @@ public sealed class GrnFunctions
     {
         try
         {
+            RoleGuard.Require(req, RoleGuard.CanCreate);
             var tenantId = ParseGuid(req, "X-Tenant-Id");
             var userId   = ParseGuid(req, "X-User-Id");
             var body     = await JsonSerializer.DeserializeAsync<CreateGrnRequest>(req.Body, _json, ct)
@@ -59,6 +61,7 @@ public sealed class GrnFunctions
             var dto = await _grn.CreateGrnAsync(tenantId, userId, body, ct);
             return await OkJson(req, dto, HttpStatusCode.Created);
         }
+        catch (UnauthorizedAccessException) { return await Forbidden(req); }
         catch (InvalidOperationException ex) { return await Error(req, HttpStatusCode.Conflict, ex.Message); }
         catch (Exception ex) { return await BadRequest(req, GetFullMessage(ex)); }
     }
@@ -87,6 +90,7 @@ public sealed class GrnFunctions
     {
         try
         {
+            RoleGuard.Require(req, RoleGuard.CanApprove);
             var tenantId = ParseGuid(req, "X-Tenant-Id");
             var userId   = ParseGuid(req, "X-User-Id");
             var body     = await TryDeserializeRemarks(req, ct);
@@ -94,6 +98,7 @@ public sealed class GrnFunctions
             if (dto is null) return req.CreateResponse(HttpStatusCode.NotFound);
             return await OkJson(req, dto);
         }
+        catch (UnauthorizedAccessException) { return await Forbidden(req); }
         catch (InvalidOperationException ex) { return await Error(req, HttpStatusCode.Conflict, ex.Message); }
         catch (Exception ex) { return await BadRequest(req, GetFullMessage(ex)); }
     }
@@ -106,6 +111,7 @@ public sealed class GrnFunctions
     {
         try
         {
+            RoleGuard.Require(req, RoleGuard.CanApprove);
             var tenantId = ParseGuid(req, "X-Tenant-Id");
             var userId   = ParseGuid(req, "X-User-Id");
             var body     = await TryDeserializeRemarks(req, ct);
@@ -113,6 +119,7 @@ public sealed class GrnFunctions
             if (dto is null) return req.CreateResponse(HttpStatusCode.NotFound);
             return await OkJson(req, dto);
         }
+        catch (UnauthorizedAccessException) { return await Forbidden(req); }
         catch (InvalidOperationException ex) { return await Error(req, HttpStatusCode.Conflict, ex.Message); }
         catch (Exception ex) { return await BadRequest(req, GetFullMessage(ex)); }
     }
@@ -125,12 +132,14 @@ public sealed class GrnFunctions
     {
         try
         {
+            RoleGuard.Require(req, RoleGuard.CanApprove);
             var tenantId = ParseGuid(req, "X-Tenant-Id");
             var userId   = ParseGuid(req, "X-User-Id");
             var dto = await _grn.CancelAsync(tenantId, id, userId, ct);
             if (dto is null) return req.CreateResponse(HttpStatusCode.NotFound);
             return await OkJson(req, dto);
         }
+        catch (UnauthorizedAccessException) { return await Forbidden(req); }
         catch (InvalidOperationException ex) { return await Error(req, HttpStatusCode.Conflict, ex.Message); }
         catch (Exception ex) { return await BadRequest(req, GetFullMessage(ex)); }
     }
@@ -143,6 +152,7 @@ public sealed class GrnFunctions
     {
         try
         {
+            RoleGuard.Require(req, RoleGuard.CanCreate);
             var tenantId = ParseGuid(req, "X-Tenant-Id");
             var userId   = ParseGuid(req, "X-User-Id");
             using var ms = new MemoryStream();
@@ -159,6 +169,7 @@ public sealed class GrnFunctions
             var dto = await _grn.GenerateGrnFromInvoiceAsync(tenantId, invoiceId, userId, grnDate, remarks, ct);
             return await OkJson(req, dto, HttpStatusCode.Created);
         }
+        catch (UnauthorizedAccessException) { return await Forbidden(req); }
         catch (InvalidOperationException ex) { return await Error(req, HttpStatusCode.Conflict, ex.Message); }
         catch (Exception ex) { return await BadRequest(req, GetFullMessage(ex)); }
     }
@@ -171,6 +182,7 @@ public sealed class GrnFunctions
     {
         try
         {
+            RoleGuard.Require(req, RoleGuard.CanApprove);
             var tenantId = ParseGuid(req, "X-Tenant-Id");
             var userId   = ParseGuid(req, "X-User-Id");
             var body     = await TryDeserializeRemarks(req, ct);
@@ -178,6 +190,7 @@ public sealed class GrnFunctions
             if (dto is null) return req.CreateResponse(HttpStatusCode.NotFound);
             return await OkJson(req, dto);
         }
+        catch (UnauthorizedAccessException) { return await Forbidden(req); }
         catch (InvalidOperationException ex) { return await Error(req, HttpStatusCode.Conflict, ex.Message); }
         catch (Exception ex) { return await BadRequest(req, GetFullMessage(ex)); }
     }
@@ -224,6 +237,13 @@ public sealed class GrnFunctions
     {
         var res = req.CreateResponse(code);
         await res.WriteStringAsync(msg);
+        return res;
+    }
+
+    private static async Task<HttpResponseData> Forbidden(HttpRequestData req)
+    {
+        var res = req.CreateResponse(HttpStatusCode.Forbidden);
+        await res.WriteStringAsync("Insufficient permissions.");
         return res;
     }
 

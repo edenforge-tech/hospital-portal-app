@@ -6,25 +6,25 @@ import { toast } from 'react-hot-toast';
 import { BarcodeScanner } from '@/components/inventory/BarcodeScanner';
 import {
   inventoryItemApi,
-  inventoryCategoryApi,
   ItemDto,
   CreateItemRequest,
   CategoryDto,
 } from '@/lib/api/inventory-service.api';
+import { useCategories } from '@/hooks/useInventoryReferenceData';
 
-const ITEM_TYPES = ['Drugs', 'Surgical', 'Equipment', 'Consumables', 'Optical', 'IOL'];
+const ITEM_TYPES = ['Drug', 'Surgical', 'Equipment', 'Consumable', 'Optical', 'IOL'];
 const SCHEDULE_TYPES = ['H', 'H1', 'X', 'G', 'OTC'];
 const UNITS = ['Nos', 'Strips', 'Bottles', 'Vials', 'Ampoules', 'Kg', 'Grams', 'Litre', 'ML', 'Boxes'];
 const GST_RATES = ['0', '5', '12', '18', '28'];
 
 const TYPE_TABS = [
-  { key: 'All',         dot: 'bg-slate-400', activeClass: 'bg-slate-600 border-slate-600 text-white' },
-  { key: 'Drugs',       dot: 'bg-blue-400',  activeClass: 'bg-blue-500 border-blue-500 text-white' },
-  { key: 'Surgical',    dot: 'bg-teal-400',  activeClass: 'bg-teal-600 border-teal-600 text-white' },
-  { key: 'Equipment',   dot: 'bg-purple-400',activeClass: 'bg-purple-600 border-purple-600 text-white' },
-  { key: 'Consumables', dot: 'bg-orange-400',activeClass: 'bg-orange-500 border-orange-500 text-white' },
-  { key: 'Optical',     dot: 'bg-pink-400',  activeClass: 'bg-pink-500 border-pink-500 text-white' },
-  { key: 'IOL',         dot: 'bg-indigo-400',activeClass: 'bg-indigo-600 border-indigo-600 text-white' },
+  { key: 'All',        label: 'All',          dot: 'bg-slate-400',  activeClass: 'bg-slate-600 border-slate-600 text-white' },
+  { key: 'Drug',       label: 'Drugs',        dot: 'bg-blue-400',   activeClass: 'bg-blue-500 border-blue-500 text-white' },
+  { key: 'Surgical',   label: 'Surgical',     dot: 'bg-teal-400',   activeClass: 'bg-teal-600 border-teal-600 text-white' },
+  { key: 'Equipment',  label: 'Equipment',    dot: 'bg-purple-400', activeClass: 'bg-purple-600 border-purple-600 text-white' },
+  { key: 'Consumable', label: 'Consumables',  dot: 'bg-orange-400', activeClass: 'bg-orange-500 border-orange-500 text-white' },
+  { key: 'Optical',    label: 'Optical',      dot: 'bg-pink-400',   activeClass: 'bg-pink-500 border-pink-500 text-white' },
+  { key: 'IOL',        label: 'IOL',          dot: 'bg-indigo-400', activeClass: 'bg-indigo-600 border-indigo-600 text-white' },
 ];
 
 function SkeletonRow() {
@@ -52,7 +52,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 }
 
 const BLANK: CreateItemRequest = {
-  itemName: '', genericName: '', itemCode: '', itemType: 'Drugs', categoryId: undefined,
+  itemName: '', genericName: '', itemCode: '', itemType: 'Drug', categoryId: undefined,
   unit: 'Nos', hsnCode: '', manufacturer: '', gstPercent: 0, cgstPercent: 0, sgstPercent: 0,
   igstPercent: 0, scheduleType: undefined, reorderLevel: 0, maxStockLevel: 0,
 };
@@ -187,8 +187,8 @@ function ItemModal({ initial, categories, onClose, onSaved }: {
 }
 
 export default function ItemsPage() {
+  const { data: categories = [] } = useCategories();
   const [rows, setRows] = useState<ItemDto[]>([]);
-  const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -198,12 +198,8 @@ export default function ItemsPage() {
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [items, cats] = await Promise.all([
-        inventoryItemApi.list({ pageSize: 200 }),
-        inventoryCategoryApi.list(),
-      ]);
+      const items = await inventoryItemApi.list({ pageSize: 200 });
       setRows(items.items ?? []);
-      setCategories(cats ?? []);
     } catch (err: any) { setError(err?.response?.data ?? err?.message ?? 'Failed to load.'); }
     finally { setLoading(false); }
   }, []);
@@ -240,7 +236,7 @@ export default function ItemsPage() {
           <button key={t.key} onClick={() => setTypeTab(t.key)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors
               ${typeTab === t.key ? t.activeClass : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'}`}>
-            <span className={`w-2 h-2 rounded-full ${t.dot}`} />{t.key}
+            <span className={`w-2 h-2 rounded-full ${t.dot}`} />{t.label}
           </button>
         ))}
       </div>

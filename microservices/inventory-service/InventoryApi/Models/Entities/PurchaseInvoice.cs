@@ -59,6 +59,21 @@ public class PurchaseInvoice
     public DateTime? DueDate { get; set; }
     public string? Reference { get; set; }
     public string? PurchaseCategory { get; set; }
+
+    // e-Invoice / IRN
+    public string? Irn { get; set; }
+    public string? AckNo { get; set; }
+    public DateTime? AckDate { get; set; }
+
+    // E-Way Bill
+    public string? EWayBillNo { get; set; }
+    public DateTime? EWayBillDate { get; set; }
+
+    // Delivery & compliance
+    public DateTime? DateOfDelivery { get; set; }
+    public bool IsReverseCharge { get; set; } = false;
+    public string? VendorGstinOnInvoice { get; set; }  // as printed on physical invoice
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public Guid? CreatedByUserId { get; set; }

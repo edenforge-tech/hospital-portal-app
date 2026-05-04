@@ -42,7 +42,7 @@ public sealed class InventoryDashboardService : IInventoryDashboardService
                     .Where(b => b.TenantId == tenantId && b.ItemId == i.Id && b.DeletedAt == null && b.IsActive)
                     .Sum(b => (decimal?)b.QuantityAvailable) ?? 0m
             })
-            .CountAsync(x => x.Available < x.ReorderLevel, ct);
+            .CountAsync(x => x.Available <= x.ReorderLevel, ct);
 
         // This month PO spend (fully received or closed POs)
         var monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);

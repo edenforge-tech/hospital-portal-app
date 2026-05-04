@@ -1,8 +1,28 @@
 import type { Metadata, Viewport } from 'next';
+import { Inter, Plus_Jakarta_Sans, IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/components/AuthProvider';
 import { ThemeProvider } from '@/lib/theme/ThemeProvider';
 import { ReactQueryProvider } from '@/components/ReactQueryProvider';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+});
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-plus-jakarta-sans',
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+  weight: ['400', '500', '600'],
+  variable: '--font-ibm-plex-mono',
+});
 
 export const metadata: Metadata = {
   title: 'Hospital Portal - Eye Hospital Management System',
@@ -24,12 +44,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${plusJakartaSans.variable} ${ibmPlexMono.variable}`}>
       <head>
         <meta name="color-scheme" content="light dark" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@100..900&family=Plus+Jakarta+Sans:wght@200..800&display=swap" rel="stylesheet" />
       </head>
       <body className="font-sans">
         {/* Skip link for keyboard users */}

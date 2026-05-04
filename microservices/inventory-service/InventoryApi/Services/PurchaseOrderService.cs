@@ -20,6 +20,8 @@ public interface IPurchaseOrderService
     Task<PurchaseOrder> CloseAsync(Guid tenantId, Guid userId, Guid poId, CancellationToken ct);
     Task<PurchaseOrder> RecordReceiptAsync(Guid tenantId, Guid userId, Guid poId, RecordPoReceiptRequest req, CancellationToken ct);
     Task<PagedResult<VendorPerformanceSummaryDto>> GetVendorPerformanceAsync(Guid tenantId, Guid? vendorId, int page, int pageSize, CancellationToken ct);
+    Task<List<ProcurementTransitionLog>> GetLogsAsync(Guid tenantId, Guid poId, CancellationToken ct);
+    Task<GrnHeaderDto> GenerateGrnFromPoAsync(Guid tenantId, Guid userId, Guid poId, CancellationToken ct);
 }
 
 public sealed class PurchaseOrderService : IPurchaseOrderService
@@ -28,13 +30,15 @@ public sealed class PurchaseOrderService : IPurchaseOrderService
     private readonly IBranchProcurementPolicyService _policyService;
     private readonly IVendorAcknowledgmentService _acks;
     private readonly INotificationClient _notify;
+    private readonly IGrnService _grn;
 
-    public PurchaseOrderService(InventoryDbContext db, IBranchProcurementPolicyService policyService, IVendorAcknowledgmentService acks, INotificationClient notify)
+    public PurchaseOrderService(InventoryDbContext db, IBranchProcurementPolicyService policyService, IVendorAcknowledgmentService acks, INotificationClient notify, IGrnService grn)
     {
         _db = db;
         _policyService = policyService;
         _acks = acks;
         _notify = notify;
+        _grn = grn;
     }
 
     public async Task<PurchaseOrder> CreateAsync(Guid tenantId, Guid userId, CreatePurchaseOrderRequest req, CancellationToken ct)
@@ -499,5 +503,84 @@ public sealed class PurchaseOrderService : IPurchaseOrderService
         var total = grouped.Count;
         var items = grouped.Skip((page - 1) * pageSize).Take(pageSize).ToList();
         return new PagedResult<VendorPerformanceSummaryDto>(items, total, page, pageSize);
+    }
+
+    public async Task<List<ProcurementTransitionLog>> GetLogsAsync(Guid tenantId, Guid poId, CancellationToken ct)
+        => await _db.ProcurementTransitionLogs
+            .Where(l => l.TenantId == tenantId && l.EntityId == poId
+                     && l.EntityType == "PurchaseOrder" && l.DeletedAt == null)
+            .OrderBy(l => l.TransitionedAt)
+            .ToListAsync(ct);
+
+    public async Task<GrnHeaderDto> GenerateGrnFromPoAsync(Guid tenantId, Guid userId, Guid poId, CancellationToken ct)
+    {
+        var po = await _db.PurchaseOrders
+            .Include(p => p.Items)
+            .FirstOrDefaultAsync(p => p.TenantId == tenantId && p.Id == poId && p.DeletedAt == null, ct)
+            ?? throw new KeyNotFoundException("Purchase order not found.");
+
+        if (po.Items.Count == 0)
+            throw new InvalidOperationException("PO has no items.");
+
+        // Create a Draft invoice from the PO
+        var invoice = new PurchaseInvoice
+        {
+            Id              = Guid.NewGuid(),
+            TenantId        = tenantId,
+            VendorId        = po.VendorId,
+            StoreId         = po.Items.First().Id != Guid.Empty
+                                ? _db.PurchaseOrders.Local.FirstOrDefault(x => x.Id == poId)?.BranchId ?? Guid.Empty
+                                : Guid.Empty,
+            InvoiceNumber   = $"PO-{po.PoNumber}",
+            InvoiceDate     = DateTime.UtcNow,
+            ApprovalStatus  = "PrimaryApproved",
+            GrossAmount     = po.TotalAmount,
+            TaxableAmount   = po.TotalAmount,
+            TotalGst        = po.GstAmount,
+            NetAmount       = po.NetAmount,
+            Status          = "active",
+            CreatedAt       = DateTime.UtcNow,
+            UpdatedAt       = DateTime.UtcNow,
+            CreatedByUserId = userId,
+            UpdatedByUserId = userId,
+        };
+
+        // Resolve StoreId from PO branch (use branch id as store fallback)
+        invoice.StoreId = po.BranchId;
+
+        foreach (var poItem in po.Items)
+        {
+            var taxable = Math.Round(poItem.OrderedQty * poItem.UnitPrice, 2);
+            var cgstPct = poItem.GstPercent / 2;
+            var cgstAmt = Math.Round(taxable * cgstPct / 100, 2);
+            var sgstAmt = cgstAmt;
+            var net     = taxable + cgstAmt + sgstAmt;
+
+            invoice.Items.Add(new PurchaseItem
+            {
+                Id               = Guid.NewGuid(),
+                TenantId         = tenantId,
+                InvoiceId        = invoice.Id,
+                ItemId           = poItem.ItemId,
+                OrderedQuantity  = poItem.OrderedQty,
+                ReceivedQuantity = poItem.OrderedQty,
+                PurchaseRate     = poItem.UnitPrice,
+                GstPercent       = poItem.GstPercent,
+                CgstPercent      = cgstPct,
+                SgstPercent      = cgstPct,
+                TaxableAmount    = taxable,
+                GstAmount        = cgstAmt + sgstAmt,
+                NetAmount        = net,
+                CreatedAt        = DateTime.UtcNow,
+                UpdatedAt        = DateTime.UtcNow,
+                CreatedByUserId  = userId,
+                UpdatedByUserId  = userId,
+            });
+        }
+
+        _db.PurchaseInvoices.Add(invoice);
+        await _db.SaveChangesAsync(ct);
+
+        return await _grn.GenerateGrnFromInvoiceAsync(tenantId, invoice.Id, userId, DateTime.UtcNow, $"Auto-generated from PO {po.PoNumber}", ct);
     }
 }

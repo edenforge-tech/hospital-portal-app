@@ -41,15 +41,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   mustChangePassword: false,
 
   setAuth: (token, refreshToken, user, roles, permissions, tenantId, mustChangePassword) => {
-    console.log('🔐 Auth Store - setAuth called:', {
-      tenantId: tenantId,
-      userEmail: user.email,
-      hasToken: !!token,
-      tokenPreview: token ? token.substring(0, 20) + '...' : null,
-      rolesCount: roles.length,
-      permissionsCount: permissions.length
-    });
-    
     set({
       token,
       refreshToken,
@@ -68,7 +59,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.setItem('roles', JSON.stringify(roles));
       localStorage.setItem('permissions', JSON.stringify(permissions));
       localStorage.setItem('tenant_id', tenantId);
-      console.log('✅ Auth persisted to localStorage');
     }
   },
 
@@ -125,11 +115,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 }));
 
-// Expose auth store to window for debugging
-if (typeof window !== 'undefined') {
-  (window as any).useAuthStore = useAuthStore;
-}
-
 // Helper function to check if JWT token is expired
 function isTokenExpired(token: string): boolean {
   try {
@@ -163,14 +148,6 @@ export function hydrateAuthFromStorage() {
     const permissionsJson = localStorage.getItem('permissions');
     const tenantId = localStorage.getItem('tenant_id');
 
-    console.log('🔄 Hydrating auth from localStorage:', {
-      hasToken: !!token,
-      hasTenantId: !!tenantId,
-      hasUser: !!userJson,
-      tenantId: tenantId,
-      tokenPreview: token ? token.substring(0, 20) + '...' : null
-    });
-
     if (token && userJson) {
       // Check if token is expired before restoring
       if (isTokenExpired(token)) {
@@ -188,13 +165,15 @@ export function hydrateAuthFromStorage() {
       const roles = rolesJson ? JSON.parse(rolesJson) : [];
       const permissions = permissionsJson ? JSON.parse(permissionsJson) : [];
 
-      console.log('✅ Restoring auth state for user:', user.email);
       useAuthStore.getState().setAuth(token, refreshToken || '', user, roles, permissions, tenantId || '', false);
-    } else {
-      console.warn('⚠️ No token or user in localStorage - user needs to log in');
     }
   } catch (e) {
-    // ignore malformed storage
     console.warn('Failed to hydrate auth from storage', e);
   }
+}
+
+// Hydrate immediately at module load so the first client render already has the token.
+// AuthProvider calls this again on mount (no-op since state is already set).
+if (typeof window !== 'undefined') {
+  hydrateAuthFromStorage();
 }
